@@ -1,0 +1,33 @@
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+import { DEFAULT_CONFIG } from '@serena/domain';
+import { env } from './env.ts';
+import { openDb } from './db.ts';
+import { Vault } from './crypto.ts';
+import { createApp } from './app.ts';
+import { buildRegistry } from './payments/index.ts';
+import { BasicCompanion, ClaudeCompanion } from './companion.ts';
+import { ConsoleGuardNotifier, ConsoleMessenger, WebhookGuardNotifier } from './notify.ts';
+import type { AppContext } from './context.ts';
+
+const here = dirname(fileURLToPath(import.meta.url));
+
+const ctx: AppContext = {
+  db: openDb(env.dbPath),
+  vault: new Vault(env.masterKey),
+  jwtKey: new TextEncoder().encode(env.jwtSecret),
+  publicUrl: env.publicUrl,
+  exposeDevOtp: env.exposeDevOtp,
+  config: process.env.SERENA_CONFIG_JSON ? { ...DEFAULT_CONFIG, ...JSON.parse(process.env.SERENA_CONFIG_JSON) } : DEFAULT_CONFIG,
+  payments: buildRegistry({ ...env.payments, sandboxSecret: env.jwtSecret, publicUrl: env.publicUrl }),
+  companion: env.anthropic.enabled ? new ClaudeCompanion(env.anthropic.model) : new BasicCompanion(),
+  messenger: new ConsoleMessenger(),
+  guard: env.guardWebhookUrl ? new WebhookGuardNotifier(env.guardWebhookUrl, env.guardWebhookSecret) : new ConsoleGuardNotifier(),
+};
+
+const app = createApp(ctx, { staticDir: process.env.SERENA_STATIC_DIR ?? join(here, '../../web/dist') });
+app.listen(env.port, () => {
+  console.info(`[serena] API en http://localhost:${env.port}`);
+  console.info(`[serena] Acompañante: ${env.anthropic.enabled ? `modelo ${env.anthropic.model}` : 'básico (sin ANTHROPIC_API_KEY)'}`);
+  console.info(`[serena] Pagos: ${ctx.payments.list().map((p) => p.nombre).join(', ') || 'ninguno configurado'}`);
+});

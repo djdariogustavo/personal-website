@@ -1,0 +1,29 @@
+{
+  "name": "serena-companion",
+  "private": true,
+  "version": "0.1.0",
+  "description": "SERENA Companion™ — app personal de bienestar del trabajador (SERENA Centinela).",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "engines": {
+    "node": ">=22.5"
+  },
+  "scripts": {
+    "dev": "npm run dev -w @serena/server & npm run dev -w @serena/web",
+    "dev:server": "npm run dev -w @serena/server",
+    "dev:web": "npm run dev -w @serena/web",
+    "seed": "npm run seed -w @serena/server",
+    "build": "npm run build -w @serena/web && npm run build -w @serena/server",
+    "start": "npm run start -w @serena/server",
+    "typecheck": "tsc -p packages/domain && tsc -p apps/server && tsc -p apps/web",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.0.0"
+  }
+}
