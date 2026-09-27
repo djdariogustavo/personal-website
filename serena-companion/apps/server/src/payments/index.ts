@@ -64,7 +64,7 @@ export function buildRegistry(opts: {
   if (opts.stripe.secretKey) reg.register(new StripeProvider(opts.stripe.secretKey, opts.stripe.webhookSecret, opts.stripe.priceIds));
   if (opts.mercadopago.accessToken)
     reg.register(new MercadoPagoProvider(opts.mercadopago.accessToken, opts.mercadopago.webhookSecret, opts.mercadopago.currency));
-  if (opts.sandbox) reg.register(new SandboxProvider(opts.sandboxSecret, opts.publicUrl));
+  if (opts.sandbox) reg.register(new SandboxProvider(opts.sandboxSecret));
   return reg;
 }
 

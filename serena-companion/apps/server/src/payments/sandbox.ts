@@ -18,10 +18,7 @@ export class SandboxProvider implements PaymentProvider {
   readonly nombre = 'Pasarela de prueba';
   readonly monedas = ['USD', 'ARS', 'CLP'];
 
-  constructor(
-    private secret: string,
-    private publicUrl: string,
-  ) {}
+  constructor(private secret: string) {}
 
   async createCheckout(input: CheckoutInput): Promise<CheckoutOutput> {
     const q = new URLSearchParams({
@@ -30,7 +27,8 @@ export class SandboxProvider implements PaymentProvider {
       puestos: String(input.puestos),
       moneda: input.moneda,
     });
-    return { url: `${this.publicUrl}/admin/facturacion/sandbox?${q}`, externoId: `sbx_${input.checkoutId}` };
+    // Ruta relativa: la pasarela de prueba vive dentro de la misma app (mismo origen que la sesión).
+    return { url: `/admin/facturacion/sandbox?${q}`, externoId: `sbx_${input.checkoutId}` };
   }
 
   sign(body: string): string {

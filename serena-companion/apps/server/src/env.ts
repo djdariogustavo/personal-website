@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 /**
  * Configuración por variables de entorno. Ver .env.example en la raíz.
@@ -14,10 +16,22 @@ function required(name: string, devFallback: () => string): string {
   return devFallback();
 }
 
+/**
+ * Claves de desarrollo: se generan una vez y se guardan en data/.dev-keys.json
+ * (ignorado por git) para que los datos cifrados sigan siendo legibles entre
+ * reinicios y entre `npm run seed` y el servidor. Nunca se usan en producción.
+ */
+const DEV_KEYS_PATH = new URL('../../../data/.dev-keys.json', import.meta.url).pathname;
 function devKey(label: string): string {
-  // Clave de desarrollo estable por proceso. Nunca usar en producción.
-  console.warn(`[serena] ${label} no definida: usando una clave efímera de desarrollo.`);
-  return randomBytes(32).toString('base64');
+  let keys: Record<string, string> = {};
+  if (existsSync(DEV_KEYS_PATH)) keys = JSON.parse(readFileSync(DEV_KEYS_PATH, 'utf8')) as Record<string, string>;
+  if (!keys[label]) {
+    keys[label] = randomBytes(32).toString('base64');
+    mkdirSync(dirname(DEV_KEYS_PATH), { recursive: true });
+    writeFileSync(DEV_KEYS_PATH, JSON.stringify(keys, null, 2), { mode: 0o600 });
+    console.warn(`[serena] ${label} no definida: se generó una clave de desarrollo en ${DEV_KEYS_PATH}.`);
+  }
+  return keys[label]!;
 }
 
 export const env = {
