@@ -12,11 +12,14 @@ import {
 } from 'node:crypto';
 
 /**
- * Criptografía del servidor.
+ * Criptografía del servidor (detalle y límites en docs/SEGURIDAD-Y-CIFRADO.md).
  * - Contraseñas y PIN: scrypt (N=2^15, r=8, p=1) con sal aleatoria.
  * - Datos en reposo: AES-256-GCM con una clave por usuario derivada por HKDF-SHA256
- *   de la clave maestra y el id del usuario. Borrar a un usuario (o rotar su
- *   sal) vuelve ilegibles sus datos aun en copias de respaldo.
+ *   de la clave maestra y el id del usuario, con el id como dato autenticado
+ *   (un texto cifrado no se puede mover a otra persona).
+ *   Límite: la clave se puede volver a derivar con la clave maestra y el id, así
+ *   que borrar a un usuario NO vuelve ilegibles sus datos en copias de respaldo;
+ *   eso depende de la política de retención de los respaldos.
  * - Códigos de un solo uso y tokens: se guarda solo su hash.
  */
 

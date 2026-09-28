@@ -5,6 +5,9 @@
  * - Cada valor se guarda cifrado con AES-GCM (256 bits). La clave se genera en
  *   el dispositivo como CryptoKey NO extraíble y se guarda en la misma base: el
  *   navegador no permite leer su material, solo usarla desde este origen.
+ *   Límite: quien pueda ejecutar código en este origen (p. ej. con el equipo
+ *   desbloqueado y las herramientas de desarrollo) puede usarla. Es una capa de
+ *   defensa, no una bóveda; ver docs/SEGURIDAD-Y-CIFRADO.md §2.
  * - En el kiosco se usa una base en memoria: al cerrar la sesión no queda nada.
  */
 

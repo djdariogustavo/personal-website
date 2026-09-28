@@ -18,11 +18,20 @@ export interface Messenger {
   sendAviso(to: { telefono: string | null; email: string | null }, texto: string): Promise<void>;
 }
 
+const produccion = () => process.env.NODE_ENV === 'production';
+
+/**
+ * Solo desarrollo: escribe el código en la consola. En producción nunca escribe códigos ni teléfonos
+ * en los registros (quien los leyera podría ingresar a la cuenta); el servidor además no arranca sin
+ * un proveedor de SMS real (env.ts, problemasDeProduccion).
+ */
 export class ConsoleMessenger implements Messenger {
   async sendOtp(to: { telefono: string | null; email: string | null }, code: string, proposito: OtpProposito = 'ingreso') {
+    if (produccion()) return void console.error('[serena][sms] Sin proveedor de SMS: el código no se entregó.');
     console.info(`[serena][${proposito === 'ingreso' ? '2FA' : 'recuperación'}] Código para ${to.telefono ?? to.email ?? 'usuario'}: ${code}`);
   }
   async sendAviso(to: { telefono: string | null; email: string | null }, texto: string) {
+    if (produccion()) return;
     console.info(`[serena][aviso] Para ${to.telefono ?? to.email ?? 'usuario'}: ${texto}`);
   }
 }
@@ -89,11 +98,20 @@ export class WebhookGuardNotifier implements GuardNotifier {
   }
 }
 
+/**
+ * Simulador de la guardia para desarrollo y demos: informa "entregado" y lo escribe en la consola.
+ * En producción NUNCA informa "entregado" (nadie lo recibe: la app debe decir la verdad y sugerir la
+ * radio) ni escribe el nombre de la persona en los registros.
+ */
 export class ConsoleGuardNotifier implements GuardNotifier {
   readonly canal = 'GUARDIA DE FAENA (PEC)';
   readonly sent: GuardAlert[] = [];
   async notify(alert: GuardAlert) {
     this.sent.push(alert);
+    if (produccion()) {
+      console.error(`[serena][guardia] SIN CANAL CONFIGURADO: el aviso ${alert.alertId} no llegó a la guardia.`);
+      return { entregado: false };
+    }
     console.warn(`[serena][guardia] ${alert.tipo}${alert.agrupados ? ` ×${alert.agrupados} (resumen)` : ''} · ${alert.prioridad} · ${alert.faena} · ${alert.trabajador.nombre} · ${alert.alertId}`);
     return { entregado: true };
   }

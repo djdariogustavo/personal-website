@@ -59,7 +59,7 @@ serena-companion/
 ### Decisiones y garantías
 
 - **Privacidad por diseño.** Check-ins, conversaciones y ubicación se guardan cifrados con una clave por
-  usuario. La empresa solo accede a estadísticas agregadas con control de divulgación
+  usuario (qué protege y qué no, en `docs/SEGURIDAD-Y-CIFRADO.md`). La empresa solo accede a estadísticas agregadas con control de divulgación
   (`packages/domain/src/disclosure.ts`): se cuenta por persona y no por check-in, los grupos deben tener al
   menos 5 personas y cada categoría al menos 3 (si no, se fusiona u oculta), no se publican grupos
   homogéneos, los porcentajes se redondean a 5 puntos y la ventana es fija (4 semanas completas, se

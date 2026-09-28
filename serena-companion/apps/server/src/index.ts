@@ -1,7 +1,7 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { DEFAULT_CONFIG } from '@serena/domain';
-import { env } from './env.ts';
+import { env, problemasDeProduccion } from './env.ts';
 import { openDb } from './db.ts';
 import { Vault } from './crypto.ts';
 import { createApp } from './app.ts';
@@ -13,6 +13,15 @@ import { flushOrphanGroups } from './routes/safety.ts';
 import { purgarVencidas } from './baja.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
+
+// En producción no se arranca a medias: sin guardia ni SMS el servicio prometería algo que no cumple.
+if (env.isProd) {
+  const problemas = problemasDeProduccion({ ...env, smsConfigurado: false /* Twilio: pendiente A15 */ });
+  if (problemas.length) {
+    console.error(`[serena] No se puede iniciar en producción:\n  - ${problemas.join('\n  - ')}`);
+    process.exit(1);
+  }
+}
 
 const ctx: AppContext = {
   db: openDb(env.dbPath),

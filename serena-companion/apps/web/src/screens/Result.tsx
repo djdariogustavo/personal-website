@@ -75,7 +75,7 @@ export function Result({ kiosk = false }: { kiosk?: boolean }) {
       </div>
       <div className="sticky-foot label">
         <Icon name="lock" size={14} />
-        SOLO VOS VES ESTE RESULTADO
+        TU EMPRESA NO VE ESTE RESULTADO
       </div>
     </div>
   );

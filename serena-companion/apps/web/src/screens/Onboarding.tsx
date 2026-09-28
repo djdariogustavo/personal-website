@@ -74,7 +74,7 @@ export const CONSENT_ITEMS: Array<[keyof Consents, string, string]> = [
   ['camara', 'Lectura fisiológica por cámara (NeuroSentinel™)', 'La cámara mide tu pulso y respiración. El video se procesa en tu dispositivo y se descarta. No se guarda tu cara.'],
   ['animo', 'Autorreporte de ánimo y fatiga', 'Dos preguntas cortas sobre cómo llegás. Podés saltearlas.'],
   ['reaccion', 'Prueba de reacción y voz', 'Diez toques y una frase en voz alta para ver tu nivel de alerta.'],
-  ['chat', 'Conversación con el acompañante', 'Tus conversaciones se guardan cifradas y solo vos podés verlas.'],
+  ['chat', 'Conversación con el acompañante', 'Tus conversaciones se guardan cifradas y tu empresa nunca las ve. Para responderte, el texto se envía a un servicio de inteligencia artificial (Anthropic) solo para generar la respuesta.'],
   ['geo', 'Geolocalización', 'Solo al usar el botón de emergencia, para que la guardia te encuentre.'],
 ];
 

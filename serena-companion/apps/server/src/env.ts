@@ -70,3 +70,17 @@ export const env = {
     sandbox: !isProd || process.env.SERENA_PAYMENTS_SANDBOX === 'true',
   },
 };
+
+/**
+ * Configuración mínima para operar con personas reales. Sin estos canales el servicio prometería algo que
+ * no cumple: avisos a la guardia que no llegan a nadie o códigos de ingreso escritos en los registros.
+ * En producción el servidor no arranca si falta alguno (ver index.ts).
+ */
+export function problemasDeProduccion(e: Pick<typeof env, 'guardWebhookUrl' | 'guardWebhookSecret'> & { smsConfigurado: boolean }): string[] {
+  const p: string[] = [];
+  if (!e.guardWebhookUrl) p.push('SERENA_GUARD_WEBHOOK_URL: sin canal hacia la guardia, los pedidos de ayuda no llegarían a nadie.');
+  else if (!e.guardWebhookUrl.startsWith('https://')) p.push('SERENA_GUARD_WEBHOOK_URL debe usar https:// (el aviso incluye nombre, teléfono y ubicación).');
+  if (e.guardWebhookUrl && !e.guardWebhookSecret) p.push('SERENA_GUARD_WEBHOOK_SECRET: sin firma, la guardia no puede verificar que el aviso viene de SERENA.');
+  if (!e.smsConfigurado) p.push('Proveedor de SMS (Twilio, pendiente A15): sin él no se puede entregar el segundo factor.');
+  return p;
+}
