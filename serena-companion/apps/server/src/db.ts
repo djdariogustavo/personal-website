@@ -200,6 +200,12 @@ const MIGRATIONS: string[] = [
   CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT NOT NULL);
   INSERT INTO meta (k, v) VALUES ('seq', '0');
   `,
+  // 2: bloqueo del PIN de kiosco por persona (no por tablet), para que no se pueda
+  // probar PINs rotando entre kioscos.
+  `
+  ALTER TABLE users ADD COLUMN kiosk_fallos INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN kiosk_bloqueo_hasta TEXT;
+  `,
 ];
 
 export type DB = DatabaseSync;

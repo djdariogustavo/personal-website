@@ -140,9 +140,21 @@ export function authRoutes(ctx: AppContext) {
     if (body.qr) {
       u = db.prepare('SELECT * FROM users WHERE qr_token_hash = ? AND org_id = ? AND activo = 1').get(sha256(body.qr), k.org_id) as UserRow | undefined;
     } else if (body.legajo && body.pin) {
-      const cand = db.prepare('SELECT * FROM users WHERE legajo = ? AND org_id = ? AND activo = 1').get(body.legajo, k.org_id) as UserRow | undefined;
+      const cand = db.prepare('SELECT * FROM users WHERE legajo = ? AND org_id = ? AND activo = 1').get(body.legajo, k.org_id) as
+        | (UserRow & { kiosk_fallos: number; kiosk_bloqueo_hasta: string | null })
+        | undefined;
+      // Bloqueo por persona, en todos los kioscos: 5 PIN incorrectos → 15 minutos.
+      if (cand?.kiosk_bloqueo_hasta && Date.parse(cand.kiosk_bloqueo_hasta) > Date.now())
+        throw new HttpError(429, 'pin_bloqueado', 'Demasiados intentos con este legajo. Probá en 15 minutos o usá el QR de tu credencial.');
       const ok = verifySecret(body.pin, cand?.kiosk_pin_hash ?? DUMMY_HASH);
-      if (cand && ok) u = cand;
+      if (cand && ok) {
+        u = cand;
+        db.prepare('UPDATE users SET kiosk_fallos = 0, kiosk_bloqueo_hasta = NULL WHERE id = ?').run(cand.id);
+      } else if (cand) {
+        const fallos = cand.kiosk_fallos + 1;
+        const bloqueo = fallos >= KIOSK_PIN_MAX_FALLOS ? new Date(Date.now() + 15 * 60_000).toISOString() : null;
+        db.prepare('UPDATE users SET kiosk_fallos = ?, kiosk_bloqueo_hasta = ? WHERE id = ?').run(bloqueo ? 0 : fallos, bloqueo, cand.id);
+      }
     }
     if (!u) throw new HttpError(401, 'credencial', 'No pudimos identificarte. Revisá el legajo y el PIN.');
     const s = await openSession(ctx, u.id, { kind: 'kiosk', nombre: k.nombre, sistema: 'Kiosco' });
@@ -161,3 +173,4 @@ export function authRoutes(ctx: AppContext) {
 }
 
 const DUMMY_HASH = hashSecret('serena-dummy-password');
+const KIOSK_PIN_MAX_FALLOS = 5;

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { isEntitled } from '@serena/domain';
 import type { AppContext } from '../context.ts';
 import { HttpError, auth } from '../auth.ts';
-import { hashSecret, newId, newToken, sha256 } from '../crypto.ts';
+import { hashSecret, newId, newPin, newToken, sha256 } from '../crypto.ts';
 import { nowIso } from '../db.ts';
 import { getOrg, getUser } from '../users.ts';
 import { getSubscriptionRow, subscriptionSummary } from '../payments/index.ts';
@@ -103,7 +103,7 @@ export function adminRoutes(ctx: AppContext) {
     if (isEntitled(sub.estado) && sub.puestosEnUso >= sub.puestos)
       throw new HttpError(409, 'sin_puestos', 'No quedan puestos disponibles en la suscripción. Ampliá la cantidad en Facturación.');
     const password = newToken(9);
-    const pin = String(Math.floor(1000 + Math.random() * 9000));
+    const pin = newPin();
     const qr = newToken(24);
     const id = newId();
     db.prepare(

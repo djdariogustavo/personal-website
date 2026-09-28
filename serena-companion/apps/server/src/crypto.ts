@@ -55,6 +55,28 @@ export const newId = () => randomUUID();
 export const newToken = (bytes = 32) => randomBytes(bytes).toString('base64url');
 export const newOtp = () => String(randomInt(0, 1_000_000)).padStart(6, '0');
 
+/**
+ * PIN fácil de adivinar: todos los dígitos iguales (1111), escaleras
+ * (1234, 9876, 0123), pares repetidos (1212) o espejos (1221).
+ */
+export function isWeakPin(pin: string): boolean {
+  const d = pin.split('').map(Number);
+  if (new Set(d).size === 1) return true;
+  const steps = d.slice(1).map((x, i) => x - d[i]!);
+  if (steps.every((s) => s === 1) || steps.every((s) => s === -1)) return true;
+  if (pin.length === 4 && pin.slice(0, 2) === pin.slice(2)) return true;
+  if (pin === pin.split('').reverse().join('')) return true;
+  return false;
+}
+
+/** PIN numérico con generador criptográfico (incluye ceros a la izquierda) que nunca es débil. */
+export function newPin(digits = 4): string {
+  for (;;) {
+    const pin = String(randomInt(0, 10 ** digits)).padStart(digits, '0');
+    if (!isWeakPin(pin)) return pin;
+  }
+}
+
 export class Vault {
   private readonly master: Buffer;
   constructor(masterKeyB64: string) {
