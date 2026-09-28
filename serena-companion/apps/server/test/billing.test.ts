@@ -3,6 +3,7 @@ import request from 'supertest';
 import { createHmac } from 'node:crypto';
 import { addUser, login, makeCtx } from './helpers.ts';
 import { verifyMercadoPagoSignature } from '../src/payments/mercadopago.ts';
+import { ventanaReporte } from '@serena/domain';
 
 const bearer = (t: string) => ({ authorization: `Bearer ${t}` });
 
@@ -72,6 +73,37 @@ describe('servicio de pago', () => {
     const { app, token } = await adminSession();
     const r = await request(app).get('/api/admin/stats').set(bearer(token));
     expect(r.status).toBe(402);
+  });
+
+  it('los reportes cuentan personas, fusionan celdas chicas y usan la ventana semanal fija', async () => {
+    const { ctx, app, token, orgId } = await adminSession();
+    ctx.db.prepare("INSERT INTO subscriptions (org_id, estado, puestos) VALUES (?, 'activa', 10)").run(orgId);
+    const { desde, hasta } = ventanaReporte();
+    const at = (h: number) => new Date(Date.parse(desde) + h * 3_600_000).toISOString();
+    let seq = 0;
+    const checkin = (userId: string, dia: number, nivel: string, cuando: string) =>
+      ctx.db
+        .prepare('INSERT INTO checkins (id, user_id, org_id, device_id, creado_en, actualizado_en, nivel, en_turno, dia_roster, seq) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)')
+        .run(crypto.randomUUID(), userId, orgId, 'd', cuando, cuando, nivel, dia, ++seq);
+    const ids = ['1', '2', '3', '4', '5', '6'].map((n) => addUser(ctx, orgId, { dni: `70000${n}`, legajo: `L${n}`, password: 'p' }));
+    // Día 3: 3 bien, 2 moderado, 1 alto. La persona 1 hizo 15 check-ins en alto antes de su último (bien).
+    for (let i = 0; i < 15; i++) checkin(ids[0]!, 3, 'alto', at(i));
+    checkin(ids[0]!, 3, 'bajo', at(20));
+    checkin(ids[1]!, 3, 'bajo', at(21));
+    checkin(ids[2]!, 3, 'bajo', at(22));
+    checkin(ids[3]!, 3, 'moderado', at(23));
+    checkin(ids[4]!, 3, 'moderado', at(24));
+    checkin(ids[5]!, 3, 'alto', at(25));
+    // Semana en curso: fuera de la ventana, no debe cambiar el reporte.
+    checkin(ids[5]!, 3, 'alto', new Date(Date.parse(hasta) + 3_600_000).toISOString());
+
+    const r = await request(app).get('/api/admin/stats').set(bearer(token));
+    expect(r.status).toBe(200);
+    expect(r.body.periodo).toEqual({ desde, hasta });
+    const dia3 = r.body.porDiaDeRoster.find((d: { dia: number }) => d.dia === 3);
+    expect(dia3).toEqual({ dia: 3, personas: 6, distribucion: { tipo: 'agrupada', bajo: 0.5, atencion: 0.5 }, motivo: null });
+    expect(JSON.stringify(r.body)).not.toMatch(/"alto"\s*:/);
+    expect(r.body.participacion.checkins).toBe(21);
   });
 
   it('el estado del pago nunca bloquea la emergencia', async () => {

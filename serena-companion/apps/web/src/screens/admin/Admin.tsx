@@ -1,7 +1,7 @@
 import { DEMO } from '../../demo/flags.ts';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { formatMoney, isEntitled, STATUS_COPY, type Plan, type SubscriptionSummary } from '@serena/domain';
+import { formatMoney, isEntitled, STATUS_COPY, type CeldaPublicable, type Plan, type SubscriptionSummary } from '@serena/domain';
 import { api, ApiError, isOffline } from '../../lib/api.ts';
 
 /**
@@ -16,11 +16,25 @@ function errMsg(e: unknown) {
 }
 
 interface Stats {
+  periodo: { desde: string; hasta: string };
   ventanaDias: number;
   kAnonimato: number;
+  kCelda: number;
   participacion: { personas: number | null; checkins: number | null; activos: number };
-  porDiaDeRoster: Array<{ dia: number; personas: number | null; proporcion: { bajo: number; moderado: number; alto: number } | null }>;
+  porDiaDeRoster: Array<{ dia: number } & CeldaPublicable>;
   escalamientos28d: number | string;
+}
+
+const ATENCION = 'repeating-linear-gradient(135deg, var(--warn-fg) 0 5px, var(--alert-fg) 5px 10px)';
+
+/** Fecha corta del período (la ventana termina el lunes a las 00:00 UTC, se muestra el domingo). */
+const fecha = (iso: string, finExclusivo = false) =>
+  new Date(Date.parse(iso) - (finExclusivo ? 1 : 0)).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', timeZone: 'UTC' });
+
+function oculto(d: CeldaPublicable, s: Stats): string {
+  if (d.motivo === 'grupo_chico') return `Grupo menor a ${s.kAnonimato}: no se muestra`;
+  if (d.motivo === 'homogeneo') return 'No se muestra: todo el grupo en el mismo rango identificaría a cada persona';
+  return `No se muestra: alguna categoría tiene menos de ${s.kCelda} personas`;
 }
 
 export function AdminStats() {
@@ -39,8 +53,14 @@ export function AdminStats() {
         <div className="label cyan">ESTADÍSTICAS ANÓNIMAS DEL GRUPO</div>
         <h1 className="h1">Reportes</h1>
         <p className="muted" style={{ maxWidth: 760 }}>
-          Solo se muestran grupos de al menos {s?.kAnonimato ?? 5} personas. Nunca se ven nombres, resultados individuales ni conversaciones.
+          Solo se muestran grupos de al menos {s?.kAnonimato ?? 5} personas y categorías de al menos {s?.kCelda ?? 3}. Nunca se ven nombres, resultados
+          individuales ni conversaciones.
         </p>
+        {s && (
+          <p className="meta">
+            Período: {fecha(s.periodo.desde)} al {fecha(s.periodo.hasta, true)} · se actualiza cada lunes · porcentajes redondeados a 5 puntos
+          </p>
+        )}
       </div>
       {error && (
         <div className="card">
@@ -70,6 +90,7 @@ export function AdminStats() {
                   ['Bien', 'var(--ok-fg)'],
                   ['Moderado', 'var(--warn-fg)'],
                   ['Alto', 'var(--alert-fg)'],
+                  ['Moderado o alto (agrupados por ser pocos)', ATENCION],
                 ] as const
               ).map(([l, c]) => (
                 <span key={l} className="row" style={{ gap: 6 }}>
@@ -91,14 +112,29 @@ export function AdminStats() {
                   <tr key={d.dia}>
                     <td className="num">{d.dia}</td>
                     <td>
-                      {d.proporcion ? (
-                        <div style={{ display: 'flex', gap: 2, height: 14 }} title={`Bien ${pct(d.proporcion.bajo)} · Moderado ${pct(d.proporcion.moderado)} · Alto ${pct(d.proporcion.alto)}`}>
-                          <span style={{ width: pct(d.proporcion.bajo), background: 'var(--ok-fg)', borderRadius: 2 }} />
-                          <span style={{ width: pct(d.proporcion.moderado), background: 'var(--warn-fg)', borderRadius: 2 }} />
-                          <span style={{ width: pct(d.proporcion.alto), background: 'var(--alert-fg)', borderRadius: 2 }} />
+                      {d.distribucion?.tipo === 'completa' ? (
+                        <div
+                          style={{ display: 'flex', gap: 2, height: 14 }}
+                          role="img"
+                          aria-label={`Bien ${pct(d.distribucion.bajo)}, moderado ${pct(d.distribucion.moderado)}, alto ${pct(d.distribucion.alto)}`}
+                          title={`Bien ${pct(d.distribucion.bajo)} · Moderado ${pct(d.distribucion.moderado)} · Alto ${pct(d.distribucion.alto)}`}
+                        >
+                          <span style={{ width: pct(d.distribucion.bajo), background: 'var(--ok-fg)', borderRadius: 2 }} />
+                          <span style={{ width: pct(d.distribucion.moderado), background: 'var(--warn-fg)', borderRadius: 2 }} />
+                          <span style={{ width: pct(d.distribucion.alto), background: 'var(--alert-fg)', borderRadius: 2 }} />
+                        </div>
+                      ) : d.distribucion?.tipo === 'agrupada' ? (
+                        <div
+                          style={{ display: 'flex', gap: 2, height: 14 }}
+                          role="img"
+                          aria-label={`Bien ${pct(d.distribucion.bajo)}, moderado o alto ${pct(d.distribucion.atencion)}`}
+                          title={`Bien ${pct(d.distribucion.bajo)} · Moderado o alto ${pct(d.distribucion.atencion)}`}
+                        >
+                          <span style={{ width: pct(d.distribucion.bajo), background: 'var(--ok-fg)', borderRadius: 2 }} />
+                          <span style={{ width: pct(d.distribucion.atencion), background: ATENCION, borderRadius: 2 }} />
                         </div>
                       ) : (
-                        <span className="meta">Grupo menor a {s.kAnonimato}: no se muestra</span>
+                        <span className="meta">{oculto(d, s)}</span>
                       )}
                     </td>
                     <td className="num">{d.personas ?? `< ${s.kAnonimato}`}</td>

@@ -59,8 +59,11 @@ serena-companion/
 ### Decisiones y garantías
 
 - **Privacidad por diseño.** Check-ins, conversaciones y ubicación se guardan cifrados con una clave por
-  usuario. La empresa solo accede a estadísticas agregadas con **k-anonimato (k = 5)**; nunca a nombres ni
-  resultados individuales. Cada escalamiento a la guardia queda auditado y se muestra en Privacidad
+  usuario. La empresa solo accede a estadísticas agregadas con control de divulgación
+  (`packages/domain/src/disclosure.ts`): se cuenta por persona y no por check-in, los grupos deben tener al
+  menos 5 personas y cada categoría al menos 3 (si no, se fusiona u oculta), no se publican grupos
+  homogéneos, los porcentajes se redondean a 5 puntos y la ventana es fija (4 semanas completas, se
+  actualiza los lunes) para evitar deducciones por diferencia. Nunca ve nombres ni resultados individuales. Cada escalamiento a la guardia queda auditado y se muestra en Privacidad
   ("Tu información se compartió N veces en los últimos 90 días"). Exportación, borrado y retiro del
   consentimiento (Ley 25.326).
 - **Consentimiento granular.** Cada permiso apaga su paso del check-in (ánimo, cámara, reacción), el chat

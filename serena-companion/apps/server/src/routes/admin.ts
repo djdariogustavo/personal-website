@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { isEntitled } from '@serena/domain';
+import { isEntitled, K_CELDA, K_GRUPO, publicarDistribucion, publicarTotal, ultimoPorPersona, ventanaReporte, type Level } from '@serena/domain';
 import type { AppContext } from '../context.ts';
 import { HttpError, auth } from '../auth.ts';
 import { hashSecret, newId, newPin, newToken, sha256 } from '../crypto.ts';
@@ -8,9 +8,6 @@ import { nowIso } from '../db.ts';
 import { getOrg, getUser } from '../users.ts';
 import { getSubscriptionRow, subscriptionSummary } from '../payments/index.ts';
 import { SandboxProvider } from '../payments/sandbox.ts';
-
-/** Tamaño mínimo de grupo para publicar una estadística (k-anonimato). */
-export const K_ANON = 5;
 
 /**
  * Administración de la organización. La empresa SOLO ve estadísticas anónimas
@@ -20,44 +17,47 @@ export function adminRoutes(ctx: AppContext) {
   const r = Router();
   const { db } = ctx;
 
-  /** Estadísticas agregadas por día de roster; grupos con menos de K_ANON personas se ocultan. */
+  /**
+   * Estadísticas agregadas por día de roster, con control de divulgación
+   * (ver packages/domain/src/disclosure.ts): unidad persona, grupo ≥ 5, celdas
+   * ≥ 3, sin grupos homogéneos, proporciones redondeadas y ventana semanal fija.
+   */
   r.get('/admin/stats', (req, res) => {
     const a = auth(req);
     const sub = subscriptionSummary(db, a.orgId);
     if (!isEntitled(sub.estado)) throw new HttpError(402, 'suscripcion_inactiva', 'Los reportes requieren una suscripción activa.');
-    const since = new Date(Date.now() - 28 * 86_400_000).toISOString();
+    const { desde, hasta } = ventanaReporte();
     const participacion = db
       .prepare(
-        `SELECT COUNT(DISTINCT user_id) AS personas, COUNT(*) AS checkins FROM checkins WHERE org_id = ? AND borrado = 0 AND creado_en >= ?`,
+        `SELECT COUNT(DISTINCT user_id) AS personas, COUNT(*) AS checkins FROM checkins
+         WHERE org_id = ? AND borrado = 0 AND creado_en >= ? AND creado_en < ?`,
       )
-      .get(a.orgId, since) as { personas: number; checkins: number };
+      .get(a.orgId, desde, hasta) as { personas: number; checkins: number };
     const activos = (db.prepare("SELECT COUNT(*) AS n FROM users WHERE org_id = ? AND role = 'worker' AND activo = 1").get(a.orgId) as { n: number }).n;
-    const porDia = db
+    const filas = db
       .prepare(
-        `SELECT dia_roster AS dia, COUNT(DISTINCT user_id) AS personas, COUNT(*) AS total,
-                SUM(nivel = 'bajo') AS bajo, SUM(nivel = 'moderado') AS moderado, SUM(nivel = 'alto') AS alto
-         FROM checkins WHERE org_id = ? AND borrado = 0 AND en_turno = 1 AND creado_en >= ? AND dia_roster IS NOT NULL
-         GROUP BY dia_roster ORDER BY dia_roster`,
+        `SELECT dia_roster AS dia, user_id AS userId, nivel FROM checkins
+         WHERE org_id = ? AND borrado = 0 AND en_turno = 1 AND dia_roster IS NOT NULL AND creado_en >= ? AND creado_en < ?
+         ORDER BY creado_en`,
       )
-      .all(a.orgId, since) as Array<{ dia: number; personas: number; total: number; bajo: number; moderado: number; alto: number }>;
+      .all(a.orgId, desde, hasta) as Array<{ dia: number; userId: string; nivel: Level }>;
+    const porDia = new Map<number, Array<{ userId: string; nivel: Level }>>();
+    for (const f of filas) porDia.set(f.dia, [...(porDia.get(f.dia) ?? []), f]);
+    const escalamientos = (
+      db.prepare('SELECT COUNT(*) AS n FROM emergencies WHERE org_id = ? AND recibido_en >= ? AND recibido_en < ?').get(a.orgId, desde, hasta) as { n: number }
+    ).n;
+    const hayGrupo = participacion.personas >= K_GRUPO;
     res.json({
+      periodo: { desde, hasta },
       ventanaDias: 28,
-      kAnonimato: K_ANON,
-      participacion: participacion.personas >= K_ANON ? { ...participacion, activos } : { personas: null, checkins: null, activos },
-      porDiaDeRoster: porDia.map((d) =>
-        d.personas >= K_ANON
-          ? {
-              dia: d.dia,
-              personas: d.personas,
-              proporcion: { bajo: d.bajo / d.total, moderado: d.moderado / d.total, alto: d.alto / d.total },
-            }
-          : { dia: d.dia, personas: null, proporcion: null },
-      ),
-      // Los escalamientos se informan solo como total, sin fecha ni persona.
-      escalamientos28d: (() => {
-        const n = (db.prepare("SELECT COUNT(*) AS n FROM emergencies WHERE org_id = ? AND recibido_en >= ?").get(a.orgId, since) as { n: number }).n;
-        return n >= K_ANON ? n : `menos de ${K_ANON}`;
-      })(),
+      kAnonimato: K_GRUPO,
+      kCelda: K_CELDA,
+      participacion: hayGrupo ? { ...participacion, activos } : { personas: null, checkins: null, activos },
+      porDiaDeRoster: [...porDia.keys()]
+        .sort((x, y) => x - y)
+        .map((dia) => ({ dia, ...publicarDistribucion(ultimoPorPersona(porDia.get(dia)!)) })),
+      // Los escalamientos se informan solo como total del período, sin fecha ni persona.
+      escalamientos28d: publicarTotal(escalamientos) ?? `menos de ${K_GRUPO}`,
     });
   });
 

@@ -175,7 +175,7 @@ export function PolicyPage() {
         <ul>
           <li>Vos, siempre.</li>
           <li>La guardia de tu faena, solo cuando pedís ayuda o hay un riesgo alto. Cada acceso queda registrado y lo ves en Privacidad.</li>
-          <li>Tu empresa recibe solo estadísticas anónimas de grupos de al menos 5 personas. Nunca tu nombre ni tus resultados.</li>
+          <li>Tu empresa recibe solo estadísticas anónimas de grupos de al menos 5 personas; si en un grupo hay menos de 3 personas en un mismo nivel, ese dato no se muestra. Nunca tu nombre ni tus resultados.</li>
         </ul>
         <h2>Tus derechos</h2>
         <p>Podés descargar, borrar tus datos o retirar tu consentimiento en cualquier momento desde Privacidad y datos.</p>

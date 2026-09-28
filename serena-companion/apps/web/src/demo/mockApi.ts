@@ -9,7 +9,11 @@ import {
   DEFAULT_CONFIG,
   DEFAULT_CONSENTS,
   detectRisk,
+  K_CELDA,
+  K_GRUPO,
+  publicarDistribucion,
   rosterStatus,
+  ventanaReporte,
   type CheckIn,
   type Consents,
   type DeviceInfo,
@@ -364,18 +368,20 @@ export async function mockApi(path: string, method: string, body: unknown, token
   switch (key) {
     case 'GET /admin/stats': {
       if (S.sub.estado !== 'activa') throw new MockError(402, 'suscripcion_inactiva', 'Los reportes requieren una suscripción activa. Probá contratar con la pasarela de prueba en Facturación.');
+      // Niveles sintéticos por persona y día (b = bien, m = moderado, a = alto), elegidos para que
+      // la demo muestre todos los casos del control de divulgación.
+      const grupos = [
+        'bbbbbbbm', 'bbbbb', 'bbbbbm', 'bbb', 'bbmm', 'bbbbmmm', 'bbbmma', 'bbba',
+        'bbbbmmmaaa', 'bbbmmm', 'mmmaa', 'bbb', 'bbbmmaaa', 'bbbbmm',
+      ];
+      const lv = { b: 'bajo', m: 'moderado', a: 'alto' } as const;
       return {
+        periodo: ventanaReporte(),
         ventanaDias: 28,
-        kAnonimato: 5,
+        kAnonimato: K_GRUPO,
+        kCelda: K_CELDA,
         participacion: { personas: 9, checkins: 118, activos: 9 },
-        porDiaDeRoster: Array.from({ length: 14 }, (_, i) => {
-          const dia = i + 1;
-          const personas = [8, 5, 6, 3, 4, 5, 5, 4, 7, 6, 5, 3, 5, 6][i]!;
-          if (personas < 5) return { dia, personas: null, proporcion: null };
-          const alto = dia >= 11 ? 0.12 : 0;
-          const moderado = clamp((dia - 4) * 0.07, 0, 0.6);
-          return { dia, personas, proporcion: { bajo: 1 - moderado - alto, moderado, alto } };
-        }),
+        porDiaDeRoster: grupos.map((g, i) => ({ dia: i + 1, ...publicarDistribucion([...g].map((c) => lv[c as 'b' | 'm' | 'a'])) })),
         escalamientos28d: 'menos de 5',
       };
     }

@@ -9,3 +9,4 @@ export * from './risk.ts';
 export * from './sync.ts';
 export * from './insight.ts';
 export * from './billing.ts';
+export * from './disclosure.ts';
