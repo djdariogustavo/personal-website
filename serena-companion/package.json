@@ -18,10 +18,14 @@
     "seed": "npm run seed -w @serena/server",
     "build": "npm run build -w @serena/web && npm run build -w @serena/server",
     "start": "npm run start -w @serena/server",
-    "typecheck": "tsc -p packages/domain && tsc -p apps/server && tsc -p apps/web",
-    "test": "vitest run"
+    "typecheck": "tsc -p packages/domain && tsc -p apps/server && tsc -p apps/web && tsc -p e2e",
+    "test": "vitest run",
+    "build:demo": "npm run build:demo -w @serena/web",
+    "e2e": "npm run build -w @serena/web && npm run build:demo -w @serena/web && playwright test -c e2e/playwright.config.ts",
+    "e2e:only": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@types/node": "^22.10.0",
     "typescript": "^5.7.2",
     "vitest": "^3.0.0"

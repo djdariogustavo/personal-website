@@ -222,7 +222,8 @@ const PASSWORD_TEMPORAL_ALLOWED: Array<[string, RegExp]> = [
 
 export function passwordScope() {
   return (req: Request, _res: Response, next: NextFunction) => {
-    if (!req.auth?.debeCambiarPassword) return next();
+    // Una cuenta de baja se rige por bajaScope: puede descargar o eliminar sus datos aunque tenga temporal.
+    if (!req.auth?.debeCambiarPassword || req.auth.baja) return next();
     const ok = PASSWORD_TEMPORAL_ALLOWED.some(([m, re]) => m === req.method && re.test(req.path));
     if (!ok) return next(new HttpError(403, 'debe_cambiar_password', 'Antes de seguir, elegí una contraseña propia.'));
     next();

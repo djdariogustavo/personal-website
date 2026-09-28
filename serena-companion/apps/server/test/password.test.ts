@@ -112,6 +112,16 @@ describe('restablecimiento por la empresa', () => {
     expect(s.perfil).toMatchObject({ debeCambiarPassword: true });
   });
 
+  it('una cuenta de baja con contraseña temporal igual puede descargar y eliminar sus datos', async () => {
+    const { app, messenger, workerId } = await base();
+    const admin = await login(app, messenger, 'admin', 'p', 'desktop');
+    const r = await request(app).post(`/api/admin/workers/${workerId}/password`).set(bearer(admin.token));
+    await request(app).post(`/api/admin/workers/${workerId}/baja`).set(bearer(admin.token));
+    const s = await login(app, messenger, '30111222', r.body.passwordTemporal);
+    expect((await request(app).get('/api/privacy/export').set(bearer(s.token))).status).toBe(200);
+    expect((await request(app).delete('/api/privacy/account').set(bearer(s.token))).status).toBe(200);
+  });
+
   it('solo un administrador de la misma empresa puede restablecer', async () => {
     const a = await base();
     const b = await base();

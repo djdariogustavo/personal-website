@@ -141,8 +141,18 @@ vez y se guardan en `data/.dev-keys.json` (ignorado por git).
 
 ## Pruebas
 
-`npm test` ejecuta 32 pruebas: dominio (roster, niveles, luz, riesgo, sincronización, patrones) y API
-(2FA, kiosco, cierre remoto, sincronización con conflictos y aislamiento entre usuarios, cifrado en
-reposo, acompañante y estado de cuidado, emergencia idempotente sin depender del consentimiento ni del
-pago, privacidad, flujo de pago completo con webhooks firmados e idempotentes y verificación de firma de
-Mercado Pago).
+| Comando | Qué verifica |
+|---|---|
+| `npm run typecheck` | Tipos de dominio, servidor, web y pruebas e2e. |
+| `npm test` | Vitest: reglas del dominio (niveles, riesgo, divulgación estadística, contraseñas…) y la API completa sobre SQLite en memoria (2FA, kiosco, consentimiento, sincronización, avisos a la guardia, bajas, contraseñas, pagos y webhooks). |
+| `npm run e2e` | Compila la web y la vista previa y corre Playwright (`e2e/`). Proyecto **app**: la app real (servidor + web compilada) sobre una base temporal sembrada en cada corrida. Proyecto **demo**: la vista previa estática que se comparte para revisión. |
+| `npm run e2e:only` | Lo mismo sin recompilar. |
+
+Las pruebas e2e recorren: trabajador en el teléfono (ingreso con 2FA y PIN, pedido de ayuda, check-in,
+acompañante en modo cuidado), kiosco (sesión efímera sin historial), ciclo de vida de una persona en el
+panel de la empresa (alta, contraseña inicial obligatoria, recuperación por SMS, restablecimiento, baja y
+eliminación de la cuenta), contratación de prueba con reportes anónimos, y la vista previa.
+
+**Integración continua:** `.github/workflows/serena-companion.yml` corre todo lo anterior en GitHub Actions
+en cada cambio dentro de `serena-companion/`. Si falla una prueba e2e, el informe de Playwright (con capturas
+y trazas) queda como artefacto de la ejecución durante 14 días.
