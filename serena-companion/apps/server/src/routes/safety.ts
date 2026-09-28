@@ -6,7 +6,7 @@ import { HttpError, auth } from '../auth.ts';
 import { newId } from '../crypto.ts';
 import { nowIso } from '../db.ts';
 import { getConsents, getOrg, getUser } from '../users.ts';
-import type { GuardAlert } from '../notify.ts';
+import { guardAlertPriority, guardAlertType, type EmergencyOrigin } from '../notify.ts';
 
 /**
  * Botón de emergencia (6.13) y escalamiento a la guardia (resultado alto 6.9,
@@ -48,8 +48,7 @@ export function safetyRoutes(ctx: AppContext) {
     // se refiere exactamente a este uso; si lo retiró, no se envía.
     const ubicacion = e.compartirUbicacion && e.ubicacion && getConsents(db, a.userId).geo ? e.ubicacion : null;
     const recibido = nowIso();
-    const tipo: GuardAlert['tipo'] =
-      e.origen === 'resultado_alto' ? 'resultado_alto' : e.origen === 'acompanante' ? 'acompanante_cuidado' : e.tipo === 'fisica' ? 'emergencia_fisica' : e.tipo;
+    const tipo = guardAlertType(e.tipo, e.origen);
     db.prepare(
       `INSERT INTO emergencies (id, user_id, org_id, tipo, origen, ubicacion_enc, creado_cliente, recibido_en, canal, estado)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'recibido')`,
@@ -70,6 +69,8 @@ export function safetyRoutes(ctx: AppContext) {
       orgId: org.id,
       faena: org.faena,
       tipo,
+      prioridad: guardAlertPriority(tipo),
+      origen: e.origen,
       trabajador: { id: user.id, nombre: user.nombre, legajo: user.legajo, telefono: user.telefono },
       ubicacion,
       creadoEn: e.creadoEn,
@@ -104,13 +105,15 @@ function scheduleRedelivery(ctx: AppContext, id: string, attempt = 1) {
       | { id: string; user_id: string; org_id: string; tipo: string; origen: string; ubicacion_enc: string | null; creado_cliente: string; estado: string; nombre: string; legajo: string | null; telefono: string | null; faena: string }
       | undefined;
     if (!row || row.estado === 'entregado') return pending.delete(id);
-    const tipo: GuardAlert['tipo'] =
-      row.origen === 'resultado_alto' ? 'resultado_alto' : row.origen === 'acompanante' ? 'acompanante_cuidado' : row.tipo === 'fisica' ? 'emergencia_fisica' : (row.tipo as GuardAlert['tipo']);
+    const origen = row.origen as EmergencyOrigin;
+    const tipo = guardAlertType(row.tipo as 'fisica' | 'hablar' | 'riesgo', origen);
     const r = await ctx.guard.notify({
       alertId: row.id,
       orgId: row.org_id,
       faena: row.faena,
       tipo,
+      prioridad: guardAlertPriority(tipo),
+      origen,
       trabajador: { id: row.user_id, nombre: row.nombre, legajo: row.legajo, telefono: row.telefono },
       ubicacion: row.ubicacion_enc ? ctx.vault.decrypt(row.user_id, row.ubicacion_enc) : null,
       creadoEn: row.creado_cliente,

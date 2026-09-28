@@ -19,11 +19,34 @@ export class ConsoleMessenger implements Messenger {
   }
 }
 
+export type GuardAlertType = 'emergencia_fisica' | 'hablar' | 'riesgo' | 'resultado_alto' | 'acompanante_cuidado';
+export type EmergencyOrigin = 'boton' | 'resultado_alto' | 'acompanante';
+
+/**
+ * Qué recibe la guardia según lo que eligió la persona y desde dónde.
+ * Lo que la persona elige manda: "Necesito hablar con alguien" llega como
+ * "hablar" aunque lo pida desde el acompañante. Solo se marca como estado de
+ * cuidado del acompañante cuando la persona pidió ayuda por riesgo desde ahí.
+ */
+export function guardAlertType(tipo: 'fisica' | 'hablar' | 'riesgo', origen: EmergencyOrigin): GuardAlertType {
+  if (tipo === 'fisica') return 'emergencia_fisica';
+  if (origen === 'resultado_alto') return 'resultado_alto';
+  if (tipo === 'riesgo' && origen === 'acompanante') return 'acompanante_cuidado';
+  return tipo;
+}
+
+/** Prioridad para que la guardia ordene la atención. "hablar" no es una urgencia. */
+export function guardAlertPriority(t: GuardAlertType): 'alta' | 'normal' {
+  return t === 'hablar' ? 'normal' : 'alta';
+}
+
 export interface GuardAlert {
   alertId: string;
   orgId: string;
   faena: string;
-  tipo: 'emergencia_fisica' | 'hablar' | 'riesgo' | 'resultado_alto' | 'acompanante_cuidado';
+  tipo: GuardAlertType;
+  prioridad: 'alta' | 'normal';
+  origen: EmergencyOrigin;
   trabajador: { id: string; nombre: string; legajo: string | null; telefono: string | null };
   ubicacion: { lat: number; lng: number; precisionM: number } | null;
   creadoEn: string;

@@ -263,6 +263,43 @@ describe('emergencia', () => {
   });
 });
 
+describe('clasificación del aviso a la guardia', () => {
+  it('cada combinación de lo que eligió la persona y desde dónde', async () => {
+    const { guardAlertType, guardAlertPriority } = await import('../src/notify.ts');
+    const cases: Array<[Parameters<typeof guardAlertType>[0], Parameters<typeof guardAlertType>[1], string, string]> = [
+      ['fisica', 'boton', 'emergencia_fisica', 'alta'],
+      ['hablar', 'boton', 'hablar', 'normal'],
+      ['riesgo', 'boton', 'riesgo', 'alta'],
+      ['riesgo', 'resultado_alto', 'resultado_alto', 'alta'],
+      ['hablar', 'acompanante', 'hablar', 'normal'], // "Hablar con una persona" desde el chat
+      ['riesgo', 'acompanante', 'acompanante_cuidado', 'alta'], // estado de cuidado
+      ['fisica', 'acompanante', 'emergencia_fisica', 'alta'], // lo físico siempre manda
+    ];
+    for (const [tipo, origen, esperado, prioridad] of cases) {
+      const t = guardAlertType(tipo, origen);
+      expect([tipo, origen, t]).toEqual([tipo, origen, esperado]);
+      expect(guardAlertPriority(t)).toBe(prioridad);
+    }
+  });
+
+  it('"Hablar con una persona" desde el acompañante llega a la guardia como pedido de charla, no como riesgo', async () => {
+    const { ctx, app, orgId, messenger, guard } = makeCtx();
+    addUser(ctx, orgId, { dni: '4545454', legajo: '1', password: 'p' });
+    const s = await login(app, messenger, '4545454', 'p');
+    const send = (tipo: string) =>
+      request(app)
+        .post('/api/emergency')
+        .set(bearer(s.token))
+        .send({ id: randomUUID(), tipo, compartirUbicacion: false, creadoEn: new Date().toISOString(), origen: 'acompanante' });
+    await send('hablar');
+    await send('riesgo');
+    expect(guard.sent.map((a) => [a.tipo, a.prioridad, a.origen])).toEqual([
+      ['hablar', 'normal', 'acompanante'],
+      ['acompanante_cuidado', 'alta', 'acompanante'],
+    ]);
+  });
+});
+
 describe('privacidad', () => {
   it('borrar mi historial deja tombstones que se sincronizan', async () => {
     const { ctx, app, orgId, messenger } = makeCtx();
