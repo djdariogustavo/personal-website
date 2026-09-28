@@ -49,8 +49,12 @@ export function authRoutes(ctx: AppContext) {
       .parse(req.body);
     const ident = body.identificador.replace(/\./g, '').trim().toLowerCase();
     const u = db
-      .prepare('SELECT * FROM users WHERE (lower(usuario) = ? OR replace(dni, \'.\', \'\') = ?) AND activo = 1')
-      .get(ident, ident) as UserRow | undefined;
+      // Una cuenta dada de baja puede ingresar durante el período de gracia, con alcance restringido (bajaScope).
+      .prepare(
+        `SELECT * FROM users WHERE (lower(usuario) = ? OR replace(dni, '.', '') = ?)
+           AND (activo = 1 OR (role = 'worker' AND purga_en > ?))`,
+      )
+      .get(ident, ident, nowIso()) as UserRow | undefined;
     // Se verifica igual contra un hash ficticio para no filtrar si el usuario existe por tiempo de respuesta.
     const ok = verifySecret(body.password, u?.password_hash ?? DUMMY_HASH);
     if (!u || !ok) throw new HttpError(401, 'credenciales', 'El usuario o la contraseña no coinciden.');

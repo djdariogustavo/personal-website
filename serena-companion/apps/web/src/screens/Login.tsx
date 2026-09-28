@@ -40,6 +40,12 @@ export function Login() {
   const [info, setInfo] = useState<string | null>(null);
   const retenidos = storage.get<{ n: number }>('serena.retenidos');
   const codeRefs = useRef<Array<HTMLInputElement | null>>([]);
+  // Al abrir la sesión, LoginRoute ya redirige; si la persona navegó mientras terminaba el ingreso, no se la devuelve.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true; // StrictMode monta dos veces en desarrollo
+    return () => void (mounted.current = false);
+  }, []);
 
   async function finish(r: LoginOk) {
     const s: Session = { token: r.token, deviceId: r.deviceId, deviceKind: kind, efimera: false, perfil: r.perfil, trustToken: r.trustToken };
@@ -54,6 +60,7 @@ export function Login() {
         /* se reintenta desde Privacidad */
       }
     }
+    if (!mounted.current) return;
     if (r.perfil.role === 'admin') return nav('/admin', { replace: true });
     if (kind === 'mobile' && !appLock.configured()) return setStep('pin');
     nav('/', { replace: true });

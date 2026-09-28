@@ -19,6 +19,7 @@ import { PolicyPage, Privacy } from './screens/Privacy.tsx';
 import { Devices } from './screens/Devices.tsx';
 import { KioskClose, KioskId, KioskWait } from './screens/kiosk/Kiosk.tsx';
 import { AdminBilling, AdminStats, AdminTeam, SandboxCheckout } from './screens/admin/Admin.tsx';
+import { BajaScreen } from './screens/Baja.tsx';
 
 /** Rutas del trabajador: requieren sesión personal (no de kiosco). */
 function WorkerGate() {
@@ -28,6 +29,13 @@ function WorkerGate() {
   if (!session || session.efimera) return <Navigate to={storage.get('serena.welcomed') ? '/ingresar' : '/bienvenida'} replace state={{ from: loc.pathname }} />;
   if (session.perfil.role === 'admin') return <Navigate to="/admin" replace />;
   if (session.deviceKind === 'mobile' && !appLock.configured()) return <Navigate to="/ingresar" replace />;
+  if (session.perfil.baja)
+    return (
+      <AppShell hideNav>
+        <BajaScreen />
+        {locked && <LockScreen />}
+      </AppShell>
+    );
   const flow = /^\/(checkin|respirar)/.test(loc.pathname);
   return (
     <AppShell hideNav={flow}>

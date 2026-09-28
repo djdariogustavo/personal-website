@@ -8,6 +8,7 @@ import { nowIso } from '../db.ts';
 import { getOrg, getUser } from '../users.ts';
 import { getSubscriptionRow, subscriptionSummary } from '../payments/index.ts';
 import { SandboxProvider } from '../payments/sandbox.ts';
+import { darDeBaja, reactivar } from '../baja.ts';
 
 /**
  * Administración de la organización. La empresa SOLO ve estadísticas anónimas
@@ -82,6 +83,43 @@ export function adminRoutes(ctx: AppContext) {
     res.json({ ok: true });
   });
 
+  const hayPuesto = (orgId: string) => {
+    const sub = subscriptionSummary(db, orgId);
+    return !isEntitled(sub.estado) || sub.puestosEnUso < sub.puestos;
+  };
+
+  /**
+   * Lista del equipo para gestionar altas y bajas. Solo datos de la relación
+   * laboral: sin niveles, check-ins, uso de la app ni último acceso.
+   */
+  r.get('/admin/workers', (req, res) => {
+    const a = auth(req);
+    const rows = db
+      .prepare("SELECT id, nombre, legajo, puesto, activo, baja_en, purga_en FROM users WHERE org_id = ? AND role = 'worker' ORDER BY activo DESC, nombre")
+      .all(a.orgId) as Array<{ id: string; nombre: string; legajo: string | null; puesto: string; activo: number; baja_en: string | null; purga_en: string | null }>;
+    res.json({
+      trabajadores: rows.map((u) => ({
+        id: u.id,
+        nombre: u.nombre,
+        legajo: u.legajo,
+        puesto: u.puesto,
+        estado: u.activo ? 'activo' : 'baja',
+        baja: u.activo ? null : { desde: u.baja_en, purgaEn: u.purga_en },
+      })),
+      suscripcion: subscriptionSummary(db, a.orgId),
+    });
+  });
+
+  r.post('/admin/workers/:id/baja', (req, res) => {
+    const a = auth(req);
+    res.json(darDeBaja(ctx, a.orgId, String(req.params.id)));
+  });
+
+  r.post('/admin/workers/:id/reactivar', (req, res) => {
+    const a = auth(req);
+    res.json({ credenciales: reactivar(ctx, a.orgId, String(req.params.id), hayPuesto(a.orgId)) });
+  });
+
   /** Alta de un trabajador. Respeta la cantidad de puestos contratados. Las credenciales iniciales se muestran una vez. */
   r.post('/admin/workers', (req, res) => {
     const a = auth(req);
@@ -99,9 +137,14 @@ export function adminRoutes(ctx: AppContext) {
         turno: z.enum(['dia', 'noche']).default('dia'),
       })
       .parse(req.body);
-    const sub = subscriptionSummary(db, a.orgId);
-    if (isEntitled(sub.estado) && sub.puestosEnUso >= sub.puestos)
-      throw new HttpError(409, 'sin_puestos', 'No quedan puestos disponibles en la suscripción. Ampliá la cantidad en Facturación.');
+    if (!hayPuesto(a.orgId)) throw new HttpError(409, 'sin_puestos', 'No quedan puestos disponibles en la suscripción. Ampliá la cantidad en Facturación.');
+    const dni = b.dni.replace(/\./g, '');
+    const existente = db.prepare("SELECT org_id, activo FROM users WHERE replace(dni, '.', '') = ?").get(dni) as { org_id: string; activo: number } | undefined;
+    if (existente?.org_id === a.orgId && !existente.activo)
+      throw new HttpError(409, 'en_baja', 'Esta persona está dada de baja. Reactivala desde la lista del equipo.');
+    if (existente) throw new HttpError(409, 'dni_existente', 'Ya existe una cuenta con ese DNI.');
+    if (db.prepare('SELECT 1 FROM users WHERE org_id = ? AND legajo = ?').get(a.orgId, b.legajo))
+      throw new HttpError(409, 'legajo_existente', 'Ya existe una persona con ese legajo.');
     const password = newToken(9);
     const pin = newPin();
     const qr = newToken(24);

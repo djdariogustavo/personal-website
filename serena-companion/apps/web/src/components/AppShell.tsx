@@ -81,7 +81,9 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAdmin = session?.perfil.role === 'admin';
   const isMobile = layout === 'mobile' && !kiosk;
-  const showSidebar = !isMobile && !kiosk && !!session;
+  // Cuenta dada de baja: solo la pantalla de sus datos, sin navegación, sincronización ni aviso a la guardia.
+  const baja = !!session?.perfil.baja;
+  const showSidebar = !isMobile && !kiosk && !!session && !baja;
   const collapsed = layout === 'tablet';
 
   useEffect(() => scrollRef.current?.scrollTo(0, 0), [loc.pathname]);
@@ -148,7 +150,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
               </div>
             )}
             <div className="spacer" />
-            {session && <SyncIndicator showLabel={!isMobile && !kiosk} />}
+            {session && !baja && <SyncIndicator showLabel={!isMobile && !kiosk} />}
             {session && !kiosk && (
               <div style={{ position: 'relative' }}>
                 <button type="button" className="avatar" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)} aria-label="Menú de la cuenta">
@@ -159,7 +161,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
                     <button type="button" role="menuitemcheckbox" aria-checked={theme === 'sol'} onClick={() => setTheme(theme === 'sol' ? 'noche' : 'sol')}>
                       <Icon name="sun" /> Modo alto contraste (sol)
                     </button>
-                    {!isAdmin && (
+                    {!isAdmin && !baja && (
                       <>
                         <NavLink to="/privacidad" role="menuitem">
                           <Icon name="privacidad" /> Privacidad y datos
@@ -176,7 +178,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
                 )}
               </div>
             )}
-            {!isAdmin && (
+            {!isAdmin && !baja && (
               <button type="button" className="help-pill" onClick={() => setEmerg({})}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
                   <path d="M12 13v8M8.8 9.8a4.5 4.5 0 0 1 6.4 0M5.6 6.6a9 9 0 0 1 12.8 0" />
@@ -186,7 +188,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
               </button>
             )}
           </header>
-          {sync.estado === 'offline' && session && (
+          {sync.estado === 'offline' && session && !baja && (
             <div className="offline-banner" role="status">
               <Icon name="wifiOff" size={18} stroke="#B8B8CB" />
               Sin conexión. Todo se guarda y se sincroniza después.
@@ -195,7 +197,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
           <div className="scroll" ref={scrollRef} id="main">
             {children}
           </div>
-          {isMobile && session && !hideNav && !isAdmin && (
+          {isMobile && session && !hideNav && !isAdmin && !baja && (
             <nav className="bottom-nav" aria-label="Principal">
               {NAV.map(([to, label, icon]) => (
                 <NavLink key={to} to={to} end={to === '/'} aria-current={to === '/checkin' && /^\/(checkin|resultado|respirar)/.test(loc.pathname) ? 'page' : undefined}>

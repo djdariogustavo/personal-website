@@ -10,6 +10,7 @@ import { BasicCompanion, ClaudeCompanion } from './companion.ts';
 import { ConsoleGuardNotifier, ConsoleMessenger, WebhookGuardNotifier } from './notify.ts';
 import type { AppContext } from './context.ts';
 import { flushOrphanGroups } from './routes/safety.ts';
+import { purgarVencidas } from './baja.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -27,6 +28,13 @@ const ctx: AppContext = {
 };
 
 flushOrphanGroups(ctx);
+// Cuentas dadas de baja cuyo período de gracia venció: al iniciar y cada hora.
+const purgar = () => {
+  const n = purgarVencidas(ctx);
+  if (n) console.info(`[serena] ${n} cuenta(s) dada(s) de baja eliminada(s) al vencer el período de gracia`);
+};
+purgar();
+setInterval(purgar, 3_600_000).unref();
 const app = createApp(ctx, { staticDir: process.env.SERENA_STATIC_DIR ?? join(here, '../../web/dist') });
 app.listen(env.port, () => {
   console.info(`[serena] API en http://localhost:${env.port}`);

@@ -22,6 +22,8 @@ export interface UserRow {
   roster_descanso: number;
   turno: 'dia' | 'noche';
   activo: number;
+  baja_en: string | null;
+  purga_en: string | null;
 }
 
 export interface OrgRow {
@@ -80,5 +82,6 @@ export function profile(db: DB, userId: string): UserProfile & { consentimientoO
     roster: { inicio: u.roster_inicio, diasTrabajo: u.roster_trabajo, diasDescanso: u.roster_descanso, turno: u.turno },
     consents,
     consentimientoOtorgado: otorgado,
+    baja: !u.activo && u.baja_en && u.purga_en ? { desde: u.baja_en, purgaEn: u.purga_en } : null,
   };
 }

@@ -11,16 +11,19 @@ export function SessionEndedOverlay() {
   const nav = useNavigate();
   if (!sessionEnded || session) return null;
   const inact = sessionEnded === 'sesion_inactividad';
+  const eliminada = sessionEnded === 'cuenta_eliminada';
   const kind = storage.get<'mobile' | 'tablet' | 'desktop' | 'kiosk'>('serena.lastKind') ?? 'desktop';
   return (
     <div className="overlay" style={{ zIndex: 30, background: 'rgba(1,1,71,.94)' }} role="dialog" aria-modal="true">
       <div className="stack" style={{ maxWidth: 440, gap: 18, alignItems: 'center', textAlign: 'center' }}>
         <img src={asset('serena-mark.png')} alt="" width={72} height={72} />
         <h2 className="display" style={{ fontSize: 28, lineHeight: 1.15 }}>
-          {inact ? 'Cerramos tu sesión por inactividad.' : 'Tu sesión se cerró.'}
+          {eliminada ? 'Eliminamos tu cuenta.' : inact ? 'Cerramos tu sesión por inactividad.' : 'Tu sesión se cerró.'}
         </h2>
         <p className="muted">
-          {inact
+          {eliminada
+            ? 'Tu cuenta y todos tus datos se eliminaron de SERENA y de este dispositivo.'
+            : inact
             ? `Pasaron ${config.sesion.inactividadMin[kind]} minutos sin uso. Lo hacemos para cuidar tu privacidad. Tu registro está a salvo.`
             : 'La sesión se cerró desde otro dispositivo o venció. Tu registro está a salvo.'}
         </p>
@@ -33,7 +36,7 @@ export function SessionEndedOverlay() {
             nav('/ingresar');
           }}
         >
-          Volver a ingresar
+          {eliminada ? 'Listo' : 'Volver a ingresar'}
         </button>
       </div>
     </div>

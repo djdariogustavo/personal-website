@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import type { AppContext } from '../context.ts';
-import { auth } from '../auth.ts';
+import { HttpError, auth } from '../auth.ts';
 import { newId } from '../crypto.ts';
 import { nextSeq, nowIso, tx } from '../db.ts';
 import { profile } from '../users.ts';
 import { upsertConsents } from './me.ts';
+import { eliminarCuenta } from '../baja.ts';
 
 /**
  * Privacidad y datos (6.14) — Ley N.º 25.326 (AR): acceso, rectificación y supresión.
@@ -79,6 +80,19 @@ export function privacyRoutes(ctx: AppContext) {
         now,
       );
     });
+    res.json({ ok: true });
+  });
+
+  /**
+   * Eliminar mi cuenta y todos mis datos, sin esperar al fin del período de
+   * gracia. Solo para cuentas dadas de baja: mientras la persona trabaja, la
+   * cuenta la administra la empresa (puede borrar su historial y retirar el
+   * consentimiento en cualquier momento).
+   */
+  r.delete('/privacy/account', (req, res) => {
+    const a = auth(req);
+    if (!a.baja) throw new HttpError(403, 'solo_cuentas_de_baja', 'Podés borrar tu historial o retirar tu consentimiento. La cuenta se elimina cuando la empresa te da de baja.');
+    eliminarCuenta(ctx, a.orgId, a.userId, 'trabajador');
     res.json({ ok: true });
   });
 

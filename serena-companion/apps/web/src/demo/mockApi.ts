@@ -77,6 +77,7 @@ interface State {
   challenge: { id: string; code: string; who: 'worker' | 'admin' } | null;
   sub: SubscriptionSummary & { checkout?: { id: string; planId: string; puestos: number; moneda: string } };
   kiosks: Array<{ id: string; nombre: string; creado_en: string; revocado_en: string | null }>;
+  equipo: Array<{ id: string; nombre: string; legajo: string; puesto: string; baja: { desde: string; purgaEn: string } | null }>;
   seenMutations: Set<string>;
 }
 
@@ -163,6 +164,18 @@ function freshState(): State {
       actualizadaEn: null,
     },
     kiosks: [{ id: 'k1', nombre: 'Tablet comedor — Módulo 3', creado_en: iso(daysAgo(40)), revocado_en: null }],
+    // Nombres ficticios.
+    equipo: [
+      ['u-matias', 'Matías Rodríguez', '04817', 'Operador de planta'],
+      ['u-2', 'Lucía Fernández', '04822', 'Geóloga de mina'],
+      ['u-3', 'Jorge Castillo', '04830', 'Operador de camión'],
+      ['u-4', 'Andrea Molina', '04841', 'Técnica en voladura'],
+      ['u-5', 'Ramiro Quiroga', '04853', 'Mecánico de equipos'],
+      ['u-6', 'Silvina Paz', '04860', 'Supervisora de turno'],
+      ['u-7', 'Diego Herrera', '04871', 'Operador de pala'],
+      ['u-8', 'Carla Ibáñez', '04879', 'Laboratorista'],
+      ['u-9', 'Néstor Villalba', '04886', 'Electricista'],
+    ].map(([id, nombre, legajo, puesto]) => ({ id: id!, nombre: nombre!, legajo: legajo!, puesto: puesto!, baja: null })),
     seenMutations: new Set(),
   };
 }
@@ -195,10 +208,14 @@ function session(token: string | null): { who: Who; deviceId: string; kind: stri
   return { who, deviceId: deviceId!, kind: kind! };
 }
 
+const matias = () => S.equipo.find((t) => t.id === USERS.worker.id);
+const enUso = () => (S.sub.puestosEnUso = S.equipo.filter((t) => !t.baja).length);
+
 function perfil(who: Who) {
   const u = USERS[who];
   return {
     ...u,
+    baja: who === 'worker' ? (matias()?.baja ?? null) : null,
     org: ORG,
     roster: ROSTER,
     consents: S.consents,
@@ -240,7 +257,7 @@ export async function mockApi(path: string, method: string, body: unknown, token
     case 'POST /auth/login': {
       const ident = String(b.identificador ?? '').replace(/\./g, '').trim().toLowerCase();
       const who: Who | null =
-        (ident === 'mrodriguez' || ident === '30456789') && b.password === 'serena-demo' ? 'worker' : ident === 'admin' && b.password === 'serena-admin' ? 'admin' : null;
+        (ident === 'mrodriguez' || ident === '30456789') && b.password === 'serena-demo' && matias() ? 'worker' : ident === 'admin' && b.password === 'serena-admin' ? 'admin' : null;
       if (!who) throw new MockError(401, 'credenciales', 'El usuario o la contraseña no coinciden.');
       const code = String(Math.floor(100000 + Math.random() * 900000));
       S.challenge = { id: uid(), code, who };
@@ -259,7 +276,7 @@ export async function mockApi(path: string, method: string, body: unknown, token
       return openSession(who, b.device);
     }
     case 'POST /auth/kiosk': {
-      const ok = (b.legajo === '04817' && b.pin === '1234') || (b.qr && String(b.qr).trim().toUpperCase() === 'QR-DEMO-04817');
+      const ok = matias() && !matias()!.baja && ((b.legajo === '04817' && b.pin === '1234') || (b.qr && String(b.qr).trim().toUpperCase() === 'QR-DEMO-04817'));
       if (!ok) throw new MockError(401, 'credencial', 'No pudimos identificarte. Revisá el legajo y el PIN.');
       return openSession('worker', { kind: 'kiosk', nombre: 'Tablet comedor — Módulo 3', sistema: 'Kiosco', id: DEV.tablet.id });
     }
@@ -268,6 +285,9 @@ export async function mockApi(path: string, method: string, body: unknown, token
   }
 
   const s = session(token);
+  // Igual que bajaScope en el servidor.
+  if (s.who === 'worker' && matias()?.baja && !['GET /me', 'GET /privacy/export', 'GET /privacy/access-log', 'DELETE /privacy/account'].includes(key))
+    throw new MockError(403, 'cuenta_dada_de_baja', 'Tu cuenta fue dada de baja. Solo podés descargar o eliminar tus datos.');
 
   switch (key) {
     case 'GET /me':
@@ -353,6 +373,10 @@ export async function mockApi(path: string, method: string, body: unknown, token
       S.consents = { camara: false, animo: false, reaccion: false, chat: false, geo: false };
       S.otorgado = false;
       return { perfil: perfil(s.who) };
+    case 'DELETE /privacy/account':
+      if (!matias()?.baja) throw new MockError(403, 'solo_cuentas_de_baja', 'Podés borrar tu historial o retirar tu consentimiento. La cuenta se elimina cuando la empresa te da de baja.');
+      S.equipo = S.equipo.filter((t) => t.id !== USERS.worker.id);
+      return { ok: true };
     case 'GET /privacy/export':
       throw new MockError(400, 'demo', 'En la vista previa no se descargan archivos. En la app real se descarga un JSON con todos tus datos.');
   }
@@ -365,6 +389,22 @@ export async function mockApi(path: string, method: string, body: unknown, token
 
   // ---------- Administración ----------
   if (route?.startsWith('/admin') && s.who !== 'admin') throw new MockError(403, 'sin_permiso');
+  const accion = route?.match(/^\/admin\/workers\/([\w-]+)\/(baja|reactivar)$/);
+  if (accion && method === 'POST') {
+    const t = S.equipo.find((x) => x.id === accion[1]);
+    if (!t) throw new MockError(404, 'trabajador_inexistente');
+    if (accion[2] === 'baja') {
+      if (t.baja) throw new MockError(409, 'ya_dado_de_baja', 'Esta persona ya está dada de baja.');
+      t.baja = { desde: iso(now()), purgaEn: iso(new Date(Date.now() + 30 * 86_400_000)) };
+      enUso();
+      return t.baja;
+    }
+    if (!t.baja) throw new MockError(409, 'ya_activo', 'Esta persona ya está activa.');
+    if (S.sub.estado === 'activa' && enUso() >= S.sub.puestos) throw new MockError(409, 'sin_puestos', 'No quedan puestos disponibles en la suscripción. Ampliá la cantidad en Facturación.');
+    t.baja = null;
+    enUso();
+    return { credenciales: { pinKiosco: t.id === USERS.worker.id ? '1234' : String(1000 + Math.floor(Math.random() * 9000)), qrCredencial: t.id === USERS.worker.id ? 'QR-DEMO-04817' : 'QR-DEMO-' + uid().slice(0, 6) } };
+  }
   switch (key) {
     case 'GET /admin/stats': {
       if (S.sub.estado !== 'activa') throw new MockError(402, 'suscripcion_inactiva', 'Los reportes requieren una suscripción activa. Probá contratar con la pasarela de prueba en Facturación.');
@@ -392,12 +432,24 @@ export async function mockApi(path: string, method: string, body: unknown, token
       S.kiosks.push(k);
       return { id: k.id, nombre: k.nombre, token: `kiosco-demo-${uid()}` };
     }
-    case 'POST /admin/workers':
-      S.sub.puestosEnUso++;
+    case 'GET /admin/workers':
+      enUso();
       return {
-        id: uid(),
+        trabajadores: [...S.equipo]
+          .sort((x, y) => Number(!!x.baja) - Number(!!y.baja) || x.nombre.localeCompare(y.nombre))
+          .map((t) => ({ ...t, estado: t.baja ? 'baja' : 'activo' })),
+        suscripcion: S.sub,
+      };
+    case 'POST /admin/workers': {
+      if (S.sub.estado === 'activa' && enUso() >= S.sub.puestos) throw new MockError(409, 'sin_puestos', 'No quedan puestos disponibles en la suscripción. Ampliá la cantidad en Facturación.');
+      const id = uid();
+      S.equipo.push({ id, nombre: String(b.nombre), legajo: String(b.legajo), puesto: String(b.puesto ?? ''), baja: null });
+      enUso();
+      return {
+        id,
         credenciales: { dni: b.dni, passwordInicial: 'demo-' + uid().slice(0, 6), pinKiosco: String(1000 + Math.floor(Math.random() * 9000)), qrCredencial: 'QR-DEMO-' + uid().slice(0, 6) },
       };
+    }
     case 'GET /admin/billing':
       return { suscripcion: S.sub, planes: PLANS, proveedores: PROVIDERS };
     case 'POST /admin/billing/checkout': {

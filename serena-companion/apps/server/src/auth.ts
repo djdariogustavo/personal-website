@@ -20,6 +20,8 @@ export interface AuthInfo {
   deviceId: string;
   deviceKind: DeviceKind;
   efimera: boolean;
+  /** Cuenta dada de baja por la empresa, dentro del período de gracia. */
+  baja: boolean;
 }
 
 declare module 'express-serve-static-core' {
@@ -106,6 +108,7 @@ interface SessionRow {
   efimero: number;
   cerrado_en: string | null;
   activo: number;
+  purga_en: string | null;
 }
 
 export function authenticate(ctx: AppContext) {
@@ -122,13 +125,14 @@ export function authenticate(ctx: AppContext) {
       }
       const s = ctx.db
         .prepare(
-          `SELECT s.*, u.org_id, u.role, u.activo, d.kind, d.efimero, d.cerrado_en
+          `SELECT s.*, u.org_id, u.role, u.activo, u.purga_en, d.kind, d.efimero, d.cerrado_en
            FROM sessions s JOIN users u ON u.id = s.user_id JOIN devices d ON d.id = s.device_id
            WHERE s.id = ?`,
         )
         .get(sid) as SessionRow | undefined;
-      if (!s || s.revocada_en || s.cerrado_en || !s.activo) throw new HttpError(401, 'sesion_cerrada');
       const now = Date.now();
+      const enGracia = !s?.activo && s?.role === 'worker' && !s.efimero && !!s.purga_en && Date.parse(s.purga_en) > now;
+      if (!s || s.revocada_en || s.cerrado_en || (!s.activo && !enGracia)) throw new HttpError(401, 'sesion_cerrada');
       if (Date.parse(s.vence_en) < now) throw new HttpError(401, 'sesion_vencida');
       if (now - Date.parse(s.ultimo_uso) > s.inactividad_s * 1000) {
         ctx.db.prepare('UPDATE sessions SET revocada_en = ? WHERE id = ?').run(nowIso(), s.id);
@@ -143,6 +147,7 @@ export function authenticate(ctx: AppContext) {
         deviceId: s.device_id,
         deviceKind: s.kind,
         efimera: Boolean(s.efimero),
+        baja: !s.activo,
       };
       next();
     } catch (e) {
@@ -177,6 +182,28 @@ const KIOSK_ALLOWED: Array<[string, RegExp]> = [
   ['POST', /^\/emergency$/],
   ['GET', /^\/emergency\/[\w-]+$/],
 ];
+
+/**
+ * Alcance de una cuenta dada de baja (período de gracia): la persona ya no
+ * usa el servicio de la empresa, pero conserva sus derechos de acceso y
+ * supresión (Ley 25.326): ver su perfil, descargar sus datos, ver a quién se
+ * compartieron y eliminarlos. Nada más.
+ */
+const BAJA_ALLOWED: Array<[string, RegExp]> = [
+  ['GET', /^\/me$/],
+  ['GET', /^\/privacy\/export$/],
+  ['GET', /^\/privacy\/access-log$/],
+  ['DELETE', /^\/privacy\/account$/],
+];
+
+export function bajaScope() {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.auth?.baja) return next();
+    const ok = BAJA_ALLOWED.some(([m, re]) => m === req.method && re.test(req.path));
+    if (!ok) return next(new HttpError(403, 'cuenta_dada_de_baja', 'Tu cuenta fue dada de baja. Solo podés descargar o eliminar tus datos.'));
+    next();
+  };
+}
 
 export function kioskScope() {
   return (req: Request, _res: Response, next: NextFunction) => {

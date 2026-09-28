@@ -63,7 +63,11 @@ serena-companion/
   (`packages/domain/src/disclosure.ts`): se cuenta por persona y no por check-in, los grupos deben tener al
   menos 5 personas y cada categoría al menos 3 (si no, se fusiona u oculta), no se publican grupos
   homogéneos, los porcentajes se redondean a 5 puntos y la ventana es fija (4 semanas completas, se
-  actualiza los lunes) para evitar deducciones por diferencia. Nunca ve nombres ni resultados individuales. Cada escalamiento a la guardia queda auditado y se muestra en Privacidad
+  actualiza los lunes) para evitar deducciones por diferencia. Nunca ve nombres ni resultados individuales.
+- **Baja de trabajadores.** La empresa da de baja desde Equipo: se libera el puesto, se cierran las sesiones
+  y se invalidan PIN, QR y escritorios recordados. La persona conserva 30 días un acceso restringido para
+  descargar o eliminar sus datos; al vencer, la cuenta y sus datos se eliminan (`apps/server/src/baja.ts`).
+  Dentro de ese plazo la empresa puede reactivarla (PIN y QR nuevos). Cada escalamiento a la guardia queda auditado y se muestra en Privacidad
   ("Tu información se compartió N veces en los últimos 90 días"). Exportación, borrado y retiro del
   consentimiento (Ley 25.326).
 - **Consentimiento granular.** Cada permiso apaga su paso del check-in (ánimo, cámara, reacción), el chat

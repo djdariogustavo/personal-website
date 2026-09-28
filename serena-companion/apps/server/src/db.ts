@@ -206,6 +206,12 @@ const MIGRATIONS: string[] = [
   ALTER TABLE users ADD COLUMN kiosk_fallos INTEGER NOT NULL DEFAULT 0;
   ALTER TABLE users ADD COLUMN kiosk_bloqueo_hasta TEXT;
   `,
+  // 3: baja de trabajadores. La persona conserva un acceso restringido a sus datos durante el
+  // período de gracia; al vencer (purga_en) la cuenta y sus datos se eliminan.
+  `
+  ALTER TABLE users ADD COLUMN baja_en TEXT;
+  ALTER TABLE users ADD COLUMN purga_en TEXT;
+  `,
 ];
 
 export type DB = DatabaseSync;

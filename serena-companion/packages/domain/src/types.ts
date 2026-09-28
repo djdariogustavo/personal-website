@@ -115,6 +115,11 @@ export interface EmergencyAck {
 
 export interface UserProfile {
   id: string;
+  /**
+   * Presente si la empresa dio de baja a la persona. Mientras tanto solo puede
+   * descargar o eliminar sus datos; en `purgaEn` se eliminan definitivamente.
+   */
+  baja?: { desde: string; purgaEn: string } | null;
   nombre: string;
   nombreCorto: string;
   iniciales: string;

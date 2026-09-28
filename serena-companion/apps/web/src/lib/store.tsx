@@ -101,8 +101,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const db = await openLocalDb(s.perfil.id, s.efimera);
     const engine = new SyncEngine(db, s.deviceId);
     const emergencies = new EmergencyQueue(db);
-    engine.start();
-    emergencies.start();
+    // Una cuenta dada de baja no sincroniza ni envía avisos: el servidor solo le permite ver y borrar sus datos.
+    if (!s.perfil.baja) {
+      engine.start();
+      emergencies.start();
+    }
     setLocal({ db, engine, emergencies });
   }, []);
 
