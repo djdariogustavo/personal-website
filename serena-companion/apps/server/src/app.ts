@@ -4,7 +4,7 @@ import { ZodError } from 'zod';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AppContext } from './context.ts';
-import { HttpError, authenticate, requireRole } from './auth.ts';
+import { HttpError, authenticate, kioskScope, requireRole } from './auth.ts';
 import { authRoutes } from './routes/auth.ts';
 import { meRoutes } from './routes/me.ts';
 import { checkinRoutes } from './routes/checkins.ts';
@@ -50,6 +50,7 @@ export function createApp(ctx: AppContext, opts: { staticDir?: string } = {}) {
 
   const authed = express.Router();
   authed.use(authenticate(ctx));
+  authed.use(kioskScope());
   authed.use(meRoutes(ctx));
   authed.use(checkinRoutes(ctx));
   authed.use(companionRoutes(ctx));

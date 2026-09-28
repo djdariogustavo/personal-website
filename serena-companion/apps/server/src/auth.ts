@@ -162,3 +162,27 @@ export function auth(req: Request): AuthInfo {
   if (!req.auth) throw new HttpError(401, 'sin_sesion');
   return req.auth;
 }
+
+/**
+ * Alcance de las sesiones de kiosco (tablet compartida). Solo pueden hacer lo
+ * que el flujo del kiosco necesita: leer el perfil (para saludar y respetar
+ * los permisos), subir el check-in de esa sesión y pedir ayuda. Nunca pueden
+ * ver historial, exportar o borrar datos, cambiar permisos ni cerrar sesiones
+ * de los otros dispositivos de la persona.
+ */
+const KIOSK_ALLOWED: Array<[string, RegExp]> = [
+  ['GET', /^\/me$/],
+  ['POST', /^\/sync\/push$/],
+  ['GET', /^\/sync\/pull$/],
+  ['POST', /^\/emergency$/],
+  ['GET', /^\/emergency\/[\w-]+$/],
+];
+
+export function kioskScope() {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.auth?.efimera) return next();
+    const ok = KIOSK_ALLOWED.some(([m, re]) => m === req.method && re.test(req.path));
+    if (!ok) return next(new HttpError(403, 'no_disponible_en_kiosco', 'Esta acción no está disponible en el kiosco. Hacela desde tu teléfono o la web.'));
+    next();
+  };
+}

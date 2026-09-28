@@ -111,6 +111,88 @@ describe('ingreso seguro', () => {
   });
 });
 
+describe('alcance del kiosco', () => {
+  async function setup() {
+    const env = makeCtx();
+    addUser(env.ctx, env.orgId, { dni: '6060606', legajo: '777', password: 'p', pin: '1234' });
+    const { sha256 } = await import('../src/crypto.ts');
+    const token = 'kiosk-token-para-pruebas-0123456789';
+    env.ctx.db.prepare("INSERT INTO kiosks (id, org_id, nombre, token_hash, creado_en) VALUES ('k1', ?, 'Tablet', ?, ?)").run(env.orgId, sha256(token), new Date().toISOString());
+    // Historial previo hecho desde el teléfono.
+    const phone = await login(env.app, env.messenger, '6060606', 'p');
+    const old = checkin();
+    await request(env.app)
+      .post('/api/sync/push')
+      .set(bearer(phone.token))
+      .send({ mutations: [{ mutationId: randomUUID(), entity: 'checkin', id: old.id, op: 'upsert', data: old, updatedAt: old.updatedAt, deviceId: phone.deviceId }] });
+    const k = await request(env.app).post('/api/auth/kiosk').send({ kioskToken: token, legajo: '777', pin: '1234' });
+    return { ...env, phone, old, kiosk: k.body as { token: string; deviceId: string } };
+  }
+
+  it('la tablet no recibe el historial: solo lo registrado en esa sesión', async () => {
+    const t = await setup();
+    const empty = await request(t.app).get('/api/sync/pull?cursor=0').set(bearer(t.kiosk.token));
+    expect(empty.body.cambios).toHaveLength(0);
+    const c = checkin();
+    await request(t.app)
+      .post('/api/sync/push')
+      .set(bearer(t.kiosk.token))
+      .send({ mutations: [{ mutationId: randomUUID(), entity: 'checkin', id: c.id, op: 'upsert', data: c, updatedAt: c.updatedAt, deviceId: t.kiosk.deviceId }] });
+    const mine = await request(t.app).get('/api/sync/pull?cursor=0').set(bearer(t.kiosk.token));
+    expect(mine.body.cambios.map((x: { id: string }) => x.id)).toEqual([c.id]);
+    // El teléfono sí ve los dos.
+    const phone = await request(t.app).get('/api/sync/pull?cursor=0').set(bearer(t.phone.token));
+    expect(phone.body.cambios).toHaveLength(2);
+  });
+
+  it('bloquea todo lo que no es del flujo del kiosco', async () => {
+    const t = await setup();
+    const k = bearer(t.kiosk.token);
+    const blocked = [
+      request(t.app).get('/api/privacy/export').set(k),
+      request(t.app).delete('/api/privacy/history').set(k),
+      request(t.app).post('/api/privacy/withdraw').set(k),
+      request(t.app).get('/api/privacy/access-log').set(k),
+      request(t.app).get('/api/devices').set(k),
+      request(t.app).delete(`/api/devices/${t.phone.deviceId}`).set(k),
+      request(t.app).put('/api/consents').set(k).send({ camara: false, animo: false, reaccion: false, chat: false, geo: false }),
+      request(t.app).get('/api/companion/messages').set(k),
+      request(t.app).post('/api/companion/messages').set(k).send({ text: 'hola' }),
+    ];
+    for (const r of await Promise.all(blocked)) {
+      expect(r.status).toBe(403);
+      expect(r.body.error).toBe('no_disponible_en_kiosco');
+    }
+    // El teléfono sigue con su sesión abierta.
+    expect((await request(t.app).get('/api/me').set(bearer(t.phone.token))).status).toBe(200);
+    // Lo que el kiosco sí necesita, funciona.
+    expect((await request(t.app).get('/api/me').set(k)).status).toBe(200);
+    const e = await request(t.app)
+      .post('/api/emergency')
+      .set(k)
+      .send({ id: randomUUID(), tipo: 'hablar', compartirUbicacion: false, creadoEn: new Date().toISOString(), origen: 'boton' });
+    expect(e.status).toBe(200);
+  });
+
+  it('no puede modificar ni borrar check-ins hechos en otro dispositivo', async () => {
+    const t = await setup();
+    const later = new Date(Date.now() + 60_000).toISOString();
+    const r = await request(t.app)
+      .post('/api/sync/push')
+      .set(bearer(t.kiosk.token))
+      .send({
+        mutations: [
+          { mutationId: randomUUID(), entity: 'checkin', id: t.old.id, op: 'upsert', data: { ...t.old, nota: 'x', updatedAt: later }, updatedAt: later, deviceId: t.kiosk.deviceId },
+          { mutationId: randomUUID(), entity: 'checkin', id: t.old.id, op: 'delete', data: null, updatedAt: later, deviceId: t.kiosk.deviceId },
+        ],
+      });
+    expect(r.body.resultados.map((x: { status: string; motivo?: string }) => [x.status, x.motivo])).toEqual([
+      ['rechazada', 'kiosco'],
+      ['rechazada', 'kiosco'],
+    ]);
+  });
+});
+
 describe('sincronización de check-ins', () => {
   it('sube, recalcula el nivel en el servidor, es idempotente y resuelve conflictos por fecha', async () => {
     const { ctx, app, orgId, messenger } = makeCtx();

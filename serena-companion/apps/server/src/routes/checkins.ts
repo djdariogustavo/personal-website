@@ -99,6 +99,8 @@ export function checkinRoutes(ctx: AppContext) {
         }
         const cur = db.prepare('SELECT * FROM checkins WHERE id = ?').get(m.id) as CheckinRow | undefined;
         if (cur && cur.user_id !== a.userId) return { status: 'rechazada', motivo: 'ajeno' };
+        // Desde el kiosco solo se crean registros nuevos de esa sesión; nunca se tocan los de otros dispositivos.
+        if (a.efimera && cur && cur.device_id !== a.deviceId) return { status: 'rechazada', motivo: 'kiosco' };
         if (!wins({ updatedAt: m.updatedAt, deviceId }, cur ? { updatedAt: cur.actualizado_en, deviceId: cur.device_id } : null))
           return { status: 'descartada' };
         const seq = nextSeq(db);
@@ -155,9 +157,15 @@ export function checkinRoutes(ctx: AppContext) {
     const a = auth(req);
     const since = Number(z.string().regex(/^\d+$/).default('0').parse(req.query.cursor ?? '0'));
     const limit = 200;
-    const rows = db
-      .prepare('SELECT * FROM checkins WHERE user_id = ? AND seq > ? ORDER BY seq LIMIT ?')
-      .all(a.userId, since, limit + 1) as unknown as CheckinRow[];
+    // En el kiosco solo se devuelve lo registrado en esa misma sesión (cada ingreso al kiosco
+    // es un dispositivo efímero nuevo): la tablet compartida nunca recibe el historial.
+    const rows = (
+      a.efimera
+        ? db
+            .prepare('SELECT * FROM checkins WHERE user_id = ? AND device_id = ? AND seq > ? ORDER BY seq LIMIT ?')
+            .all(a.userId, a.deviceId, since, limit + 1)
+        : db.prepare('SELECT * FROM checkins WHERE user_id = ? AND seq > ? ORDER BY seq LIMIT ?').all(a.userId, since, limit + 1)
+    ) as unknown as CheckinRow[];
     const page = rows.slice(0, limit);
     const devices = new Map<string, string>();
     const out: PullResponse<CheckIn> = {
