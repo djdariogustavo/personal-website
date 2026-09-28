@@ -9,6 +9,7 @@ import { buildRegistry } from './payments/index.ts';
 import { BasicCompanion, ClaudeCompanion } from './companion.ts';
 import { ConsoleGuardNotifier, ConsoleMessenger, WebhookGuardNotifier } from './notify.ts';
 import type { AppContext } from './context.ts';
+import { flushOrphanGroups } from './routes/safety.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
@@ -25,6 +26,7 @@ const ctx: AppContext = {
   guard: env.guardWebhookUrl ? new WebhookGuardNotifier(env.guardWebhookUrl, env.guardWebhookSecret) : new ConsoleGuardNotifier(),
 };
 
+flushOrphanGroups(ctx);
 const app = createApp(ctx, { staticDir: process.env.SERENA_STATIC_DIR ?? join(here, '../../web/dist') });
 app.listen(env.port, () => {
   console.info(`[serena] API en http://localhost:${env.port}`);

@@ -198,7 +198,9 @@ function HighLevel({ kiosk, onDone }: { kiosk: boolean; onDone: () => void }) {
         {state === 'conectando' && (
           <div style={{ fontSize: 16, lineHeight: 1.45, color: 'var(--ok-fg)' }}>
             {status?.estado === 'en_cola'
-              ? 'Sin señal: el aviso a la guardia quedó en cola y se envía apenas haya conexión. Si podés, avisá por radio.'
+              ? status.motivo === 'sin_senal'
+                ? 'Sin señal: el aviso a la guardia quedó en cola y se envía apenas haya conexión. Si podés, avisá por radio.'
+                : 'Estamos enviando el aviso a la guardia; lo reintentamos en unos segundos. Si podés, avisá también por radio.'
               : `Conectando con la guardia de ${session?.perfil.org.faena}. Quedate en línea.`}
           </div>
         )}

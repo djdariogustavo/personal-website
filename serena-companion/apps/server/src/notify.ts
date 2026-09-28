@@ -50,6 +50,8 @@ export interface GuardAlert {
   trabajador: { id: string; nombre: string; legajo: string | null; telefono: string | null };
   ubicacion: { lat: number; lng: number; precisionM: number } | null;
   creadoEn: string;
+  /** Resumen de avisos repetidos: cuántos pedidos agrupa esta notificación (ausente si es uno solo). */
+  agrupados?: number;
 }
 
 export interface GuardNotifier {
@@ -84,7 +86,7 @@ export class ConsoleGuardNotifier implements GuardNotifier {
   readonly sent: GuardAlert[] = [];
   async notify(alert: GuardAlert) {
     this.sent.push(alert);
-    console.warn(`[serena][guardia] ${alert.tipo} · ${alert.faena} · ${alert.trabajador.nombre} · ${alert.alertId}`);
+    console.warn(`[serena][guardia] ${alert.tipo}${alert.agrupados ? ` ×${alert.agrupados} (resumen)` : ''} · ${alert.prioridad} · ${alert.faena} · ${alert.trabajador.nombre} · ${alert.alertId}`);
     return { entregado: true };
   }
 }

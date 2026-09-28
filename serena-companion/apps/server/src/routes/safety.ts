@@ -7,6 +7,8 @@ import { newId } from '../crypto.ts';
 import { nowIso } from '../db.ts';
 import { getConsents, getOrg, getUser } from '../users.ts';
 import { guardAlertPriority, guardAlertType, type EmergencyOrigin } from '../notify.ts';
+import { decideAlert, masGrave, RESUMEN_CADA_MS, VENTANA_MS } from '../alertThrottle.ts';
+import { rateLimit } from '../ratelimit.ts';
 
 /**
  * Botón de emergencia (6.13) y escalamiento a la guardia (resultado alto 6.9,
@@ -32,7 +34,11 @@ export function safetyRoutes(ctx: AppContext) {
     origen: z.enum(['boton', 'resultado_alto', 'acompanante']),
   });
 
-  r.post('/emergency', async (req, res) => {
+  // Tope técnico contra un equipo con fallas: 30 pedidos por minuto por persona. Si se supera, el
+  // aviso NO se pierde: la app lo mantiene en su cola y lo reintenta a los 10 s.
+  const limiter = rateLimit({ windowMs: 60_000, max: 30, key: (req) => `em:${req.auth?.userId ?? req.ip}` });
+
+  r.post('/emergency', limiter, async (req, res) => {
     const a = auth(req);
     const e = schema.parse(req.body);
     const prev = db.prepare('SELECT id, canal, recibido_en FROM emergencies WHERE id = ?').get(e.id) as
@@ -64,21 +70,33 @@ export function safetyRoutes(ctx: AppContext) {
       JSON.stringify({ destinatario: 'guardia', ubicacion: Boolean(ubicacion), emergencia: e.id }),
       recibido,
     );
-    const delivery = await ctx.guard.notify({
-      alertId: e.id,
-      orgId: org.id,
-      faena: org.faena,
-      tipo,
-      prioridad: guardAlertPriority(tipo),
-      origen: e.origen,
-      trabajador: { id: user.id, nombre: user.nombre, legajo: user.legajo, telefono: user.telefono },
-      ubicacion,
-      creadoEn: e.creadoEn,
-    });
-    db.prepare('UPDATE emergencies SET estado = ? WHERE id = ?').run(delivery.entregado ? 'entregado' : 'pendiente_entrega', e.id);
-    if (!delivery.entregado) {
-      // El aviso quedó registrado en el servidor: se reintenta la entrega a la guardia en segundo plano.
-      scheduleRedelivery(ctx, e.id);
+    // Avisos repetidos: se registran todos, pero la guardia no recibe una notificación por cada uno.
+    const desde = new Date(Date.parse(recibido) - VENTANA_MS).toISOString();
+    const recientes = (
+      db
+        .prepare("SELECT tipo, origen, estado FROM emergencies WHERE user_id = ? AND recibido_en >= ? AND id != ?")
+        .all(a.userId, desde, e.id) as Array<{ tipo: 'fisica' | 'hablar' | 'riesgo'; origen: EmergencyOrigin; estado: string }>
+    ).map((x) => ({ tipo: guardAlertType(x.tipo, x.origen), notificada: !x.estado.includes('agrupado') }));
+    if (decideAlert(recientes, tipo) === 'agrupar') {
+      db.prepare("UPDATE emergencies SET estado = 'agrupado' WHERE id = ?").run(e.id);
+      scheduleGroupFlush(ctx, a.userId);
+    } else {
+      const delivery = await ctx.guard.notify({
+        alertId: e.id,
+        orgId: org.id,
+        faena: org.faena,
+        tipo,
+        prioridad: guardAlertPriority(tipo),
+        origen: e.origen,
+        trabajador: { id: user.id, nombre: user.nombre, legajo: user.legajo, telefono: user.telefono },
+        ubicacion,
+        creadoEn: e.creadoEn,
+      });
+      db.prepare('UPDATE emergencies SET estado = ? WHERE id = ?').run(delivery.entregado ? 'entregado' : 'pendiente_entrega', e.id);
+      if (!delivery.entregado) {
+        // El aviso quedó registrado en el servidor: se reintenta la entrega a la guardia en segundo plano.
+        scheduleRedelivery(ctx, e.id);
+      }
     }
     const ack: EmergencyAck = { id: e.id, estado: 'enviado', canal: ctx.guard.canal, recibidoEn: recibido };
     res.json(ack);
@@ -92,6 +110,60 @@ export function safetyRoutes(ctx: AppContext) {
   });
 
   return r;
+}
+
+/**
+ * Resumen de avisos agrupados: uno por persona y por minuto como máximo. Toma
+ * todos los avisos en estado 'agrupado' de la persona, notifica el más grave
+ * con la cantidad y la última ubicación compartida, y los marca entregados.
+ */
+const groupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+export function scheduleGroupFlush(ctx: AppContext, userId: string, delayMs = RESUMEN_CADA_MS) {
+  if (groupTimers.has(userId)) return;
+  const t = setTimeout(() => {
+    groupTimers.delete(userId);
+    void flushGroup(ctx, userId);
+  }, delayMs);
+  t.unref();
+  groupTimers.set(userId, t);
+}
+
+export async function flushGroup(ctx: AppContext, userId: string) {
+  const rows = ctx.db
+    .prepare("SELECT * FROM emergencies WHERE user_id = ? AND estado = 'agrupado' ORDER BY recibido_en")
+    .all(userId) as Array<{ id: string; org_id: string; tipo: 'fisica' | 'hablar' | 'riesgo'; origen: EmergencyOrigin; ubicacion_enc: string | null; creado_cliente: string }>;
+  if (!rows.length) return;
+  const user = getUser(ctx.db, userId);
+  const org = getOrg(ctx.db, user.org_id);
+  const tipos = rows.map((r) => guardAlertType(r.tipo, r.origen));
+  const tipo = masGrave(tipos);
+  const ultima = rows[rows.length - 1]!;
+  const conUbicacion = [...rows].reverse().find((r) => r.ubicacion_enc);
+  const delivery = await ctx.guard.notify({
+    alertId: ultima.id,
+    orgId: org.id,
+    faena: org.faena,
+    tipo,
+    prioridad: guardAlertPriority(tipo),
+    origen: rows[tipos.indexOf(tipo)]!.origen,
+    trabajador: { id: user.id, nombre: user.nombre, legajo: user.legajo, telefono: user.telefono },
+    ubicacion: conUbicacion?.ubicacion_enc ? ctx.vault.decrypt(userId, conUbicacion.ubicacion_enc) : null,
+    creadoEn: ultima.creado_cliente,
+    agrupados: rows.length,
+  });
+  const ids = rows.map((r) => r.id);
+  if (delivery.entregado) {
+    ctx.db.prepare(`UPDATE emergencies SET estado = 'entregado_agrupado' WHERE id IN (${ids.map(() => '?').join(',')})`).run(...ids);
+  } else {
+    // Sin entrega: se reintenta el resumen en un minuto (los avisos siguen registrados).
+    scheduleGroupFlush(ctx, userId);
+  }
+}
+
+/** Al arrancar el servidor: resúmenes que quedaron pendientes por un reinicio. */
+export function flushOrphanGroups(ctx: AppContext) {
+  const users = ctx.db.prepare("SELECT DISTINCT user_id FROM emergencies WHERE estado = 'agrupado'").all() as Array<{ user_id: string }>;
+  for (const u of users) scheduleGroupFlush(ctx, u.user_id, 1000);
 }
 
 const pending = new Set<string>();

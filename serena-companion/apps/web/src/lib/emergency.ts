@@ -8,7 +8,9 @@ import type { LocalDb } from './localdb.ts';
  * así los reintentos nunca duplican el aviso.
  */
 
-export type EmergencyStatus = { estado: 'en_cola'; req: EmergencyRequest } | { estado: 'enviado'; req: EmergencyRequest; ack: EmergencyAck };
+export type EmergencyStatus =
+  | { estado: 'en_cola'; motivo: 'sin_senal' | 'reintentando'; req: EmergencyRequest }
+  | { estado: 'enviado'; req: EmergencyRequest; ack: EmergencyAck };
 
 type Listener = (s: EmergencyStatus) => void;
 
@@ -47,8 +49,10 @@ export class EmergencyQueue {
       this.listeners.forEach((l) => l(s));
       return s;
     } catch (e) {
-      if (!isOffline(e)) console.error('No se pudo enviar el aviso', e);
-      return { estado: 'en_cola', req };
+      // Nunca se descarta: queda en la cola y se reintenta cada 10 s.
+      if (isOffline(e)) return { estado: 'en_cola', motivo: 'sin_senal', req };
+      console.error('No se pudo enviar el aviso, se reintenta', e);
+      return { estado: 'en_cola', motivo: 'reintentando', req };
     }
   }
 

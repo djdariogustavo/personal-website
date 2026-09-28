@@ -184,10 +184,12 @@ export function EmergencySheet({ onClose, origen = 'boton', preset }: { onClose:
             ) : (
               <>
                 <h2 id="emerg-title" className="display" style={{ fontSize: 30, lineHeight: 1.15 }}>
-                  Sin señal.
+                  {status.motivo === 'sin_senal' ? 'Sin señal.' : 'Estamos enviando tu aviso.'}
                 </h2>
                 <p style={{ fontSize: 18, lineHeight: 1.5, fontWeight: 500 }}>
-                  Guardamos el aviso y lo enviamos apenas haya conexión. Si podés, avisá por radio.
+                  {status.motivo === 'sin_senal'
+                    ? 'Guardamos el aviso y lo enviamos apenas haya conexión. Si podés, avisá por radio.'
+                    : 'Lo reintentamos en unos segundos. Si podés, avisá también por radio.'}
                 </p>
                 <div className="label" style={{ color: '#0b0b1a', fontSize: 13 }}>
                   {hora} · EN COLA · SE REINTENTA CADA 10 S{online ? ' · REINTENTANDO' : ''}
