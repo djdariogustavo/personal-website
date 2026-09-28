@@ -62,7 +62,17 @@ export function SyncIndicator({ showLabel }: { showLabel: boolean }) {
  */
 export function AppShell({ children, hideNav = false, kiosk = false }: { children: ReactNode; hideNav?: boolean; kiosk?: boolean }) {
   const layout = useLayout();
-  const { session, config, lock, endSession, theme, setTheme } = useApp();
+  const { session, config, lock, endSession, flushPending, theme, setTheme } = useApp();
+  const [logoutPending, setLogoutPending] = useState<number | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+  const logout = () => void endSession().then(() => nav('/ingresar'));
+  const requestLogout = async () => {
+    setLoggingOut(true);
+    const n = await flushPending();
+    setLoggingOut(false);
+    if (n > 0) setLogoutPending(n);
+    else logout();
+  };
   const sync = useSync();
   const loc = useLocation();
   const nav = useNavigate();
@@ -159,8 +169,8 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
                         </NavLink>
                       </>
                     )}
-                    <button type="button" role="menuitem" onClick={() => void endSession().then(() => nav('/ingresar'))}>
-                      <Icon name="logout" /> Cerrar sesión
+                    <button type="button" role="menuitem" disabled={loggingOut} onClick={() => void requestLogout()}>
+                      <Icon name="logout" /> {loggingOut ? 'Subiendo tus registros…' : 'Cerrar sesión'}
                     </button>
                   </div>
                 )}
@@ -196,6 +206,29 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
             </nav>
           )}
         </div>
+        {logoutPending !== null && (
+          <div className="overlay" role="alertdialog" aria-modal="true" aria-labelledby="logout-title" style={{ zIndex: 45 }}>
+            <div className="card" style={{ maxWidth: 460, gap: 16 }}>
+              <h2 id="logout-title" className="display" style={{ fontSize: 22, lineHeight: 1.2 }}>
+                Hay {logoutPending} registro{logoutPending === 1 ? '' : 's'} sin subir
+              </h2>
+              <p className="muted">
+                No hay señal para subirlos ahora. Si cerrás sesión, quedan guardados cifrados en este equipo y se suben solos la próxima vez que ingreses acá.
+              </p>
+              <div className="actions">
+                <button type="button" className="btn btn-primary" onClick={() => (setLogoutPending(null), void requestLogout())}>
+                  Reintentar ahora
+                </button>
+                <button type="button" className="btn" onClick={() => (setLogoutPending(null), logout())}>
+                  Cerrar sesión igual
+                </button>
+                <button type="button" className="btn-link" onClick={() => setLogoutPending(null)}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
         {emerg && <EmergencySheet onClose={() => setEmerg(null)} origen={emerg.origen} preset={emerg.tipo} />}
       </div>
     </EmergencyCtx.Provider>

@@ -38,6 +38,7 @@ export function Login() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [info, setInfo] = useState<string | null>(null);
+  const retenidos = storage.get<{ n: number }>('serena.retenidos');
   const codeRefs = useRef<Array<HTMLInputElement | null>>([]);
 
   async function finish(r: LoginOk) {
@@ -140,6 +141,11 @@ export function Login() {
             <h1 className="display" style={{ fontSize: 32, lineHeight: 1.1 }}>
               Ingresá a tu cuenta
             </h1>
+            {retenidos && (
+              <div className="notice" role="status">
+                Hay {retenidos.n} registro{retenidos.n === 1 ? '' : 's'} de una sesión anterior guardado{retenidos.n === 1 ? '' : 's'} en este equipo, cifrado{retenidos.n === 1 ? '' : 's'}. Se suben cuando esa persona vuelva a ingresar acá.
+              </div>
+            )}
             <label className="field">
               <span className="label">USUARIO CORPORATIVO O DNI</span>
               <input className="input" value={ident} onChange={(e) => setIdent(e.target.value)} autoComplete="username" inputMode="text" required />

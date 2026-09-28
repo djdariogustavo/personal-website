@@ -5,6 +5,7 @@ import { openLocalDb, type LocalDb } from './localdb.ts';
 import { SyncEngine, type SyncSnapshot } from './sync.ts';
 import { EmergencyQueue } from './emergency.ts';
 import { appLock } from './applock.ts';
+import { closeLocalData, countPending, logoutMode, withTimeout, type LogoutMode } from './logout.ts';
 
 /**
  * Estado global de la app: configuración remota, sesión, base local cifrada,
@@ -33,7 +34,10 @@ interface Ctx {
   theme: 'noche' | 'sol';
   setTheme(t: 'noche' | 'sol'): void;
   startSession(s: Session): Promise<void>;
-  endSession(opts?: { reason?: string; remote?: boolean }): Promise<void>;
+  /** Cierra la sesión. Devuelve cuántos registros sin subir quedaron guardados cifrados en el equipo. */
+  endSession(opts?: { reason?: string; remote?: boolean; wipe?: boolean }): Promise<number>;
+  /** Intenta subir lo pendiente y devuelve cuántos registros siguen sin subir. */
+  flushPending(): Promise<number>;
   clearSessionEnded(): void;
   setProfile(p: Profile): void;
   unlock(): void;
@@ -76,6 +80,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [pendingConsents, setPendingConsentsState] = useState<Consents | null>(() => LS.get('serena.consent.pending'));
   const localRef = useRef(local);
   localRef.current = local;
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -100,13 +106,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setLocal({ db, engine, emergencies });
   }, []);
 
-  const detachLocal = useCallback(async (destroy: boolean) => {
+  const detachLocal = useCallback(async (mode: LogoutMode): Promise<number> => {
     const l = localRef.current;
-    if (!l) return;
+    if (!l) return 0;
     l.engine.stop();
     l.emergencies.stop();
-    if (destroy) await l.db.destroy();
     setLocal(null);
+    return closeLocalData(l.db, mode);
+  }, []);
+
+  /** Intenta subir lo pendiente (hasta 6 s) y devuelve cuánto queda sin subir. */
+  const flushPending = useCallback(async (): Promise<number> => {
+    const l = localRef.current;
+    if (!l) return 0;
+    if (navigator.onLine) await withTimeout(Promise.all([l.engine.sync(), l.emergencies.flush()]), 6000);
+    return countPending(l.db);
   }, []);
 
   // Restaurar sesión guardada (nunca en kiosco).
@@ -127,19 +141,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [attachLocal]);
 
   const endSession = useCallback(
-    async (opts: { reason?: string; remote?: boolean } = {}) => {
-      const s = LS.get<Session>('serena.session');
+    async (opts: { reason?: string; remote?: boolean; wipe?: boolean } = {}): Promise<number> => {
+      const s = sessionRef.current ?? LS.get<Session>('serena.session');
+      const mode = logoutMode({ efimera: !!s?.efimera, reason: opts.reason, wipe: opts.wipe });
+      // Primero se intenta subir lo pendiente, mientras la sesión todavía es válida.
+      if (opts.remote !== false && mode === 'retain_pending') await flushPending();
       if (opts.remote !== false) await api('/auth/logout', { body: {} }).catch(() => undefined);
       setToken(null);
       LS.set('serena.session', null);
-      // Kiosco: no queda nada. Personal: se borra la base local (los datos están en el servidor).
-      await detachLocal(true);
+      const retenidos = await detachLocal(mode);
+      LS.set('serena.retenidos', retenidos > 0 && s ? { n: retenidos, userId: s.perfil.id } : null);
       if (s?.deviceKind === 'mobile') appLock.clear();
       setSession(null);
       setLocked(false);
       if (opts.reason) setSessionEnded(opts.reason);
+      return retenidos;
     },
-    [detachLocal],
+    [detachLocal, flushPending],
   );
 
   useEffect(() => {
@@ -152,6 +170,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setSession(s);
       setSessionEnded(null);
       LS.set('serena.lastKind', s.deviceKind);
+      if (!s.efimera) LS.set('serena.welcomed', true); // al cerrar sesión se vuelve al ingreso, no a la bienvenida
+      // Lo que quedó pendiente de esta persona se sube con la sincronización de este ingreso.
+      if (LS.get<{ userId: string }>('serena.retenidos')?.userId === s.perfil.id) LS.set('serena.retenidos', null);
       if (!s.efimera) LS.set('serena.session', s);
       if (s.trustToken) LS.set('serena.trust', { token: s.trustToken, deviceId: s.deviceId });
       await attachLocal(s);
@@ -181,6 +202,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setTheme: setThemeState,
       startSession,
       endSession,
+      flushPending,
       clearSessionEnded: () => setSessionEnded(null),
       setProfile,
       unlock: () => setLocked(false),
@@ -191,7 +213,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         LS.set('serena.consent.pending', c);
       },
     }),
-    [config, session, ready, local, locked, sessionEnded, theme, startSession, endSession, setProfile, pendingConsents],
+    [config, session, ready, local, locked, sessionEnded, theme, startSession, endSession, flushPending, setProfile, pendingConsents],
   );
 
   return <AppCtx.Provider value={value}>{children}</AppCtx.Provider>;

@@ -56,7 +56,7 @@ export function DemoFrame({ children }: { children: ReactNode }) {
   }
 
   async function reset() {
-    await endSession({ remote: false });
+    await endSession({ remote: false, wipe: true });
     try {
       for (const k of Object.keys(localStorage)) if (k.startsWith('serena.')) localStorage.removeItem(k);
     } catch {

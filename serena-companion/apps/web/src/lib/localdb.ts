@@ -17,6 +17,10 @@ export interface LocalDb {
   del(store: StoreName, key: string): Promise<void>;
   all<T>(store: StoreName): Promise<T[]>;
   clear(): Promise<void>;
+  /** Vacía solo las colecciones indicadas. */
+  clearStores(stores: StoreName[]): Promise<void>;
+  /** Cierra la conexión sin borrar nada. */
+  close(): Promise<void>;
   destroy(): Promise<void>;
 }
 
@@ -37,6 +41,10 @@ export class MemoryDb implements LocalDb {
   async clear() {
     for (const m of this.data.values()) m.clear();
   }
+  async clearStores(stores: StoreName[]) {
+    for (const s of stores) this.data.get(s)!.clear();
+  }
+  async close() {}
   async destroy() {
     await this.clear();
   }
@@ -104,6 +112,13 @@ export class EncryptedIdb implements LocalDb {
   async clear() {
     const tx = this.db.transaction(STORES, 'readwrite');
     await Promise.all(STORES.map((s) => req(tx.objectStore(s).clear())));
+  }
+  async clearStores(stores: StoreName[]) {
+    const tx = this.db.transaction(stores, 'readwrite');
+    await Promise.all(stores.map((s) => req(tx.objectStore(s).clear())));
+  }
+  async close() {
+    this.db.close();
   }
   async destroy() {
     this.db.close();
