@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Consents } from '@serena/domain';
-import { api, isOffline } from '../lib/api.ts';
+import { api, ApiError, isOffline } from '../lib/api.ts';
+import { Link } from 'react-router';
 import { useApp, type Profile } from '../lib/store.tsx';
 import { CONSENT_ITEMS } from './Onboarding.tsx';
 import { downloadMyData } from './Wellbeing.tsx';
@@ -38,7 +39,9 @@ export function Privacy() {
       await fn();
       setNotice(ok);
     } catch (e) {
-      setNotice(isOffline(e) ? 'Necesitás conexión para hacer esto. Probá cuando vuelva la señal.' : 'No pudimos completar la acción. Probá de nuevo.');
+      setNotice(
+        isOffline(e) ? 'Necesitás conexión para hacer esto. Probá cuando vuelva la señal.' : e instanceof ApiError && e.mensaje ? e.mensaje : 'No pudimos completar la acción. Probá de nuevo.',
+      );
     }
   };
 
@@ -145,7 +148,7 @@ export function Privacy() {
       </section>
       <p className="meta" style={{ fontSize: 13, lineHeight: 1.6, maxWidth: 760 }}>
         Tus datos se tratan según la Ley N.º 25.326 de Protección de Datos Personales (Argentina). Podés ejercer tus derechos de acceso, rectificación y supresión en cualquier momento desde esta pantalla.{' '}
-        <a href="/privacidad/politica">Leer la política completa</a>
+        <Link to="/privacidad/politica">Leer la política completa</Link>
       </p>
     </div>
   );

@@ -1,3 +1,5 @@
+import { DEMO } from '../../demo/flags.ts';
+import { asset } from '../../demo/flags.ts';
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError, isOffline } from '../../lib/api.ts';
@@ -25,7 +27,8 @@ export function KioskWait() {
   const now = useClock();
   const nav = useNavigate();
   const { session, endSession } = useApp();
-  const token = storage.get<string>(KIOSK_KEY);
+  // En la vista previa el equipo ya está registrado como kiosco.
+  const token = storage.get<string>(KIOSK_KEY) ?? (DEMO ? 'kiosco-demo-vista-previa' : null);
 
   // Si quedó una sesión abierta, se cierra al volver a la espera.
   useEffect(() => {
@@ -35,7 +38,7 @@ export function KioskWait() {
   if (!token) return <KioskSetup />;
   return (
     <div className="bg-splash" style={{ flex: 1, minHeight: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', padding: 'clamp(40px, 8cqi, 96px) clamp(24px, 6cqi, 72px)', textAlign: 'center', gap: 40 }}>
-      <img src="/assets/serena-logo-white.png" alt="SERENA" style={{ width: 640, maxWidth: '100%', height: 'auto' }} />
+      <img src={asset('serena-logo-white.png')} alt="SERENA" style={{ width: 640, maxWidth: '100%', height: 'auto' }} />
       <div className="stack" style={{ alignItems: 'center', gap: 20 }}>
         <div className="kiosk-clock">{now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit', hour12: false })}</div>
         <div className="label" style={{ fontSize: 22, color: 'var(--c-text-2)' }}>
@@ -62,6 +65,11 @@ export function KioskWait() {
 /** Registro inicial del equipo como kiosco (lo hace salud ocupacional con el token del panel de administración). */
 function KioskSetup() {
   const [t, setT] = useState('');
+  const [done, setDone] = useState(false);
+  const nav = useNavigate();
+  useEffect(() => {
+    if (done) nav('/kiosco/id');
+  }, [done, nav]);
   return (
     <div className="screen narrow" style={{ justifyContent: 'center', flex: 1 }}>
       <h1 className="h1">Este equipo no está registrado como kiosco</h1>
@@ -72,7 +80,7 @@ function KioskSetup() {
           e.preventDefault();
           if (t.trim().length < 20) return;
           storage.set(KIOSK_KEY, t.trim());
-          location.reload();
+          setDone(true);
         }}
       >
         <label className="field">

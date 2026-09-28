@@ -28,6 +28,11 @@ npm run dev       # API en :8787 + app en http://localhost:5173
 
 El código del segundo factor se imprime en la consola del servidor y, en desarrollo, también se muestra en pantalla.
 
+**Vista previa sin servidor:** `npm run build:demo -w @serena/web` genera
+`apps/web/dist-preview/serena-companion.html`, la app completa con la API simulada en el navegador
+(`VITE_DEMO=true`), cámara, escaneo, micrófono, guardia y pagos simulados, y un selector de dispositivo.
+Sirve para compartir un enlace de demostración; nunca se usa en producción.
+
 Otros comandos: `npm test` (dominio + API), `npm run typecheck`, `npm run build && npm start`
 (el servidor sirve la app compilada desde `apps/web/dist`).
 

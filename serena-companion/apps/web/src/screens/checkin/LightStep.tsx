@@ -1,3 +1,4 @@
+import { DEMO } from '../../demo/flags.ts';
 import { useEffect, useRef, useState } from 'react';
 import { LIGHT_COPY, type LightAssessment, type ScanErrorCode } from '@serena/domain';
 import { useApp, useOnline } from '../../lib/store.tsx';
@@ -5,7 +6,7 @@ import { LightMonitor, openFrontCamera, stopStream } from '../../lib/camera.ts';
 import { getScanProvider, scanMode } from '../../scan/registry.ts';
 import { Icon, Seal } from '../../components/ui.tsx';
 
-type CamState = { kind: 'cargando' } | { kind: 'ok' } | { kind: 'error'; codigo: ScanErrorCode };
+type CamState = { kind: 'cargando' } | { kind: 'ok' } | { kind: 'demo' } | { kind: 'error'; codigo: ScanErrorCode };
 
 const COLORS = { insuficiente: ['#F37CC2', 'var(--alert-bg)'], justa: ['#F0CF7A', 'var(--warn-bg)'], optima: ['#7FD3E3', 'var(--ok-bg)'] } as const;
 
@@ -39,7 +40,16 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
       if (!av.disponible) return setCam({ kind: 'error', codigo: av.motivo ?? 'no_soportado' });
       const r = await openFrontCamera();
       if (cancelled) return 'error' in r ? undefined : stopStream(r.stream);
-      if ('error' in r) return setCam({ kind: 'error', codigo: r.error });
+      if ('error' in r) {
+        // Vista previa: el marco no da acceso a la cámara; se simula para mostrar los tres estados de luz.
+        if (DEMO) {
+          setCam({ kind: 'demo' });
+          setLight({ luz: 'optima', contraluz: false, movimiento: false });
+          setRostro(true);
+          return;
+        }
+        return setCam({ kind: 'error', codigo: r.error });
+      }
       stream = r.stream;
       onStream(stream);
       setCam({ kind: 'ok' });
@@ -69,6 +79,7 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
   const copy = LIGHT_COPY[luz];
   const [fg, bg] = COLORS[luz];
   const dim = luz === 'insuficiente' ? 0.62 : luz === 'justa' ? 0.3 : 0;
+  const live = cam.kind === 'ok' || cam.kind === 'demo';
   const measuring = cam.kind === 'ok' && !light;
   const checks: Array<[string, 'ok' | 'warn' | 'no' | 'na']> = [
     ['Luz suficiente', luz === 'optima' ? 'ok' : luz === 'justa' ? 'warn' : 'no'],
@@ -78,7 +89,7 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
   ];
   const mark = { ok: '✓', warn: '!', no: '×', na: '·' };
   const col = { ok: '#7FD3E3', warn: '#F0CF7A', no: '#F37CC2', na: '#9999B5' };
-  const canStart = cam.kind === 'ok' && !!light && luz !== 'insuficiente';
+  const canStart = live && !!light && luz !== 'insuficiente';
 
   return (
     <div className="row" style={{ gap: 24, alignItems: 'flex-start' }}>
@@ -87,7 +98,14 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
           <div ref={slot} style={{ position: 'absolute', inset: 0 }} data-scan-slot="preview" />
           {cam.kind !== 'error' && (
             <>
-              <video ref={video} muted playsInline aria-hidden="true" />
+              {cam.kind === 'demo' ? (
+                <svg viewBox="0 0 200 240" style={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translateX(-50%)', width: '80%', height: 'auto' }} fill="rgba(184,184,203,.22)" aria-hidden="true">
+                  <ellipse cx="100" cy="98" rx="44" ry="54" />
+                  <path d="M18 240c4-50 38-76 82-76s78 26 82 76z" />
+                </svg>
+              ) : (
+                <video ref={video} muted playsInline aria-hidden="true" />
+              )}
               <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: light ? dim : 0.4, transition: 'opacity .2s' }} />
               <div className="oval" style={{ ['--oval' as string]: light ? fg : '#9999B5' }} />
               <div className="checks">
@@ -120,7 +138,19 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
           </h1>
           {scanMode === 'simulado' && <span className="sim-chip">SIMULACIÓN · SIN SDK</span>}
         </div>
-        {cam.kind === 'ok' && (
+        {cam.kind === 'demo' && (
+          <div className="stack" style={{ gap: 8 }}>
+            <span className="label">VISTA PREVIA · SIMULÁ LA LUZ DEL AMBIENTE</span>
+            <div className="row" style={{ gap: 6 }}>
+              {(['insuficiente', 'justa', 'optima'] as const).map((l) => (
+                <button key={l} type="button" className="pill" aria-pressed={luz === l} onClick={() => setLight({ luz: l, contraluz: l === 'insuficiente', movimiento: false })}>
+                  {LIGHT_COPY[l].etiqueta.replace('LUZ ', '').toLowerCase().replace(/^./, (c) => c.toUpperCase())}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {live && (
           <>
             <div className="stack" style={{ gap: 10 }}>
               <div className="meter" aria-hidden="true">

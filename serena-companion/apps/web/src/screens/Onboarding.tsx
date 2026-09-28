@@ -1,5 +1,6 @@
+import { asset } from '../demo/flags.ts';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { DEFAULT_CONSENTS, type Consents } from '@serena/domain';
 import { useApp, storage } from '../lib/store.tsx';
 import { Toggle } from '../components/ui.tsx';
@@ -19,12 +20,12 @@ export function Splash() {
     nav('/consentimiento');
   };
   return (
-    <main className="scroll bg-splash">
+    <main className="scroll bg-splash" style={{ height: '100%' }}>
       <div className="center-screen" style={{ gap: 40 }}>
         {i === 0 ? (
           <div className="stack" style={{ alignItems: 'center', gap: 36, width: '100%', maxWidth: 640 }}>
             <img
-              src="/assets/serena-logo-white.png"
+              src={asset('serena-logo-white.png')}
               alt="SERENA · Sistema de Equilibrio, Recreación y Neuro-Bienestar Avanzado"
               style={{ width: '100%', maxWidth: 560, height: 'auto' }}
             />
@@ -40,7 +41,7 @@ export function Splash() {
           </div>
         ) : (
           <div className="stack" style={{ alignItems: 'center', gap: 28, width: '100%', maxWidth: 560 }}>
-            <img src="/assets/serena-mark.png" alt="" width={120} height={120} />
+            <img src={asset('serena-mark.png')} alt="" width={120} height={120} />
             <div className="label cyan">{SLIDES[i - 1]![0]}</div>
             <h1 className="display" style={{ fontSize: 'clamp(34px, 6cqi, 56px)', lineHeight: 1.05 }}>
               {SLIDES[i - 1]![1]}
@@ -104,9 +105,9 @@ export function ConsentScreen() {
             </div>
           ))}
         </div>
-        <a href={config.politicaUrl} target="_blank" rel="noreferrer" style={{ fontSize: 15 }}>
+        <Link to={config.politicaUrl} style={{ fontSize: 15 }}>
           Leer la política completa
-        </a>
+        </Link>
         <button
           type="button"
           className="btn btn-primary"

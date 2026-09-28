@@ -68,7 +68,16 @@ export function ScanStep({ stream, duracionS, onDone, onAbort }: { stream: Media
           <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,.10)" strokeWidth="1.2" />
           <circle cx="50" cy="50" r="48" fill="none" stroke="#2FA8C0" strokeWidth="1.6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - progress)} style={{ transition: 'stroke-dashoffset 1s linear' }} />
         </svg>
-        <div className="scan-oval">{stream && <video ref={video} muted playsInline aria-hidden="true" />}</div>
+        <div className="scan-oval">
+          {stream ? (
+            <video ref={video} muted playsInline aria-hidden="true" />
+          ) : (
+            <svg viewBox="0 0 200 300" style={{ position: 'absolute', left: 0, bottom: 0, width: '100%', height: 'auto' }} fill="rgba(184,184,203,.22)" aria-hidden="true">
+              <ellipse cx="100" cy="120" rx="58" ry="74" />
+              <path d="M0 300c6-60 48-92 100-92s94 32 100 92z" />
+            </svg>
+          )}
+        </div>
       </div>
 
       {failed ? (

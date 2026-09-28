@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './styles/app.css';
 import { AppProvider } from './lib/store.tsx';
 import { App } from './App.tsx';
+import { DEMO } from './demo/flags.ts';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -12,6 +13,6 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
+if ('serviceWorker' in navigator && import.meta.env.PROD && !DEMO) {
   window.addEventListener('load', () => void navigator.serviceWorker.register('/sw.js'));
 }

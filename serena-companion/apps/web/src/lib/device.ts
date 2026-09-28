@@ -14,13 +14,28 @@ function layoutFor(w: number): Layout {
   return 'desktop';
 }
 
+/** Vista previa: el marco de la demo puede forzar el contexto (teléfono, tablet, escritorio, kiosco). */
+let forced: { layout: Layout; kiosk: boolean } | null = null;
+const forcedListeners = new Set<() => void>();
+export function setForcedDevice(f: { layout: Layout; kiosk: boolean } | null) {
+  forced = f;
+  forcedListeners.forEach((l) => l());
+}
+export function getForcedDevice() {
+  return forced;
+}
+
 function subscribe(cb: () => void) {
   window.addEventListener('resize', cb);
-  return () => window.removeEventListener('resize', cb);
+  forcedListeners.add(cb);
+  return () => {
+    window.removeEventListener('resize', cb);
+    forcedListeners.delete(cb);
+  };
 }
 
 export function useLayout(): Layout {
-  return useSyncExternalStore(subscribe, () => layoutFor(window.innerWidth));
+  return useSyncExternalStore(subscribe, () => forced?.layout ?? layoutFor(window.innerWidth));
 }
 
 export function isKioskPath(path = window.location.pathname) {
@@ -29,6 +44,7 @@ export function isKioskPath(path = window.location.pathname) {
 
 /** Tipo de dispositivo que se registra al iniciar sesión. */
 export function detectDeviceKind(): DeviceKind {
+  if (forced) return forced.kiosk ? 'kiosk' : forced.layout;
   if (isKioskPath()) return 'kiosk';
   const coarse = window.matchMedia?.('(pointer: coarse)').matches;
   const w = Math.min(window.screen.width, window.screen.height);

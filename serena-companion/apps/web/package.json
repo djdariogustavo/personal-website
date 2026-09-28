@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -p . && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:demo": "tsc -p . && VITE_DEMO=true vite build && node scripts/pack-demo.mjs"
   },
   "dependencies": {
     "@serena/domain": "*",

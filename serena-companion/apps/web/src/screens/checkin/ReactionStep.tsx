@@ -1,3 +1,4 @@
+import { DEMO } from '../../demo/flags.ts';
 import { useEffect, useRef, useState } from 'react';
 import type { ReactionResult, VoiceResult } from '@serena/domain';
 
@@ -161,6 +162,18 @@ function VoiceTest({ onResult }: { onResult: (v: VoiceResult | null) => void }) 
       };
       setState('rec');
     } catch {
+      if (DEMO) {
+        // Vista previa: sin micrófono en el marco, se simula la onda.
+        stats.current = { start: performance.now(), sum: 0, n: 0 };
+        const id = setInterval(() => {
+          stats.current.sum += 0.2;
+          stats.current.n++;
+          setLevels(Array.from({ length: 32 }, () => 0.15 + Math.random() * 0.85));
+        }, 90);
+        cleanup.current = () => clearInterval(id);
+        setState('rec');
+        return;
+      }
       setState('error');
     }
   }

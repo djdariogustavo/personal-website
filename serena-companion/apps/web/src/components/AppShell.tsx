@@ -1,3 +1,4 @@
+import { asset } from '../demo/flags.ts';
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router';
 import type { EmergencyType } from '@serena/domain';
@@ -105,7 +106,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
       <div className={`app ${isMobile ? 'is-mobile' : ''}`} data-kiosk={kiosk ? '' : undefined}>
         {showSidebar && (
           <nav className={`sidebar ${collapsed ? 'collapsed' : ''}`} aria-label="Principal">
-            {collapsed ? <img src="/assets/serena-mark.png" alt="SERENA" className="mark" /> : <img src="/assets/serena-logo-white.png" alt="SERENA" className="logo" />}
+            {collapsed ? <img src={asset('serena-mark.png')} alt="SERENA" className="mark" /> : <img src={asset('serena-logo-white.png')} alt="SERENA" className="logo" />}
             {items.map(([to, label, icon]) => (
               <NavLink key={to} to={to} end={to === '/' || to === '/admin'} className="nav-item" title={label}>
                 <Icon name={icon} />
@@ -125,7 +126,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
         )}
         <div className="main">
           <header className="header">
-            {!showSidebar && <img src="/assets/serena-logo-white.png" alt="SERENA" className="logo" />}
+            {!showSidebar && <img src={asset('serena-logo-white.png')} alt="SERENA" className="logo" />}
             {showSidebar && (
               <div className="label" style={{ fontSize: 12 }}>
                 {title.toUpperCase()}

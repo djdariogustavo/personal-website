@@ -1,3 +1,4 @@
+import { DEMO } from '../../demo/flags.ts';
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { formatMoney, isEntitled, STATUS_COPY, type Plan, type SubscriptionSummary } from '@serena/domain';
@@ -135,6 +136,7 @@ interface BillingInfo {
 }
 
 export function AdminBilling() {
+  const nav = useNavigate();
   const [info, setInfo] = useState<BillingInfo | null>(null);
   const [params] = useSearchParams();
   const [provider, setProvider] = useState('');
@@ -175,7 +177,8 @@ export function AdminBilling() {
     try {
       const r = await api<{ url: string }>('/admin/billing/checkout', { body: { proveedor: provider, planId, puestos: seats, moneda: currency } });
       // Stripe y Mercado Pago muestran su propia página de pago; la pasarela de prueba vive dentro de la app.
-      window.location.assign(r.url);
+      if (r.url.startsWith('/')) nav(r.url);
+      else window.location.assign(r.url);
     } catch (err) {
       setError(errMsg(err));
       setBusy(false);
@@ -326,13 +329,16 @@ export function SandboxCheckout() {
 
   async function decide(aprobado: boolean) {
     try {
-      const r = await api<{ webhook: { body: string; signature: string } }>('/admin/billing/sandbox/complete', { body: { checkoutId, aprobado } });
-      const res = await fetch('/api/billing/webhooks/sandbox', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-sandbox-signature': r.webhook.signature },
-        body: r.webhook.body,
-      });
-      if (!res.ok) throw new Error('webhook');
+      const r = await api<{ webhook?: { body: string; signature: string } }>('/admin/billing/sandbox/complete', { body: { checkoutId, aprobado } });
+      // El servidor devuelve el webhook firmado que "enviaría" el proveedor; en la vista previa el estado ya cambió.
+      if (!DEMO && r.webhook) {
+        const res = await fetch('/api/billing/webhooks/sandbox', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json', 'x-sandbox-signature': r.webhook.signature },
+          body: r.webhook.body,
+        });
+        if (!res.ok) throw new Error('webhook');
+      }
       nav(`/admin/facturacion?resultado=${aprobado ? 'ok' : 'cancelado'}`, { replace: true });
     } catch (e) {
       setError(errMsg(e));

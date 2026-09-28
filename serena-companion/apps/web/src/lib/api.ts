@@ -1,3 +1,5 @@
+import { DEMO } from '../demo/flags.ts';
+
 /**
  * Cliente HTTP de la API. Distingue "sin conexión" (el pedido no llegó) de un
  * error del servidor, porque la app es offline-first y cada caso se trata distinto.
@@ -33,6 +35,18 @@ export function onSessionEnd(fn: (code: string) => void) {
 }
 
 export async function api<T>(path: string, init: { method?: string; body?: unknown; raw?: boolean; timeoutMs?: number } = {}): Promise<T> {
+  if (DEMO) {
+    const { mockApi, MockError } = await import('../demo/mockApi.ts');
+    try {
+      return (await mockApi(path, init.method ?? (init.body !== undefined ? 'POST' : 'GET'), init.body, token)) as T;
+    } catch (e) {
+      if (e instanceof MockError) {
+        if (e.status === 401 && token && e.code.startsWith('sesion')) onSessionEnded?.(e.code);
+        throw new ApiError(e.status, e.code, e.mensaje);
+      }
+      throw e;
+    }
+  }
   let res: Response;
   try {
     res = await fetch(`/api${path}`, {

@@ -1,6 +1,7 @@
+import { asset } from '../demo/flags.ts';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { useApp } from '../lib/store.tsx';
+import { useApp, storage } from '../lib/store.tsx';
 import { appLock } from '../lib/applock.ts';
 import { PinDots, PinPad } from './ui.tsx';
 
@@ -10,11 +11,11 @@ export function SessionEndedOverlay() {
   const nav = useNavigate();
   if (!sessionEnded || session) return null;
   const inact = sessionEnded === 'sesion_inactividad';
-  const kind = (JSON.parse(localStorage.getItem('serena.lastKind') ?? '"desktop"') as 'mobile' | 'tablet' | 'desktop' | 'kiosk') ?? 'desktop';
+  const kind = storage.get<'mobile' | 'tablet' | 'desktop' | 'kiosk'>('serena.lastKind') ?? 'desktop';
   return (
     <div className="overlay" style={{ zIndex: 30, background: 'rgba(1,1,71,.94)' }} role="dialog" aria-modal="true">
       <div className="stack" style={{ maxWidth: 440, gap: 18, alignItems: 'center', textAlign: 'center' }}>
-        <img src="/assets/serena-mark.png" alt="" width={72} height={72} />
+        <img src={asset('serena-mark.png')} alt="" width={72} height={72} />
         <h2 className="display" style={{ fontSize: 28, lineHeight: 1.15 }}>
           {inact ? 'Cerramos tu sesión por inactividad.' : 'Tu sesión se cerró.'}
         </h2>
@@ -66,7 +67,7 @@ export function LockScreen() {
   return (
     <div className="overlay" style={{ zIndex: 35, background: 'var(--c-bg)' }} role="dialog" aria-modal="true" aria-label="Desbloquear">
       <div className="stack" style={{ gap: 24, alignItems: 'center', textAlign: 'center' }}>
-        <img src="/assets/serena-mark.png" alt="" width={72} height={72} />
+        <img src={asset('serena-mark.png')} alt="" width={72} height={72} />
         <h1 className="display" style={{ fontSize: 28, lineHeight: 1.1 }}>
           Hola de nuevo, {session?.perfil.nombreCorto}.
         </h1>

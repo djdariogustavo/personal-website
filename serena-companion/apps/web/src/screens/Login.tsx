@@ -1,3 +1,4 @@
+import { asset } from '../demo/flags.ts';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { api, ApiError, isOffline } from '../lib/api.ts';
@@ -132,7 +133,7 @@ export function Login() {
   return (
     <main className="scroll">
       <div className="screen" style={{ maxWidth: 460, flex: 1, justifyContent: 'center' }}>
-        <img src="/assets/serena-mark.png" alt="" width={72} height={72} />
+        <img src={asset('serena-mark.png')} alt="" width={72} height={72} />
 
         {step === 'cred' && (
           <form className="stack" style={{ gap: 20 }} onSubmit={submitCred}>

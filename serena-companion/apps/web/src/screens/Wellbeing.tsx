@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { fmt, LEVEL_COPY, rosterInsight, rosterStatus, selfReportScore, type CheckIn } from '@serena/domain';
-import { api } from '../lib/api.ts';
+import { api, ApiError } from '../lib/api.ts';
 import { useApp, useCheckins } from '../lib/store.tsx';
 import { Icon, LevelChip, whenLabel, type IconName } from '../components/ui.tsx';
 
@@ -73,7 +73,7 @@ export function Wellbeing() {
         <h1 className="h1" style={{ fontSize: 'clamp(28px, 4.4cqi, 44px)' }}>
           Mi bienestar
         </h1>
-        <button type="button" className="btn" style={{ minHeight: 48, fontSize: 15 }} onClick={() => void downloadMyData().catch(() => setNotice('Necesitás conexión para descargar tus datos.'))}>
+        <button type="button" className="btn" style={{ minHeight: 48, fontSize: 15 }} onClick={() => void downloadMyData().catch((e) => setNotice(e instanceof ApiError && e.mensaje ? e.mensaje : 'Necesitás conexión para descargar tus datos.'))}>
           Descargar mis datos
         </button>
       </div>

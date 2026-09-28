@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import { BrowserRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
+import { BrowserRouter, MemoryRouter, Navigate, Outlet, Route, Routes, useLocation } from 'react-router';
+import { DEMO } from './demo/flags.ts';
+import { DemoFrame } from './demo/DemoFrame.tsx';
 import { useApp, storage } from './lib/store.tsx';
 import { appLock } from './lib/applock.ts';
 import { AppShell } from './components/AppShell.tsx';
@@ -77,8 +79,9 @@ function LoginRoute() {
 }
 
 export function App() {
-  return (
-    <BrowserRouter>
+  // La vista previa corre dentro de un marco sin URL propia: el enrutador vive en memoria.
+  const Router = DEMO ? MemoryRouter : BrowserRouter;
+  const routes = (
       <Routes>
         <Route path="/bienvenida" element={<Splash />} />
         <Route element={<PublicLayout />}>
@@ -114,7 +117,20 @@ export function App() {
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-      <SessionEndedOverlay />
-    </BrowserRouter>
+  );
+  return (
+    <Router>
+      {DEMO ? (
+        <DemoFrame>
+          {routes}
+          <SessionEndedOverlay />
+        </DemoFrame>
+      ) : (
+        <>
+          {routes}
+          <SessionEndedOverlay />
+        </>
+      )}
+    </Router>
   );
 }

@@ -6,3 +6,5 @@ data/
 .env
 .env.*
 !.env.example
+dist-demo/
+dist-preview/

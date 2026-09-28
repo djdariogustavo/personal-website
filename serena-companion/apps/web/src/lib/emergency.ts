@@ -61,14 +61,30 @@ export class EmergencyQueue {
   }
 }
 
-/** Posición actual si la persona eligió compartirla. Nunca bloquea el aviso más de 8 s. */
-export function currentPosition(): Promise<EmergencyRequest['ubicacion']> {
+/**
+ * Posición actual si la persona eligió compartirla. Nunca demora el aviso más
+ * de 8 s: el `timeout` de la API no corre mientras el permiso está pendiente,
+ * así que se agrega un tope propio. Sin ubicación, el aviso sale igual.
+ */
+export function currentPosition(maxMs = 8000): Promise<EmergencyRequest['ubicacion']> {
   if (!('geolocation' in navigator)) return Promise.resolve(null);
   return new Promise((resolve) => {
-    navigator.geolocation.getCurrentPosition(
-      (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, precisionM: Math.round(p.coords.accuracy) }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60_000 },
-    );
+    let done = false;
+    const finish = (v: EmergencyRequest['ubicacion']) => {
+      if (done) return;
+      done = true;
+      clearTimeout(t);
+      resolve(v);
+    };
+    const t = setTimeout(() => finish(null), maxMs);
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (p) => finish({ lat: p.coords.latitude, lng: p.coords.longitude, precisionM: Math.round(p.coords.accuracy) }),
+        () => finish(null),
+        { enableHighAccuracy: true, timeout: maxMs, maximumAge: 60_000 },
+      );
+    } catch {
+      finish(null);
+    }
   });
 }

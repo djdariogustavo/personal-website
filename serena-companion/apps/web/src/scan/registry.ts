@@ -1,3 +1,4 @@
+import { DEMO } from '../demo/flags.ts';
 import type { ScanProvider } from '@serena/domain';
 import { SimulatedScanProvider } from './simulated.ts';
 import { UnavailableScanProvider } from './unavailable.ts';
@@ -15,7 +16,7 @@ import { UnavailableScanProvider } from './unavailable.ts';
 export type ScanMode = 'ninguno' | 'simulado' | 'sdk';
 
 export const scanMode: ScanMode =
-  (import.meta.env.VITE_SCAN_PROVIDER as ScanMode | undefined) ?? (import.meta.env.DEV ? 'simulado' : 'ninguno');
+  (import.meta.env.VITE_SCAN_PROVIDER as ScanMode | undefined) ?? (import.meta.env.DEV || DEMO ? 'simulado' : 'ninguno');
 
 let instance: ScanProvider | null = null;
 
