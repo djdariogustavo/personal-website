@@ -10,6 +10,8 @@
   --c-brand-purple: #5d0158;
   --c-magenta: #e62e9c;
   --c-cyan: #2fa8c0;
+  /* Contenido (texto o ícono) sobre un relleno cian. */
+  --c-on-cyan: #0b0b1a;
   --c-text: #ffffff;
   --c-text-2: #b8b8cb;
   --c-meta: #9999b5;
@@ -53,13 +55,16 @@
   --c-surface-2: #ffffff;
   --c-text: #010147;
   --c-text-2: #010147;
-  --c-meta: #1b7f93;
+  /* Cian oscurecido: ≥ 5,1:1 sobre todos los fondos claros (texto AA y foco/bordes, WCAG 1.4.3 y 1.4.11). */
+  --c-cyan: #16707f;
+  --c-on-cyan: #ffffff;
+  --c-meta: #16707f;
   --c-line: rgba(1, 1, 71, 0.3);
   --c-line-strong: #010147;
   --c-well: #e8e8f2;
   --action: #c0167a;
   --action-fg: #ffffff;
-  --data: #1b7f93;
+  --data: #16707f;
   --ok-fg: #0f5f6e;
   --ok-bg: rgba(27, 127, 147, 0.14);
   --warn-fg: #6b4e00;
@@ -186,8 +191,13 @@ a:hover {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  [data-anim] {
-    animation: none !important;
+  /* Sin movimiento: la respiración guiada sigue funcionando con el texto "Inhalá / Exhalá" y el contador. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
   }
   * {
     transition-duration: 0ms !important;
@@ -336,7 +346,9 @@ p {
   text-transform: uppercase;
   border-radius: 999px;
   padding: 6px 12px;
-  white-space: nowrap;
+  /* Reflujo (WCAG 1.4.10): en pantallas muy angostas el chip corta línea en vez de desbordar. */
+  white-space: normal;
+  max-width: 100%;
 }
 .chip-ok {
   color: var(--ok-fg);
@@ -1085,8 +1097,8 @@ select.input {
 }
 .quick-replies {
   display: flex;
+  flex-wrap: wrap; /* reflujo: todas las opciones a la vista, sin desplazamiento lateral */
   gap: 8px;
-  overflow-x: auto;
   padding-bottom: 2px;
 }
 .quick-replies button {
@@ -1132,6 +1144,14 @@ select.input {
   border-radius: 50%;
   background: var(--c-bg);
   border: 2px solid var(--ok-fg);
+}
+.chart .pt.on {
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+}
+.chart {
+  cursor: crosshair;
 }
 
 /* ---------- Hoja de emergencia ---------- */
@@ -1326,7 +1346,7 @@ select.input {
 .kiosk-tab[aria-pressed='true'] {
   border-color: var(--c-cyan);
   background: rgba(47, 168, 192, 0.14);
-  color: #fff;
+  color: var(--c-text);
 }
 .ring {
   transform: rotate(-90deg);
@@ -1392,4 +1412,28 @@ select.input {
 .prose ul {
   margin: 0;
   padding-left: 22px;
+}
+
+/* Saltar al contenido (WCAG 2.4.1): oculto hasta que recibe foco con el teclado. */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -120px;
+  z-index: 100;
+  padding: 12px 18px;
+  border-radius: 2px;
+  background: var(--action);
+  color: var(--action-fg);
+  font-weight: 600;
+  text-decoration: none;
+}
+.skip-link:focus {
+  top: 8px;
+}
+main.scroll:focus {
+  outline: none;
+}
+main.scroll:focus-visible {
+  outline: 2px solid var(--c-cyan);
+  outline-offset: -2px;
 }

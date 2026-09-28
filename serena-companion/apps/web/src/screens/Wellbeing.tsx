@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { fmt, LEVEL_COPY, rosterInsight, rosterStatus, selfReportScore, type CheckIn } from '@serena/domain';
 import { api, ApiError } from '../lib/api.ts';
 import { useApp, useCheckins } from '../lib/store.tsx';
@@ -66,6 +66,24 @@ export function Wellbeing() {
   const insight = rosterInsight(checkins, roster.diasTrabajo);
   const todaySt = rosterStatus(roster);
   const hp = hover !== null ? pts.find((p) => p.i === hover) : null;
+  const valor = (p: (typeof pts)[number]) => `${fmt(p.v, m.dec)} ${m.unit === '1–5' ? 'de 5' : m.unit}`;
+
+  // Todo el gráfico es el objetivo táctil (WCAG 2.5.8): se elige el día más cercano al dedo o al puntero.
+  // Con teclado: un único foco que se recorre con las flechas; el valor se anuncia por aria-live.
+  function cercano(e: PointerEvent<HTMLDivElement>) {
+    if (!pts.length) return;
+    const r = e.currentTarget.getBoundingClientRect();
+    const x = ((e.clientX - r.left) / r.width) * 100;
+    setHover(pts.reduce((a, b) => (Math.abs(b.x - x) < Math.abs(a.x - x) ? b : a)).i);
+  }
+  function teclas(e: KeyboardEvent<HTMLDivElement>) {
+    if (!pts.length) return;
+    const k = pts.findIndex((p) => p.i === hover);
+    const next = { ArrowLeft: Math.max(0, k - 1), ArrowRight: Math.min(pts.length - 1, k < 0 ? 0 : k + 1), Home: 0, End: pts.length - 1 }[e.key];
+    if (next === undefined) return;
+    e.preventDefault();
+    setHover(pts[next]!.i);
+  }
 
   return (
     <div className="screen">
@@ -78,9 +96,9 @@ export function Wellbeing() {
         </button>
       </div>
       {notice && <div className="warn-text">{notice}</div>}
-      <div className="row" style={{ gap: 6 }} role="tablist" aria-label="Métrica">
+      <div className="row" style={{ gap: 6 }} role="group" aria-label="Métrica">
         {(Object.keys(METRICS) as Metric[]).map((k) => (
-          <button key={k} type="button" role="tab" className="pill" aria-pressed={metric === k} aria-selected={metric === k} onClick={() => setMetric(k)}>
+          <button key={k} type="button" className="pill" aria-pressed={metric === k} onClick={() => setMetric(k)}>
             {METRICS[k].label}
           </button>
         ))}
@@ -104,7 +122,19 @@ export function Wellbeing() {
             <span>{m.unit === '1–5' ? m.max : `${m.max} ${m.unit}`}</span>
             <span>{m.unit === '1–5' ? m.min : `${m.min} ${m.unit}`}</span>
           </div>
-          <div className="chart" onMouseLeave={() => setHover(null)}>
+          <div
+            className="chart"
+            tabIndex={pts.length ? 0 : -1}
+            role="group"
+            aria-label={`Gráfico de ${m.label.toLowerCase()} de los últimos 28 días. Usá las flechas izquierda y derecha para recorrer los días.`}
+            onPointerMove={cercano}
+            onPointerDown={cercano}
+            onPointerLeave={() => setHover(null)}
+            onKeyDown={teclas}
+            onFocus={() => hover === null && pts.length && setHover(pts[pts.length - 1]!.i)}
+            onBlur={() => setHover(null)}
+            style={{ touchAction: 'pan-y' }}
+          >
             {bands.map((b) => (
               <div key={b.start} className="band" style={{ left: `${(b.start / 28) * 100}%`, width: `${(b.n / 28) * 100}%`, background: b.work ? '#20205D' : '#101052' }}>
                 {b.n >= 6 && <span>{b.work ? 'TRABAJO' : 'DESCANSO'}</span>}
@@ -112,23 +142,14 @@ export function Wellbeing() {
             ))}
             <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }} aria-hidden="true">
               {hp && <line x1={hp.x} x2={hp.x} y1={0} y2={100} stroke="rgba(255,255,255,.25)" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
-              <path d={path} fill="none" stroke="#2FA8C0" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
+              <path d={path} fill="none" style={{ stroke: 'var(--c-cyan)' }} strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" />
             </svg>
             {pts.map((p) => (
-              <button
-                key={p.i}
-                type="button"
-                className="pt"
-                style={{ left: `${p.x}%`, top: `${p.y}%`, padding: 0, width: hover === p.i ? 13 : 9, height: hover === p.i ? 13 : 9, margin: hover === p.i ? '-6.5px 0 0 -6.5px' : undefined }}
-                aria-label={`${p.d.date.toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })}: ${m.label} ${fmt(p.v, m.dec)}`}
-                onMouseEnter={() => setHover(p.i)}
-                onFocus={() => setHover(p.i)}
-                onBlur={() => setHover(null)}
-              />
+              <span key={p.i} className={`pt ${hover === p.i ? 'on' : ''}`} style={{ left: `${p.x}%`, top: `${p.y}%` }} aria-hidden="true" />
             ))}
             {hp && (
               <div
-                role="tooltip"
+                aria-hidden="true"
                 style={{
                   position: 'absolute',
                   left: `${Math.min(80, Math.max(2, hp.x - 10))}%`,
@@ -151,6 +172,9 @@ export function Wellbeing() {
                 </div>
               </div>
             )}
+            <div className="sr-only" aria-live="polite">
+              {hp ? `${p2label(hp.d)}: ${m.label} ${valor(hp)}` : ''}
+            </div>
           </div>
         </div>
         <div className="row label" style={{ justifyContent: 'space-between', fontSize: 10.5, paddingLeft: 52 }}>
@@ -158,6 +182,30 @@ export function Wellbeing() {
           <span>HOY · {todaySt.enTurno ? `DÍA ${todaySt.dia}` : `DESCANSO ${todaySt.dia}`}</span>
         </div>
         {!pts.length && <p className="muted">Todavía no hay datos de {m.label.toLowerCase()} en estos 28 días.</p>}
+        {/* Equivalente en tabla para lectores de pantalla. */}
+        {pts.length > 0 && (
+          <div className="sr-only">
+            <table>
+              <caption>
+                {m.label} por día, últimos 28 días
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Día</th>
+                  <th scope="col">{m.label}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pts.map((p) => (
+                  <tr key={p.i}>
+                    <th scope="row">{p2label(p.d)}</th>
+                    <td>{valor(p)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </figure>
       <div className="card accent" style={{ gap: 8 }}>
         <div className="label cyan">LO QUE VEMOS EN TUS DATOS</div>

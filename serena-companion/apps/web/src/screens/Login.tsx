@@ -139,7 +139,7 @@ export function Login() {
   }, [code]);
 
   return (
-    <main className="scroll">
+    <div className="scroll">
       <div className="screen" style={{ maxWidth: 460, flex: 1, justifyContent: 'center' }}>
         <img src={asset('serena-mark.png')} alt="" width={72} height={72} />
 
@@ -169,7 +169,7 @@ export function Login() {
                 onClick={() => setRemember(!remember)}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 48, border: 'none', background: 'transparent', color: 'var(--c-text-2)', fontSize: 15, padding: 0, textAlign: 'left' }}
               >
-                <span style={{ width: 22, height: 22, border: '1.5px solid #2FA8C0', borderRadius: 2, background: remember ? '#2FA8C0' : 'transparent', flex: 'none' }} />
+                <span style={{ width: 22, height: 22, border: '1.5px solid var(--c-cyan)', borderRadius: 2, background: remember ? 'var(--c-cyan)' : 'transparent', flex: 'none' }} />
                 Recordar este dispositivo por 30 días
               </button>
             )}
@@ -234,7 +234,7 @@ export function Login() {
 
         {step === 'pin' && <PinSetup onDone={() => nav('/', { replace: true })} />}
       </div>
-    </main>
+    </div>
   );
 }
 

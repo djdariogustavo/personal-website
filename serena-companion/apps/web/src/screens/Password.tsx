@@ -99,7 +99,7 @@ export function Recover() {
   }
 
   return (
-    <main className="scroll">
+    <div className="scroll">
       <div className="screen" style={{ maxWidth: 460, flex: 1, justifyContent: 'center' }}>
         <img src={asset('serena-mark.png')} alt="" width={72} height={72} />
         {step === 'ident' && (
@@ -176,7 +176,7 @@ export function Recover() {
           </div>
         )}
       </div>
-    </main>
+    </div>
   );
 }
 

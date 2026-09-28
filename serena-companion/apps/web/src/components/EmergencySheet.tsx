@@ -24,6 +24,8 @@ export function EmergencySheet({ onClose, origen = 'boton', preset }: { onClose:
   const [slide, setSlide] = useState(0);
   const [status, setStatus] = useState<EmergencyStatus | null>(null);
   const [sending, setSending] = useState(false);
+  // Alternativa sin arrastre (WCAG 2.5.7): dos toques en botones distintos, igual de difícil de activar por error.
+  const [dosToques, setDosToques] = useState(false);
   const track = useRef<HTMLDivElement>(null);
   const dragging = useRef(false);
   const faena = session?.perfil.org.faena ?? '';
@@ -124,7 +126,7 @@ export function EmergencySheet({ onClose, origen = 'boton', preset }: { onClose:
               ¿Necesitás ayuda ahora?
             </h2>
             {OPTIONS.map(([k, l, d]) => (
-              <button key={k} type="button" className="opt" aria-pressed={tipo === k} onClick={() => (setTipo(k), setSlide(0))}>
+              <button key={k} type="button" className="opt" aria-pressed={tipo === k} onClick={() => (setTipo(k), setSlide(0), setDosToques(false))}>
                 <span className="display" style={{ fontSize: 20 }}>
                   {l}
                 </span>
@@ -167,6 +169,25 @@ export function EmergencySheet({ onClose, origen = 'boton', preset }: { onClose:
                 </span>
               </div>
             )}
+            {tipo &&
+              (dosToques ? (
+                <button
+                  type="button"
+                  disabled={sending}
+                  onClick={() => void send()}
+                  style={{ minHeight: 56, border: 'none', borderRadius: 2, background: '#0b0b1a', color: '#fff', fontSize: 17, fontWeight: 600 }}
+                >
+                  {sending ? 'Enviando…' : 'Confirmar: enviar el aviso'}
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDosToques(true)}
+                  style={{ minHeight: 48, border: '1.5px solid #0b0b1a', borderRadius: 2, background: 'transparent', color: '#0b0b1a', fontSize: 15, fontWeight: 600 }}
+                >
+                  ¿No podés deslizar? Enviar con dos toques
+                </button>
+              ))}
           </div>
         )}
 

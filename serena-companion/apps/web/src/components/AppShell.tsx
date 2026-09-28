@@ -80,7 +80,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
   const nav = useNavigate();
   const [emerg, setEmerg] = useState<{ origen?: 'boton' | 'acompanante'; tipo?: EmergencyType } | null>(null);
   const [menu, setMenu] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLElement>(null);
   const isAdmin = session?.perfil.role === 'admin';
   const isMobile = layout === 'mobile' && !kiosk;
   // Cuenta dada de baja: solo la pantalla de sus datos, sin navegación, sincronización ni aviso a la guardia.
@@ -93,14 +93,22 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
   useEffect(() => scrollRef.current?.scrollTo(0, 0), [loc.pathname]);
 
   // Cierre por inactividad: 5 min en tablet y kiosco, 15 min en escritorio; en el teléfono se bloquea con el PIN.
+  // Un minuto antes se avisa y se puede seguir (WCAG 2.2.1); cualquier actividad cancela el aviso.
+  const [avisoCierre, setAvisoCierre] = useState<number | null>(null);
   useEffect(() => {
     if (!session) return;
     const kind = session.deviceKind;
     const ms = config.sesion.inactividadMin[kind] * 60_000;
+    const antes = Math.min(60_000, ms / 2);
     let t: ReturnType<typeof setTimeout>;
+    let w: ReturnType<typeof setTimeout>;
     const reset = () => {
       clearTimeout(t);
+      clearTimeout(w);
+      setAvisoCierre(null);
+      if (kind !== 'mobile') w = setTimeout(() => setAvisoCierre(Date.now() + antes), ms - antes);
       t = setTimeout(() => {
+        setAvisoCierre(null);
         if (kind === 'mobile') lock();
         else void endSession({ reason: 'sesion_inactividad' }).then(() => kind === 'kiosk' && nav('/kiosco'));
       }, ms);
@@ -110,16 +118,33 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
     reset();
     return () => {
       clearTimeout(t);
+      clearTimeout(w);
       evs.forEach((e) => window.removeEventListener(e, reset, { capture: true }));
     };
   }, [session, config, lock, endSession, nav]);
 
   const title = TITLES[Object.keys(TITLES).filter((k) => loc.pathname === k || (k !== '/' && loc.pathname.startsWith(k))).sort((a, b) => b.length - a.length)[0] ?? ''] ?? '';
+
+  // Cada pantalla tiene su título (WCAG 2.4.2) y, al navegar, el foco pasa al contenido para que el
+  // lector de pantalla anuncie la pantalla nueva en vez de quedarse en el enlace que se tocó.
+  const primera = useRef(true);
+  useEffect(() => {
+    const h1 = scrollRef.current?.querySelector('h1')?.textContent?.trim();
+    document.title = `${h1 || title || (kiosk ? 'Kiosco' : 'SERENA')} · SERENA Companion`;
+    if (primera.current) {
+      primera.current = false;
+      return;
+    }
+    scrollRef.current?.focus({ preventScroll: true });
+  }, [loc.pathname, title, kiosk]);
   const items = isAdmin ? ADMIN_NAV : [...NAV, ...NAV_DESK];
 
   return (
     <EmergencyCtx.Provider value={(o) => setEmerg(o ?? {})}>
       <div className={`app ${isMobile ? 'is-mobile' : ''}`} data-kiosk={kiosk ? '' : undefined}>
+        <a href="#main" className="skip-link" onClick={(e) => (e.preventDefault(), scrollRef.current?.focus())}>
+          Saltar al contenido
+        </a>
         {showSidebar && (
           <nav className={`sidebar ${collapsed ? 'collapsed' : ''}`} aria-label="Principal">
             {collapsed ? <img src={asset('serena-mark.png')} alt="SERENA" className="mark" /> : <img src={asset('serena-logo-white.png')} alt="SERENA" className="logo" />}
@@ -203,9 +228,10 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
               Sin conexión. Todo se guarda y se sincroniza después.
             </div>
           )}
-          <div className="scroll" ref={scrollRef} id="main">
+          {/* tabIndex 0: el contenido se desplaza dentro de este contenedor y tiene que poder hacerse con teclado. */}
+          <main className="scroll" ref={scrollRef} id="main" tabIndex={0}>
             {children}
-          </div>
+          </main>
           {isMobile && session && !hideNav && !isAdmin && !baja && !temporal && (
             <nav className="bottom-nav" aria-label="Principal">
               {NAV.map(([to, label, icon]) => (
@@ -240,8 +266,36 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
             </div>
           </div>
         )}
+        {avisoCierre !== null && <AvisoCierre hasta={avisoCierre} onSeguir={() => setAvisoCierre(null)} />}
         {emerg && <EmergencySheet onClose={() => setEmerg(null)} origen={emerg.origen} preset={emerg.tipo} />}
       </div>
     </EmergencyCtx.Provider>
+  );
+}
+
+/** "¿Seguís ahí?": aviso previo al cierre por inactividad. Tocar el botón (o cualquier actividad) lo cancela. */
+function AvisoCierre({ hasta, onSeguir }: { hasta: number; onSeguir: () => void }) {
+  const [ahora, setAhora] = useState(Date.now());
+  const boton = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    boton.current?.focus();
+    const id = setInterval(() => setAhora(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  const seg = Math.max(0, Math.ceil((hasta - ahora) / 1000));
+  return (
+    <div className="overlay" style={{ zIndex: 40, background: 'rgba(1,1,71,.85)' }} role="alertdialog" aria-modal="true" aria-labelledby="aviso-cierre-t" aria-describedby="aviso-cierre-d">
+      <div className="card elevated stack" style={{ maxWidth: 420, gap: 14 }}>
+        <h2 id="aviso-cierre-t" className="display" style={{ fontSize: 24 }}>
+          ¿Seguís ahí?
+        </h2>
+        <p id="aviso-cierre-d">
+          Por tu privacidad, cerramos la sesión si no hay actividad. Se cierra en <span className="num">{seg}</span> s.
+        </p>
+        <button ref={boton} type="button" className="btn btn-primary" onClick={onSeguir}>
+          Sigo acá
+        </button>
+      </div>
+    </div>
   );
 }

@@ -213,7 +213,7 @@ function QrReader({ onCode, busy }: { onCode: (c: string) => void; busy: boolean
     <div className="stack" style={{ alignItems: 'center', gap: 32, width: '100%', maxWidth: 560 }}>
       <div style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: 12, overflow: 'hidden', background: 'radial-gradient(ellipse at 50% 40%,#20205D,#0b0b2e)' }}>
         {supported && <video ref={video} muted playsInline style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} />}
-        <div style={{ position: 'absolute', inset: '14%', border: '3px solid #2FA8C0', borderRadius: 12 }} />
+        <div style={{ position: 'absolute', inset: '14%', border: '3px solid var(--c-cyan)', borderRadius: 12 }} />
       </div>
       {supported !== false ? (
         <div style={{ fontSize: 28 }} className="muted">

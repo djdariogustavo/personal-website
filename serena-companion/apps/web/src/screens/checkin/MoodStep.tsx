@@ -12,6 +12,7 @@ export function MoodStep(p: {
 }) {
   return (
     <>
+      <h1 className="sr-only">Check-in · paso 1: cómo llegás</h1>
       <fieldset className="stack" style={{ gap: 16, border: 0, padding: 0, margin: 0 }}>
         <legend className="h1" style={{ fontSize: 'clamp(26px, 4cqi, 40px)', lineHeight: 1.12, marginBottom: 16 }}>
           ¿Cómo llegás a este momento del turno?

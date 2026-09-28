@@ -36,6 +36,7 @@ export function Breathe({ kiosk = false }: { kiosk?: boolean }) {
             animation: rem > 0 ? 'breathe 10s ease-in-out infinite' : 'none',
           }}
         />
+        <h1 className="sr-only">Respiración guiada</h1>
         <div className="center-screen" style={{ position: 'absolute', inset: 0, gap: 4, padding: 0 }} aria-live="polite">
           <div className="display" style={{ fontSize: 32 }}>
             {rem > 0 ? (inhala ? 'Inhalá' : 'Exhalá') : 'Listo'}

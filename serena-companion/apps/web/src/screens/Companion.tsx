@@ -97,12 +97,13 @@ export function Companion() {
 
   return (
     <div className="chat">
+      <h1 className="sr-only">Acompañante</h1>
       <div className="row" style={{ flex: 'none', gap: 14, padding: '16px 20px', borderBottom: '1px solid var(--c-line)', flexWrap: 'nowrap' }}>
         <div className="companion-avatar" aria-hidden="true" />
         <div className="stack" style={{ flex: 1, minWidth: 0, gap: 2 }}>
           <div style={{ fontWeight: 600, fontSize: 17 }}>Acompañante SERENA</div>
           <div style={{ fontSize: 13, color: 'var(--ok-fg)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 7, height: 7, borderRadius: '50%', background: online ? '#2FA8C0' : '#6E6E8C' }} />
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: online ? 'var(--c-cyan)' : '#6E6E8C' }} />
             {online ? 'Disponible 24/7' : 'Sin conexión'}
           </div>
         </div>
@@ -119,7 +120,7 @@ export function Companion() {
           onClick={() => setBanner(!banner)}
           style={{ width: '100%', minHeight: 44, padding: '10px 20px', border: 'none', background: 'transparent', color: 'var(--c-text)', display: 'flex', gap: 10, alignItems: 'flex-start', textAlign: 'left' }}
         >
-          <Icon name="info" size={18} stroke="#2FA8C0" />
+          <Icon name="info" size={18} stroke="var(--c-cyan)" />
           <span style={{ fontSize: 14, lineHeight: 1.5, color: banner ? 'var(--c-text)' : 'var(--c-text-2)' }}>
             {banner
               ? 'Soy un acompañante, no un profesional de la salud. Estoy para escucharte y charlar. Si necesitás ayuda profesional, te ayudo a encontrarla.'
@@ -185,7 +186,7 @@ export function Companion() {
             Mensaje
           </label>
           <input id="chat-input" className="input" value={input} maxLength={2000} onChange={(e) => setInput(e.target.value)} placeholder="Escribí lo que quieras" style={{ flex: 1, minWidth: 0 }} />
-          <button type="submit" aria-label="Enviar" style={{ width: 52, height: 52, flex: 'none', border: 'none', borderRadius: 2, background: '#2FA8C0', color: '#0B0B1A', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button type="submit" aria-label="Enviar" style={{ width: 52, height: 52, flex: 'none', border: 'none', borderRadius: 2, background: 'var(--c-cyan)', color: 'var(--c-on-cyan)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Icon name="send" size={20} width={1.8} />
           </button>
         </div>

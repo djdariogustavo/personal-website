@@ -21,6 +21,7 @@ export function Splash() {
   };
   return (
     <main className="scroll bg-splash" style={{ height: '100%' }}>
+      <h1 className="sr-only">Bienvenida a SERENA Companion</h1>
       <div className="center-screen" style={{ gap: 40 }}>
         {i === 0 ? (
           <div className="stack" style={{ alignItems: 'center', gap: 36, width: '100%', maxWidth: 640 }}>
@@ -83,7 +84,7 @@ export function ConsentScreen() {
   const [c, setC] = useState<Consents>(pendingConsents ?? DEFAULT_CONSENTS);
   const nav = useNavigate();
   return (
-    <main className="scroll">
+    <div className="scroll">
       <div className="screen narrow">
         <div className="stack">
           <div className="label cyan">CONSENTIMIENTO INFORMADO</div>
@@ -122,6 +123,6 @@ export function ConsentScreen() {
           Podés cambiar esto cuando quieras en Privacidad.
         </p>
       </div>
-    </main>
+    </div>
   );
 }

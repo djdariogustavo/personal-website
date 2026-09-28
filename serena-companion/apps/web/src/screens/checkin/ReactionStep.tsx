@@ -52,6 +52,22 @@ function ReactionTest({ done, skipped, onResult, onSkip }: { done: ReactionResul
   };
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
 
+  // Con teclado (WCAG 2.1.1): Espacio o Enter equivalen a tocar el círculo; antes de que aparezca
+  // cuentan como anticipados, igual que un toque. Con lector de pantalla se anuncia "Ahora".
+  useEffect(() => {
+    if (!started || done || skipped) return;
+    const onKey = (e: globalThis.KeyboardEvent) => {
+      if (e.key !== ' ' && e.key !== 'Enter') return;
+      if ((e.target as HTMLElement | null)?.closest('button, a, input, textarea, select') && !(e.target as HTMLElement).classList.contains('react-dot')) return;
+      e.preventDefault();
+      if (e.repeat) return;
+      if (pos) hit();
+      else early.current++;
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  });
+
   const hit = () => {
     if (!pos) return;
     times.current.push(performance.now() - shownAt.current);
@@ -75,7 +91,10 @@ function ReactionTest({ done, skipped, onResult, onSkip }: { done: ReactionResul
         </span>
       </div>
       <div className="muted" style={{ fontSize: 15 }}>
-        Tocá el círculo apenas aparezca.
+        Tocá el círculo apenas aparezca. Con teclado, apretá Espacio.
+      </div>
+      <div className="sr-only" aria-live="assertive">
+        {started && !done && !skipped && pos ? 'Ahora' : ''}
       </div>
       <div
         className="react-area"
@@ -103,7 +122,7 @@ function ReactionTest({ done, skipped, onResult, onSkip }: { done: ReactionResul
             </button>
           </div>
         ) : (
-          pos && <button type="button" className="react-dot" aria-label="Círculo" style={{ left: `${pos.x}%`, top: `${pos.y}%` }} onPointerDown={hit} />
+          pos && <button type="button" className="react-dot" aria-label="Círculo" tabIndex={-1} style={{ left: `${pos.x}%`, top: `${pos.y}%` }} onPointerDown={hit} />
         )}
       </div>
       {!done && !skipped && (

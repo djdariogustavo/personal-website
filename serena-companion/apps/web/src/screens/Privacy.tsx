@@ -60,7 +60,7 @@ export function Privacy() {
         <h2 className="label">QUIÉN VE QUÉ</h2>
         <div className="grid" style={{ ['--min' as string]: '240px', gap: 12 }}>
           {people.map(([t, d, me]) => (
-            <div key={t} className="card" style={{ padding: 20, gap: 8, borderColor: me ? '#2FA8C0' : undefined, borderWidth: me ? 1.5 : 1 }}>
+            <div key={t} className="card" style={{ padding: 20, gap: 8, borderColor: me ? 'var(--c-cyan)' : undefined, borderWidth: me ? 1.5 : 1 }}>
               <div className="display" style={{ fontSize: 20 }}>
                 {t}
               </div>

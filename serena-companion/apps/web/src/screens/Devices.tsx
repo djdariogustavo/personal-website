@@ -55,7 +55,7 @@ export function Devices() {
         <div className="list">
           {list.map((d) => (
             <div key={d.id} className="list-row" style={{ padding: '18px 20px', gap: 16, flexWrap: 'wrap' }}>
-              <Icon name={d.kind === 'mobile' ? 'mobile' : d.kind === 'desktop' ? 'desktop' : 'tablet'} size={28} stroke="#2FA8C0" />
+              <Icon name={d.kind === 'mobile' ? 'mobile' : d.kind === 'desktop' ? 'desktop' : 'tablet'} size={28} stroke="var(--c-cyan)" />
               <div className="stack" style={{ flex: '1 1 200px', minWidth: 0, gap: 4 }}>
                 <div style={{ fontWeight: 600 }}>
                   {d.nombre}

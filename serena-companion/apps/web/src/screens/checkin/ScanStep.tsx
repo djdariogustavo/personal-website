@@ -66,7 +66,7 @@ export function ScanStep({ stream, duracionS, onDone, onAbort }: { stream: Media
         <div className="scan-halo" data-anim />
         <svg viewBox="0 0 100 100" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', transform: 'rotate(-90deg)' }} aria-hidden="true">
           <circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,.10)" strokeWidth="1.2" />
-          <circle cx="50" cy="50" r="48" fill="none" stroke="#2FA8C0" strokeWidth="1.6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - progress)} style={{ transition: 'stroke-dashoffset 1s linear' }} />
+          <circle cx="50" cy="50" r="48" fill="none" strokeWidth="1.6" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - progress)} style={{ stroke: 'var(--c-cyan)', transition: 'stroke-dashoffset 1s linear' }} />
         </svg>
         <div className="scan-oval">
           {stream ? (

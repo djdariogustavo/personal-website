@@ -32,7 +32,7 @@ export type IconName = keyof typeof ICONS;
 
 export function Icon({ name, size = 22, stroke = 'currentColor', width = 1.5 }: { name: IconName; size?: number; stroke?: string; width?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: 'none' }}>
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" strokeWidth={width} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: 'none', stroke }}>
       <path d={ICONS[name]} />
     </svg>
   );
@@ -78,7 +78,7 @@ export function Seal({ children }: { children: ReactNode }) {
 
 export function PinDots({ n, total = 4 }: { n: number; total?: number }) {
   return (
-    <div className="pin-dots" aria-label={`${n} de ${total} dígitos`}>
+    <div className="pin-dots" role="img" aria-label={`${n} de ${total} dígitos`}>
       {Array.from({ length: total }, (_, i) => (
         <span key={i} className={i < n ? 'on' : ''} />
       ))}
@@ -123,11 +123,10 @@ export function Ring({ size, r, stroke, progress, children }: { size: number; r:
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="#2FA8C0"
           strokeWidth={stroke}
           strokeDasharray={C}
           strokeDashoffset={C * (1 - Math.max(0, Math.min(1, progress)))}
-          style={{ transition: 'stroke-dashoffset 1s linear' }}
+          style={{ stroke: 'var(--c-cyan)', transition: 'stroke-dashoffset 1s linear' }}
         />
       </svg>
       <span className="num" style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>

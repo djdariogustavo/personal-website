@@ -25,6 +25,7 @@
     "e2e:only": "playwright test -c e2e/playwright.config.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
     "@playwright/test": "^1.56.1",
     "@types/node": "^22.10.0",
     "typescript": "^5.7.2",
