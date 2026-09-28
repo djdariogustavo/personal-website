@@ -11,8 +11,14 @@ import type { AppContext } from '../src/context.ts';
 
 export class CapturingMessenger implements Messenger {
   last: string | null = null;
-  async sendOtp(_to: unknown, code: string) {
+  lastProposito: string | null = null;
+  avisos: string[] = [];
+  async sendOtp(_to: unknown, code: string, proposito = 'ingreso') {
     this.last = code;
+    this.lastProposito = proposito;
+  }
+  async sendAviso(_to: unknown, texto: string) {
+    this.avisos.push(texto);
   }
 }
 

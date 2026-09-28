@@ -31,6 +31,7 @@ export class SyncEngine {
   ) {}
 
   start() {
+    if (this.timer) return; // idempotente
     const kick = () => void this.sync();
     window.addEventListener('online', kick);
     window.addEventListener('offline', () => this.set({ estado: 'offline' }));
@@ -39,6 +40,7 @@ export class SyncEngine {
     this.stop = () => {
       window.removeEventListener('online', kick);
       if (this.timer) clearInterval(this.timer);
+      this.timer = null;
     };
   }
   stop = () => {};

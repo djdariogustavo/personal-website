@@ -67,7 +67,13 @@ serena-companion/
 - **Baja de trabajadores.** La empresa da de baja desde Equipo: se libera el puesto, se cierran las sesiones
   y se invalidan PIN, QR y escritorios recordados. La persona conserva 30 días un acceso restringido para
   descargar o eliminar sus datos; al vencer, la cuenta y sus datos se eliminan (`apps/server/src/baja.ts`).
-  Dentro de ese plazo la empresa puede reactivarla (PIN y QR nuevos). Cada escalamiento a la guardia queda auditado y se muestra en Privacidad
+  Dentro de ese plazo la empresa puede reactivarla (PIN y QR nuevos).
+- **Contraseñas** (`apps/server/src/routes/password.ts`, política en `packages/domain/src/password.ts`, según
+  NIST SP 800-63B: mínimo 10 caracteres, sin reglas de composición, se bloquean las comunes y las derivadas
+  de DNI, legajo, usuario o nombre). Cambio con la actual (cierra las demás sesiones); recuperación con código
+  por SMS al teléfono del segundo factor, sin revelar si la cuenta existe; y restablecimiento por la empresa
+  para quien perdió el teléfono: contraseña temporal que obliga a elegir una propia (mientras tanto solo se
+  puede pedir ayuda). La contraseña inicial del alta también es temporal. Cada cambio se avisa por SMS. Cada escalamiento a la guardia queda auditado y se muestra en Privacidad
   ("Tu información se compartió N veces en los últimos 90 días"). Exportación, borrado y retiro del
   consentimiento (Ley 25.326).
 - **Consentimiento granular.** Cada permiso apaga su paso del check-in (ánimo, cámara, reacción), el chat

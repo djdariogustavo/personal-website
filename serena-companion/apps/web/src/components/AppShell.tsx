@@ -37,6 +37,8 @@ const TITLES: Record<string, string> = {
   '/recursos': 'Recursos',
   '/privacidad': 'Privacidad y datos',
   '/dispositivos': 'Dispositivos',
+  '/contrasena': 'Contraseña',
+  '/admin/contrasena': 'Contraseña',
   '/admin': 'Administración',
 };
 
@@ -83,7 +85,9 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
   const isMobile = layout === 'mobile' && !kiosk;
   // Cuenta dada de baja: solo la pantalla de sus datos, sin navegación, sincronización ni aviso a la guardia.
   const baja = !!session?.perfil.baja;
-  const showSidebar = !isMobile && !kiosk && !!session && !baja;
+  // Contraseña temporal: sin navegación ni sincronización hasta elegir una propia (el botón Ayuda sigue).
+  const temporal = !!session?.perfil.debeCambiarPassword;
+  const showSidebar = !isMobile && !kiosk && !!session && !baja && !temporal;
   const collapsed = layout === 'tablet';
 
   useEffect(() => scrollRef.current?.scrollTo(0, 0), [loc.pathname]);
@@ -150,7 +154,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
               </div>
             )}
             <div className="spacer" />
-            {session && !baja && <SyncIndicator showLabel={!isMobile && !kiosk} />}
+            {session && !baja && !temporal && <SyncIndicator showLabel={!isMobile && !kiosk} />}
             {session && !kiosk && (
               <div style={{ position: 'relative' }}>
                 <button type="button" className="avatar" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu(!menu)} aria-label="Menú de la cuenta">
@@ -161,7 +165,12 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
                     <button type="button" role="menuitemcheckbox" aria-checked={theme === 'sol'} onClick={() => setTheme(theme === 'sol' ? 'noche' : 'sol')}>
                       <Icon name="sun" /> Modo alto contraste (sol)
                     </button>
-                    {!isAdmin && !baja && (
+                    {!baja && !temporal && (
+                      <NavLink to={isAdmin ? '/admin/contrasena' : '/contrasena'} role="menuitem">
+                        <Icon name="lock" /> Cambiar contraseña
+                      </NavLink>
+                    )}
+                    {!isAdmin && !baja && !temporal && (
                       <>
                         <NavLink to="/privacidad" role="menuitem">
                           <Icon name="privacidad" /> Privacidad y datos
@@ -188,7 +197,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
               </button>
             )}
           </header>
-          {sync.estado === 'offline' && session && !baja && (
+          {sync.estado === 'offline' && session && !baja && !temporal && (
             <div className="offline-banner" role="status">
               <Icon name="wifiOff" size={18} stroke="#B8B8CB" />
               Sin conexión. Todo se guarda y se sincroniza después.
@@ -197,7 +206,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
           <div className="scroll" ref={scrollRef} id="main">
             {children}
           </div>
-          {isMobile && session && !hideNav && !isAdmin && !baja && (
+          {isMobile && session && !hideNav && !isAdmin && !baja && !temporal && (
             <nav className="bottom-nav" aria-label="Principal">
               {NAV.map(([to, label, icon]) => (
                 <NavLink key={to} to={to} end={to === '/'} aria-current={to === '/checkin' && /^\/(checkin|resultado|respirar)/.test(loc.pathname) ? 'page' : undefined}>

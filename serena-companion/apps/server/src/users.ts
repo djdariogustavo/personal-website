@@ -24,6 +24,7 @@ export interface UserRow {
   activo: number;
   baja_en: string | null;
   purga_en: string | null;
+  password_temporal: number;
 }
 
 export interface OrgRow {
@@ -83,5 +84,6 @@ export function profile(db: DB, userId: string): UserProfile & { consentimientoO
     consents,
     consentimientoOtorgado: otorgado,
     baja: !u.activo && u.baja_en && u.purga_en ? { desde: u.baja_en, purgaEn: u.purga_en } : null,
+    debeCambiarPassword: !!u.password_temporal,
   };
 }

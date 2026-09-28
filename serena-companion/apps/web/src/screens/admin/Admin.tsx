@@ -425,7 +425,7 @@ const dia = (iso: string) => new Date(iso).toLocaleDateString('es-AR', { day: 'n
  */
 function TeamList({ version, onCreds }: { version: number; onCreds: (c: Record<string, string>) => void }) {
   const [data, setData] = useState<{ trabajadores: Trabajador[]; suscripcion: SubscriptionSummary } | null>(null);
-  const [confirm, setConfirm] = useState<string | null>(null);
+  const [confirm, setConfirm] = useState<{ id: string; tipo: 'baja' | 'password' } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const load = () =>
@@ -441,6 +441,17 @@ function TeamList({ version, onCreds }: { version: number; onCreds: (c: Record<s
       const r = await api<{ purgaEn: string }>(`/admin/workers/${t.id}/baja`, { body: {} });
       setNotice(`Se dio de baja a ${t.nombre}. Se liberó su puesto. Sus datos se eliminan el ${dia(r.purgaEn)}.`);
       await load();
+    } catch (e) {
+      setError(errMsg(e));
+    }
+  }
+  async function restablecer(t: Trabajador) {
+    setConfirm(null);
+    setError(null);
+    try {
+      const r = await api<{ passwordTemporal: string }>(`/admin/workers/${t.id}/password`, { body: {} });
+      setNotice(`Se restableció la contraseña de ${t.nombre}. Entregale en mano la temporal: al ingresar va a tener que elegir una propia.`);
+      onCreds({ persona: t.nombre, passwordTemporal: r.passwordTemporal });
     } catch (e) {
       setError(errMsg(e));
     }
@@ -488,9 +499,14 @@ function TeamList({ version, onCreds }: { version: number; onCreds: (c: Record<s
                 </div>
               </div>
               {t.estado === 'activo' ? (
-                <button type="button" className="btn btn-danger" style={{ minHeight: 44, fontSize: 14 }} onClick={() => (setConfirm(t.id), setNotice(null))}>
-                  Dar de baja
-                </button>
+                <>
+                  <button type="button" className="btn" style={{ minHeight: 44, fontSize: 14 }} onClick={() => (setConfirm({ id: t.id, tipo: 'password' }), setNotice(null))}>
+                    Restablecer contraseña
+                  </button>
+                  <button type="button" className="btn btn-danger" style={{ minHeight: 44, fontSize: 14 }} onClick={() => (setConfirm({ id: t.id, tipo: 'baja' }), setNotice(null))}>
+                    Dar de baja
+                  </button>
+                </>
               ) : (
                 <>
                   <span className="chip chip-neutral">DE BAJA</span>
@@ -500,7 +516,23 @@ function TeamList({ version, onCreds }: { version: number; onCreds: (c: Record<s
                 </>
               )}
             </div>
-            {confirm === t.id && (
+            {confirm?.id === t.id && confirm.tipo === 'password' && (
+              <div className="card elevated" style={{ padding: '18px 20px', gap: 12 }} role="alertdialog" aria-live="assertive" aria-label={`Restablecer la contraseña de ${t.nombre}`}>
+                <div style={{ fontSize: 15, lineHeight: 1.55 }}>
+                  ¿Restablecer la contraseña de <strong>{t.nombre}</strong>? Usalo solo si no puede recuperarla por SMS (por ejemplo, perdió el teléfono). Se cierran sus sesiones, se le avisa por
+                  SMS y se genera una contraseña temporal para entregarle en mano; al ingresar tendrá que elegir una propia, que la empresa no conoce.
+                </div>
+                <div className="row">
+                  <button type="button" className="btn btn-primary" style={{ minHeight: 48, fontSize: 15 }} onClick={() => void restablecer(t)}>
+                    Sí, restablecer
+                  </button>
+                  <button type="button" className="btn" style={{ minHeight: 48, fontSize: 15 }} onClick={() => setConfirm(null)}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+            {confirm?.id === t.id && confirm.tipo === 'baja' && (
               <div className="card elevated" style={{ padding: '18px 20px', gap: 12 }} role="alertdialog" aria-live="assertive" aria-label={`Dar de baja a ${t.nombre}`}>
                 <div style={{ fontSize: 15, lineHeight: 1.55 }}>
                   ¿Dar de baja a <strong>{t.nombre}</strong>? Se libera su puesto y se cierran sus sesiones en todos los dispositivos; su PIN y QR dejan de funcionar. Durante 30 días

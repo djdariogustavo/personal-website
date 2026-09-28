@@ -1,6 +1,6 @@
 import { asset } from '../demo/flags.ts';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { useNavigate } from 'react-router';
+import { Link, useNavigate } from 'react-router';
 import { api, ApiError, isOffline } from '../lib/api.ts';
 import { useApp, storage, type Profile, type Session } from '../lib/store.tsx';
 import { defaultDeviceName, describeSystem, detectDeviceKind } from '../lib/device.ts';
@@ -182,7 +182,7 @@ export function Login() {
               Ingresar
             </button>
             <p className="meta" style={{ fontSize: 14, textAlign: 'center' }}>
-              ¿Olvidaste tu contraseña? Pedí una nueva a salud ocupacional de tu faena.
+              <Link to="/recuperar">¿Olvidaste tu contraseña?</Link>
             </p>
           </form>
         )}

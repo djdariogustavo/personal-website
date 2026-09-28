@@ -22,6 +22,8 @@ export interface AuthInfo {
   efimera: boolean;
   /** Cuenta dada de baja por la empresa, dentro del período de gracia. */
   baja: boolean;
+  /** Ingresó con una contraseña entregada por la empresa y todavía no la cambió. */
+  debeCambiarPassword: boolean;
 }
 
 declare module 'express-serve-static-core' {
@@ -109,6 +111,7 @@ interface SessionRow {
   cerrado_en: string | null;
   activo: number;
   purga_en: string | null;
+  password_temporal: number;
 }
 
 export function authenticate(ctx: AppContext) {
@@ -125,7 +128,7 @@ export function authenticate(ctx: AppContext) {
       }
       const s = ctx.db
         .prepare(
-          `SELECT s.*, u.org_id, u.role, u.activo, u.purga_en, d.kind, d.efimero, d.cerrado_en
+          `SELECT s.*, u.org_id, u.role, u.activo, u.purga_en, u.password_temporal, d.kind, d.efimero, d.cerrado_en
            FROM sessions s JOIN users u ON u.id = s.user_id JOIN devices d ON d.id = s.device_id
            WHERE s.id = ?`,
         )
@@ -148,6 +151,7 @@ export function authenticate(ctx: AppContext) {
         deviceKind: s.kind,
         efimera: Boolean(s.efimero),
         baja: !s.activo,
+        debeCambiarPassword: !!s.password_temporal && !s.efimero,
       };
       next();
     } catch (e) {
@@ -201,6 +205,26 @@ export function bajaScope() {
     if (!req.auth?.baja) return next();
     const ok = BAJA_ALLOWED.some(([m, re]) => m === req.method && re.test(req.path));
     if (!ok) return next(new HttpError(403, 'cuenta_dada_de_baja', 'Tu cuenta fue dada de baja. Solo podés descargar o eliminar tus datos.'));
+    next();
+  };
+}
+
+/**
+ * Contraseña entregada por la empresa (alta o restablecimiento): antes de
+ * usar la app hay que elegir una propia. El pedido de ayuda nunca se bloquea.
+ */
+const PASSWORD_TEMPORAL_ALLOWED: Array<[string, RegExp]> = [
+  ['GET', /^\/me$/],
+  ['POST', /^\/me\/password$/],
+  ['POST', /^\/emergency$/],
+  ['GET', /^\/emergency\/[\w-]+$/],
+];
+
+export function passwordScope() {
+  return (req: Request, _res: Response, next: NextFunction) => {
+    if (!req.auth?.debeCambiarPassword) return next();
+    const ok = PASSWORD_TEMPORAL_ALLOWED.some(([m, re]) => m === req.method && re.test(req.path));
+    if (!ok) return next(new HttpError(403, 'debe_cambiar_password', 'Antes de seguir, elegí una contraseña propia.'));
     next();
   };
 }

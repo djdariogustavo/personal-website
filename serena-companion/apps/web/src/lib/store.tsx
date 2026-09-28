@@ -102,9 +102,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const engine = new SyncEngine(db, s.deviceId);
     const emergencies = new EmergencyQueue(db);
     // Una cuenta dada de baja no sincroniza ni envía avisos: el servidor solo le permite ver y borrar sus datos.
+    // Con contraseña temporal se puede pedir ayuda, pero no se sincroniza hasta elegir una propia.
     if (!s.perfil.baja) {
-      engine.start();
       emergencies.start();
+      if (!s.perfil.debeCambiarPassword) engine.start();
     }
     setLocal({ db, engine, emergencies });
   }, []);
@@ -182,6 +183,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [attachLocal],
   );
+
+  // Al elegir una contraseña propia, empieza la sincronización.
+  const debeCambiar = !!session?.perfil.debeCambiarPassword;
+  useEffect(() => {
+    if (local && session && !session.perfil.baja && !debeCambiar) local.engine.start();
+  }, [local, debeCambiar]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setProfile = useCallback((perfil: Profile) => {
     setSession((cur) => {

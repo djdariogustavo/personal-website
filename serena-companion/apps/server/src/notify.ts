@@ -9,13 +9,21 @@ import { createHmac } from 'node:crypto';
  *   Configurable, PEC). Solo la guardia recibe estos avisos, nunca el supervisor.
  */
 
+export type OtpProposito = 'ingreso' | 'recuperacion';
+
 export interface Messenger {
-  sendOtp(to: { telefono: string | null; email: string | null }, code: string): Promise<void>;
+  /** El propósito cambia el texto del SMS ("para ingresar" / "para restablecer tu contraseña"). */
+  sendOtp(to: { telefono: string | null; email: string | null }, code: string, proposito?: OtpProposito): Promise<void>;
+  /** Aviso de seguridad sin código (p. ej. "cambiaron tu contraseña"). */
+  sendAviso(to: { telefono: string | null; email: string | null }, texto: string): Promise<void>;
 }
 
 export class ConsoleMessenger implements Messenger {
-  async sendOtp(to: { telefono: string | null; email: string | null }, code: string) {
-    console.info(`[serena][2FA] Código para ${to.telefono ?? to.email ?? 'usuario'}: ${code}`);
+  async sendOtp(to: { telefono: string | null; email: string | null }, code: string, proposito: OtpProposito = 'ingreso') {
+    console.info(`[serena][${proposito === 'ingreso' ? '2FA' : 'recuperación'}] Código para ${to.telefono ?? to.email ?? 'usuario'}: ${code}`);
+  }
+  async sendAviso(to: { telefono: string | null; email: string | null }, texto: string) {
+    console.info(`[serena][aviso] Para ${to.telefono ?? to.email ?? 'usuario'}: ${texto}`);
   }
 }
 

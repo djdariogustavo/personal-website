@@ -151,8 +151,8 @@ export function adminRoutes(ctx: AppContext) {
     const id = newId();
     db.prepare(
       `INSERT INTO users (id, org_id, role, nombre, nombre_corto, puesto, dni, legajo, telefono, password_hash, kiosk_pin_hash, qr_token_hash,
-        roster_inicio, roster_trabajo, roster_descanso, turno, creado_en)
-       VALUES (?, ?, 'worker', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        roster_inicio, roster_trabajo, roster_descanso, turno, creado_en, password_temporal)
+       VALUES (?, ?, 'worker', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
     ).run(
       id,
       a.orgId,

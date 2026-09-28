@@ -120,6 +120,8 @@ export interface UserProfile {
    * descargar o eliminar sus datos; en `purgaEn` se eliminan definitivamente.
    */
   baja?: { desde: string; purgaEn: string } | null;
+  /** La contraseña la entregó la empresa: hay que cambiarla antes de seguir. */
+  debeCambiarPassword?: boolean;
   nombre: string;
   nombreCorto: string;
   iniciales: string;

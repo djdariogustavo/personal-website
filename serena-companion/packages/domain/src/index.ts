@@ -10,3 +10,4 @@ export * from './sync.ts';
 export * from './insight.ts';
 export * from './billing.ts';
 export * from './disclosure.ts';
+export * from './password.ts';

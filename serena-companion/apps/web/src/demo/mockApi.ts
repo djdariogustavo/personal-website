@@ -11,6 +11,8 @@ import {
   detectRisk,
   K_CELDA,
   K_GRUPO,
+  PASSWORD_COPY,
+  validarPassword,
   publicarDistribucion,
   rosterStatus,
   ventanaReporte,
@@ -78,6 +80,8 @@ interface State {
   sub: SubscriptionSummary & { checkout?: { id: string; planId: string; puestos: number; moneda: string } };
   kiosks: Array<{ id: string; nombre: string; creado_en: string; revocado_en: string | null }>;
   equipo: Array<{ id: string; nombre: string; legajo: string; puesto: string; baja: { desde: string; purgaEn: string } | null }>;
+  pw: { worker: string; admin: string; workerTemporal: boolean };
+  recover: { id: string; code: string; who: Who | null; intentos: number } | null;
   seenMutations: Set<string>;
 }
 
@@ -176,6 +180,8 @@ function freshState(): State {
       ['u-8', 'Carla Ibáñez', '04879', 'Laboratorista'],
       ['u-9', 'Néstor Villalba', '04886', 'Electricista'],
     ].map(([id, nombre, legajo, puesto]) => ({ id: id!, nombre: nombre!, legajo: legajo!, puesto: puesto!, baja: null })),
+    pw: { worker: 'serena-demo', admin: 'serena-admin', workerTemporal: false },
+    recover: null,
     seenMutations: new Set(),
   };
 }
@@ -216,6 +222,7 @@ function perfil(who: Who) {
   return {
     ...u,
     baja: who === 'worker' ? (matias()?.baja ?? null) : null,
+    debeCambiarPassword: who === 'worker' && S.pw.workerTemporal,
     org: ORG,
     roster: ROSTER,
     consents: S.consents,
@@ -257,7 +264,7 @@ export async function mockApi(path: string, method: string, body: unknown, token
     case 'POST /auth/login': {
       const ident = String(b.identificador ?? '').replace(/\./g, '').trim().toLowerCase();
       const who: Who | null =
-        (ident === 'mrodriguez' || ident === '30456789') && b.password === 'serena-demo' && matias() ? 'worker' : ident === 'admin' && b.password === 'serena-admin' ? 'admin' : null;
+        (ident === 'mrodriguez' || ident === '30456789') && b.password === S.pw.worker && matias() ? 'worker' : ident === 'admin' && b.password === S.pw.admin ? 'admin' : null;
       if (!who) throw new MockError(401, 'credenciales', 'El usuario o la contraseña no coinciden.');
       const code = String(Math.floor(100000 + Math.random() * 900000));
       S.challenge = { id: uid(), code, who };
@@ -282,12 +289,46 @@ export async function mockApi(path: string, method: string, body: unknown, token
     }
     case 'POST /auth/logout':
       return { ok: true };
+    case 'POST /auth/recover/start': {
+      const ident = String(b.identificador ?? '').replace(/\./g, '').trim().toLowerCase();
+      const who: Who | null = (ident === 'mrodriguez' || ident === '30456789') && matias() ? 'worker' : ident === 'admin' ? 'admin' : null;
+      const code = String(Math.floor(100000 + Math.random() * 900000));
+      S.recover = { id: uid(), code, who, intentos: 0 };
+      return { challengeId: S.recover.id, venceEnMin: 10, ...(who ? { codigoDesarrollo: code } : {}) };
+    }
+    case 'POST /auth/recover/finish': {
+      const rc = S.recover;
+      if (!rc || rc.id !== b.challengeId || rc.intentos >= 5) throw new MockError(401, 'codigo_vencido', 'El código venció. Pedí uno nuevo.');
+      if (!rc.who || b.codigo !== rc.code) {
+        rc.intentos++;
+        throw new MockError(401, 'codigo_incorrecto', 'El código no coincide. Revisá los 6 dígitos o pedí uno nuevo.');
+      }
+      const problema = validarPassword(String(b.nueva), rc.who === 'worker' ? ['30456789', 'mrodriguez', '04817', USERS.worker.nombre] : ['admin']);
+      if (problema) throw new MockError(400, 'password_debil', PASSWORD_COPY[problema]);
+      if (rc.who === 'worker') S.pw = { ...S.pw, worker: String(b.nueva), workerTemporal: false };
+      else S.pw.admin = String(b.nueva);
+      S.recover = null;
+      return { ok: true };
+    }
   }
 
   const s = session(token);
   // Igual que bajaScope en el servidor.
   if (s.who === 'worker' && matias()?.baja && !['GET /me', 'GET /privacy/export', 'GET /privacy/access-log', 'DELETE /privacy/account'].includes(key))
     throw new MockError(403, 'cuenta_dada_de_baja', 'Tu cuenta fue dada de baja. Solo podés descargar o eliminar tus datos.');
+  // Igual que passwordScope en el servidor.
+  if (s.who === 'worker' && S.pw.workerTemporal && s.kind !== 'kiosk' && !['GET /me', 'POST /me/password', 'POST /emergency'].includes(key))
+    throw new MockError(403, 'debe_cambiar_password', 'Antes de seguir, elegí una contraseña propia.');
+  if (key === 'POST /me/password') {
+    const actual = s.who === 'worker' ? S.pw.worker : S.pw.admin;
+    if (b.actual !== actual) throw new MockError(401, 'password_actual', 'La contraseña actual no coincide.');
+    if (b.actual === b.nueva) throw new MockError(400, 'password_igual', 'La contraseña nueva tiene que ser distinta de la actual.');
+    const problema = validarPassword(String(b.nueva), s.who === 'worker' ? ['30456789', 'mrodriguez', '04817', USERS.worker.nombre] : ['admin']);
+    if (problema) throw new MockError(400, 'password_debil', PASSWORD_COPY[problema]);
+    if (s.who === 'worker') S.pw = { ...S.pw, worker: String(b.nueva), workerTemporal: false };
+    else S.pw.admin = String(b.nueva);
+    return { perfil: perfil(s.who), sesionesCerradas: 0 };
+  }
 
   switch (key) {
     case 'GET /me':
@@ -389,10 +430,16 @@ export async function mockApi(path: string, method: string, body: unknown, token
 
   // ---------- Administración ----------
   if (route?.startsWith('/admin') && s.who !== 'admin') throw new MockError(403, 'sin_permiso');
-  const accion = route?.match(/^\/admin\/workers\/([\w-]+)\/(baja|reactivar)$/);
+  const accion = route?.match(/^\/admin\/workers\/([\w-]+)\/(baja|reactivar|password)$/);
   if (accion && method === 'POST') {
     const t = S.equipo.find((x) => x.id === accion[1]);
     if (!t) throw new MockError(404, 'trabajador_inexistente');
+    if (accion[2] === 'password') {
+      if (t.baja) throw new MockError(409, 'dado_de_baja', 'Esta persona está dada de baja. Reactivala primero.');
+      const temporal = 'temp-' + uid().slice(0, 8);
+      if (t.id === USERS.worker.id) S.pw = { ...S.pw, worker: temporal, workerTemporal: true };
+      return { passwordTemporal: temporal };
+    }
     if (accion[2] === 'baja') {
       if (t.baja) throw new MockError(409, 'ya_dado_de_baja', 'Esta persona ya está dada de baja.');
       t.baja = { desde: iso(now()), purgaEn: iso(new Date(Date.now() + 30 * 86_400_000)) };

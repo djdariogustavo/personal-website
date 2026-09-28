@@ -20,6 +20,7 @@ import { Devices } from './screens/Devices.tsx';
 import { KioskClose, KioskId, KioskWait } from './screens/kiosk/Kiosk.tsx';
 import { AdminBilling, AdminStats, AdminTeam, SandboxCheckout } from './screens/admin/Admin.tsx';
 import { BajaScreen } from './screens/Baja.tsx';
+import { ChangePassword, Recover } from './screens/Password.tsx';
 
 /** Rutas del trabajador: requieren sesión personal (no de kiosco). */
 function WorkerGate() {
@@ -36,6 +37,13 @@ function WorkerGate() {
         {locked && <LockScreen />}
       </AppShell>
     );
+  if (session.perfil.debeCambiarPassword)
+    return (
+      <AppShell hideNav>
+        <ChangePassword obligatorio />
+        {locked && <LockScreen />}
+      </AppShell>
+    );
   const flow = /^\/(checkin|respirar)/.test(loc.pathname);
   return (
     <AppShell hideNav={flow}>
@@ -49,6 +57,12 @@ function AdminGate() {
   const { session, ready } = useApp();
   if (!ready) return null;
   if (!session || session.perfil.role !== 'admin') return <Navigate to="/ingresar" replace />;
+  if (session.perfil.debeCambiarPassword)
+    return (
+      <AppShell>
+        <ChangePassword obligatorio />
+      </AppShell>
+    );
   return (
     <AppShell>
       <Outlet />
@@ -96,6 +110,7 @@ export function App() {
           <Route path="/consentimiento" element={<ConsentScreen />} />
           <Route path="/ingresar" element={<LoginRoute />} />
           <Route path="/privacidad/politica" element={<PolicyPage />} />
+          <Route path="/recuperar" element={<Recover />} />
         </Route>
         <Route element={<WorkerGate />}>
           <Route index element={<Home />} />
@@ -108,10 +123,12 @@ export function App() {
           <Route path="/recursos/:slug" element={<ResourceDetail />} />
           <Route path="/privacidad" element={<Privacy />} />
           <Route path="/dispositivos" element={<Devices />} />
+          <Route path="/contrasena" element={<ChangePassword />} />
         </Route>
         <Route element={<AdminGate />}>
           <Route path="/admin" element={<AdminStats />} />
           <Route path="/admin/equipo" element={<AdminTeam />} />
+          <Route path="/admin/contrasena" element={<ChangePassword />} />
           <Route path="/admin/facturacion" element={<AdminBilling />} />
           <Route path="/admin/facturacion/sandbox" element={<SandboxCheckout />} />
         </Route>

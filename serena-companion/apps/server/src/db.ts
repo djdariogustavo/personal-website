@@ -10,7 +10,7 @@ import { dirname } from 'node:path';
  * de sincronización.
  */
 
-const MIGRATIONS: string[] = [
+export const MIGRATIONS: string[] = [
   `
   CREATE TABLE orgs (
     id TEXT PRIMARY KEY,
@@ -211,6 +211,21 @@ const MIGRATIONS: string[] = [
   `
   ALTER TABLE users ADD COLUMN baja_en TEXT;
   ALTER TABLE users ADD COLUMN purga_en TEXT;
+  `,
+  // 4: contraseñas. password_temporal = la entregó la empresa (alta o restablecimiento) y debe
+  // cambiarse al ingresar. Los restablecimientos por SMS usan su propia tabla.
+  `
+  ALTER TABLE users ADD COLUMN password_temporal INTEGER NOT NULL DEFAULT 0;
+  ALTER TABLE users ADD COLUMN password_cambiada_en TEXT;
+  CREATE TABLE password_resets (
+    id TEXT PRIMARY KEY,
+    user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    intentos INTEGER NOT NULL DEFAULT 0,
+    vence_en TEXT NOT NULL,
+    usado INTEGER NOT NULL DEFAULT 0,
+    creado_en TEXT NOT NULL
+  );
   `,
 ];
 

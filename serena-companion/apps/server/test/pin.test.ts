@@ -56,21 +56,27 @@ describe('PIN del kiosco', () => {
   });
 
   it('la base existente se actualiza sin perder datos', async () => {
-    const { openDb } = await import('../src/db.ts');
+    const { openDb, MIGRATIONS } = await import('../src/db.ts');
+    const { DatabaseSync } = await import('node:sqlite');
     const { mkdtempSync } = await import('node:fs');
     const { join } = await import('node:path');
     const { tmpdir } = await import('node:os');
     const path = join(mkdtempSync(join(tmpdir(), 'serena-')), 'v1.db');
-    // Base en versión 1 con una persona cargada.
-    const db1 = openDb(path);
-    db1.exec(
-      'UPDATE schema_version SET v = 1; ALTER TABLE users DROP COLUMN kiosk_bloqueo_hasta; ALTER TABLE users DROP COLUMN kiosk_fallos; ALTER TABLE users DROP COLUMN baja_en; ALTER TABLE users DROP COLUMN purga_en;',
-    );
+    // Base en versión 1 (solo la primera migración) con una persona cargada.
+    const db1 = new DatabaseSync(path);
+    db1.exec(MIGRATIONS[0]!);
+    db1.exec('CREATE TABLE schema_version (v INTEGER NOT NULL); INSERT INTO schema_version (v) VALUES (1);');
     db1.prepare("INSERT INTO orgs (id, nombre, faena, pais, creado_en) VALUES ('o', 'O', 'F', 'AR', 'x')").run();
     db1.prepare("INSERT INTO users (id, org_id, role, nombre, nombre_corto, password_hash, roster_inicio, creado_en) VALUES ('u', 'o', 'worker', 'N', 'N', 'h', '2026-09-01', 'x')").run();
     db1.close();
     const db2 = openDb(path);
-    expect((db2.prepare('SELECT v FROM schema_version').get() as { v: number }).v).toBe(3);
-    expect(db2.prepare("SELECT kiosk_fallos, baja_en, activo, nombre FROM users WHERE id = 'u'").get()).toEqual({ kiosk_fallos: 0, baja_en: null, activo: 1, nombre: 'N' });
+    expect((db2.prepare('SELECT v FROM schema_version').get() as { v: number }).v).toBe(MIGRATIONS.length);
+    expect(db2.prepare("SELECT kiosk_fallos, baja_en, password_temporal, activo, nombre FROM users WHERE id = 'u'").get()).toEqual({
+      kiosk_fallos: 0,
+      baja_en: null,
+      password_temporal: 0,
+      activo: 1,
+      nombre: 'N',
+    });
   });
 });
