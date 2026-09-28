@@ -158,5 +158,6 @@ axe-core y `e2e/app/teclado-y-movimiento.spec.ts` cubre lo que axe no mide (tecl
 tiempos, movimiento reducido). Informe de conformidad y limitaciones en `docs/ACCESIBILIDAD.md`.
 
 **Integración continua:** `.github/workflows/serena-companion.yml` corre todo lo anterior en GitHub Actions
-en cada cambio dentro de `serena-companion/`. Si falla una prueba e2e, el informe de Playwright (con capturas
+en cada cambio dentro de `serena-companion/`. También audita las dependencias: la ejecución falla si la app publicada tiene
+alguna vulnerabilidad conocida (moderada o más) o si las herramientas de desarrollo tienen una alta o crítica. Si falla una prueba e2e, el informe de Playwright (con capturas
 y trazas) queda como artefacto de la ejecución durante 14 días.

@@ -36,6 +36,14 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      # Dependencias de la app publicada: ninguna vulnerabilidad conocida (moderada o más).
+      - name: Auditoría de dependencias de producción
+        run: npm audit --omit=dev --audit-level=moderate
+
+      # Herramientas de desarrollo y pruebas: solo frenan si son altas o críticas.
+      - name: Auditoría de dependencias de desarrollo
+        run: npm audit --audit-level=high
+
       - name: Tipos (dominio, servidor, web y e2e)
         run: npm run typecheck
 
