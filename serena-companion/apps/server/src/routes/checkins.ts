@@ -1,10 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { classify, rosterStatus, wins, type CheckIn, type PullResponse, type PushResult } from '@serena/domain';
+import { applyConsents, classify, rosterStatus, wins, type CheckIn, type PullResponse, type PushResult } from '@serena/domain';
 import type { AppContext } from '../context.ts';
 import { auth } from '../auth.ts';
 import { nextSeq, nowIso, tx } from '../db.ts';
-import { getUser } from '../users.ts';
+import { getConsents, getUser } from '../users.ts';
 import { consentsSchema, upsertConsents } from './me.ts';
 
 const metrics = z.object({
@@ -91,28 +91,32 @@ export function checkinRoutes(ctx: AppContext) {
         continue;
       }
 
-      const status = tx(db, (): PushResult['status'] => {
+      const result = tx(db, (): Omit<PushResult, 'mutationId'> => {
         db.prepare('INSERT INTO sync_mutations (mutation_id, user_id, aplicada_en) VALUES (?, ?, ?)').run(m.mutationId, a.userId, nowIso());
         if (m.entity === 'consents') {
           upsertConsents(ctx, a.userId, deviceId, m.data, true);
-          return 'aplicada';
+          return { status: 'aplicada' };
         }
         const cur = db.prepare('SELECT * FROM checkins WHERE id = ?').get(m.id) as CheckinRow | undefined;
-        if (cur && cur.user_id !== a.userId) return 'rechazada';
+        if (cur && cur.user_id !== a.userId) return { status: 'rechazada', motivo: 'ajeno' };
         if (!wins({ updatedAt: m.updatedAt, deviceId }, cur ? { updatedAt: cur.actualizado_en, deviceId: cur.device_id } : null))
-          return 'descartada';
+          return { status: 'descartada' };
         const seq = nextSeq(db);
         if (m.op === 'delete') {
-          if (!cur) return 'descartada';
+          if (!cur) return { status: 'descartada' };
           db.prepare('UPDATE checkins SET borrado = 1, payload_enc = NULL, actualizado_en = ?, device_id = ?, seq = ? WHERE id = ?').run(
             m.updatedAt,
             deviceId,
             seq,
             m.id,
           );
-          return 'aplicada';
+          return { status: 'aplicada' };
         }
-        const c = m.data!;
+        // El consentimiento vigente se aplica en el servidor, no solo en la app.
+        const { otorgado, ...consents } = getConsents(db, a.userId);
+        const decision = applyConsents(m.data! as CheckIn, consents, otorgado);
+        if (!decision.ok) return { status: 'rechazada', motivo: decision.motivo };
+        const c = decision.checkin;
         // El nivel se recalcula en el servidor con la configuración vigente (no se confía en el cliente).
         const nivel = classify({ animo: c.animo as never, sueno: c.sueno as never, escaneo: c.escaneo, reaccion: c.reaccion }, ctx.config.niveles);
         const st = rosterStatus(
@@ -138,9 +142,9 @@ export function checkinRoutes(ctx: AppContext) {
           vault.encrypt(a.userId, payload),
           seq,
         );
-        return 'aplicada';
+        return { status: 'aplicada' };
       });
-      results.push({ mutationId: m.mutationId, status });
+      results.push({ mutationId: m.mutationId, ...result });
     }
     db.prepare('UPDATE devices SET ultima_sync = ? WHERE id = ?').run(nowIso(), a.deviceId);
     res.json({ resultados: results });

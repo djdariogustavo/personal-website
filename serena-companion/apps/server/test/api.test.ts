@@ -160,6 +160,50 @@ describe('sincronización de check-ins', () => {
   });
 });
 
+describe('consentimiento en el servidor', () => {
+  async function setup() {
+    const env = makeCtx();
+    addUser(env.ctx, env.orgId, { dni: '1212121', legajo: '1', password: 'p' });
+    const s = await login(env.app, env.messenger, '1212121', 'p');
+    const push = (c: ReturnType<typeof checkin>) =>
+      request(env.app)
+        .post('/api/sync/push')
+        .set(bearer(s.token))
+        .send({ mutations: [{ mutationId: randomUUID(), entity: 'checkin', id: c.id, op: 'upsert', data: c, updatedAt: c.updatedAt, deviceId: s.deviceId }] });
+    const consents = (c: Record<string, boolean>) =>
+      request(env.app).put('/api/consents').set(bearer(s.token)).send({ camara: true, animo: true, reaccion: true, chat: true, geo: true, ...c });
+    const pull = async () => (await request(env.app).get('/api/sync/pull?cursor=0').set(bearer(s.token))).body.cambios;
+    return { ...env, s, push, consents, pull };
+  }
+
+  it('no guarda el escaneo si el permiso de cámara está apagado, aunque el dispositivo lo mande', async () => {
+    const t = await setup();
+    await t.consents({ camara: false });
+    const r = await t.push(checkin());
+    expect(r.body.resultados[0].status).toBe('aplicada');
+    const [c] = await t.pull();
+    expect(c.data.escaneo).toBeNull();
+    expect(c.data.animo).toBe(3);
+    // El nivel se recalcula sin el escaneo (solo autorreporte y reacción).
+    expect(c.data.nivel).toBe('moderado');
+  });
+
+  it('rechaza check-ins después de retirar el consentimiento', async () => {
+    const t = await setup();
+    await request(t.app).post('/api/privacy/withdraw').set(bearer(t.s.token));
+    const r = await t.push(checkin());
+    expect(r.body.resultados[0]).toMatchObject({ status: 'rechazada', motivo: 'consentimiento_retirado' });
+    expect(await t.pull()).toHaveLength(0);
+  });
+
+  it('rechaza si no queda ningún dato permitido', async () => {
+    const t = await setup();
+    await t.consents({ camara: false, animo: false, reaccion: false });
+    const r = await t.push(checkin());
+    expect(r.body.resultados[0]).toMatchObject({ status: 'rechazada', motivo: 'sin_datos_consentidos' });
+  });
+});
+
 describe('acompañante', () => {
   it('responde y guarda cifrado; activa el estado de cuidado ante riesgo sin depender del modelo', async () => {
     const { ctx, app, orgId, messenger } = makeCtx();

@@ -4,6 +4,7 @@
  * se guarda nada fuera del navegador y no hay cobros ni avisos reales.
  */
 import {
+  applyConsents,
   classify,
   DEFAULT_CONFIG,
   DEFAULT_CONSENTS,
@@ -290,7 +291,9 @@ export async function mockApi(path: string, method: string, body: unknown, token
         if (m.op === 'delete') {
           if (cur) S.checkins.set(m.id, { ...cur, deleted: true, seq: ++S.seq });
         } else {
-          const c = { ...(m.data as CheckIn) };
+          const d = applyConsents(m.data as CheckIn, S.consents, S.otorgado);
+          if (!d.ok) return { mutationId: m.mutationId, status: 'rechazada', motivo: d.motivo };
+          const c = d.checkin;
           c.nivel = classify(c, DEFAULT_CONFIG.niveles);
           S.checkins.set(m.id, { c, seq: ++S.seq, deleted: false });
         }

@@ -1,4 +1,5 @@
 export * from './types.ts';
+export * from './consent.ts';
 export * from './roster.ts';
 export * from './config.ts';
 export * from './levels.ts';

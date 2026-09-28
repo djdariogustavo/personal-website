@@ -108,7 +108,15 @@ export class SyncEngine {
           body: { mutations: batch.map(({ encoladaEn: _e, ...m }) => m) },
         });
         // Aplicada, duplicada, descartada (perdió el conflicto) o rechazada: en todos los casos sale de la cola.
-        for (const x of r.resultados) await this.db.del('queue', x.mutationId);
+        for (const x of r.resultados) {
+          const m = batch.find((b) => b.mutationId === x.mutationId);
+          await this.db.del('queue', x.mutationId);
+          // Rechazado por consentimiento: el servidor no lo guardó, así que tampoco queda en el equipo.
+          if (m?.entity === 'checkin' && x.status === 'rechazada' && (x.motivo === 'consentimiento_retirado' || x.motivo === 'sin_datos_consentidos')) {
+            await this.db.del('checkins', m.id);
+            this.checkinListeners.forEach((l) => l());
+          }
+        }
         if (!r.resultados.length) break;
       }
       // 2) Bajar cambios.
