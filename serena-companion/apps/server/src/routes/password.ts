@@ -3,10 +3,11 @@ import { z } from 'zod';
 import { PASSWORD_COPY, PASSWORD_MAX, validarPassword } from '@serena/domain';
 import type { AppContext } from '../context.ts';
 import { HttpError, auth, requireRole } from '../auth.ts';
-import { hashSecret, newId, newOtp, newToken, sha256, verifySecret } from '../crypto.ts';
+import { hashSecret, newId, newToken, verifySecret } from '../crypto.ts';
 import { nowIso, tx } from '../db.ts';
 import { getUser, profile, type UserRow } from '../users.ts';
 import { rateLimit } from '../ratelimit.ts';
+import { codigoValido, demoraComoProveedor, entregarCodigo, nuevoCodigo } from '../otp.ts';
 
 /**
  * Contraseñas.
@@ -73,25 +74,25 @@ export function passwordRecoveryRoutes(ctx: AppContext) {
       .get(ident, ident, nowIso()) as UserRow | undefined;
     const conTelefono = u && (u.telefono || u.email) ? u : undefined;
     const id = newId();
-    const code = newOtp();
+    const { codeHash, code } = nuevoCodigo(ctx, id);
     // Siempre se crea el desafío: la respuesta no revela si la cuenta existe.
     db.prepare('INSERT INTO password_resets (id, user_id, code_hash, vence_en, creado_en) VALUES (?, ?, ?, ?, ?)').run(
       id,
       conTelefono?.id ?? null,
-      sha256(`${id}:${code}`),
+      codeHash,
       new Date(Date.now() + RESET_MIN * 60_000).toISOString(),
       nowIso(),
     );
     // Sin await: el tiempo de respuesta no depende de si se envió un SMS.
-    if (conTelefono) void ctx.messenger.sendOtp(conTelefono, code, 'recuperacion').catch((e) => console.error('[serena] SMS de recuperación', e));
+    if (conTelefono) void entregarCodigo(ctx, conTelefono, code, 'recuperacion').catch((e) => console.error('[serena] SMS de recuperación', e));
     res.json({
       challengeId: id,
       venceEnMin: RESET_MIN,
-      ...(ctx.exposeDevOtp && conTelefono ? { codigoDesarrollo: code } : {}),
+      ...(ctx.exposeDevOtp && conTelefono && code ? { codigoDesarrollo: code } : {}),
     });
   });
 
-  r.post('/recover/finish', finLimiter, (req, res) => {
+  r.post('/recover/finish', finLimiter, async (req, res) => {
     const b = z.object({ challengeId: z.string().uuid(), codigo: z.string().regex(/^\d{6}$/), nueva: nuevaSchema }).parse(req.body);
     const rs = db.prepare('SELECT * FROM password_resets WHERE id = ?').get(b.challengeId) as
       | { id: string; user_id: string | null; code_hash: string; intentos: number; vence_en: string; usado: number }
@@ -99,12 +100,14 @@ export function passwordRecoveryRoutes(ctx: AppContext) {
     if (!rs || rs.usado || Date.parse(rs.vence_en) < Date.now() || rs.intentos >= RESET_INTENTOS)
       throw new HttpError(401, 'codigo_vencido', 'El código venció. Pedí uno nuevo.');
     // Un desafío sin cuenta se comporta igual que un código incorrecto.
-    if (!rs.user_id || rs.code_hash !== sha256(`${rs.id}:${b.codigo}`)) {
+    const titular = rs.user_id ? ((db.prepare('SELECT * FROM users WHERE id = ?').get(rs.user_id) as UserRow | undefined) ?? null) : null;
+    if (!titular) await demoraComoProveedor(ctx);
+    if (!titular || !(await codigoValido(ctx, 'password_resets', rs, titular.telefono, b.codigo))) {
       db.prepare('UPDATE password_resets SET intentos = intentos + 1 WHERE id = ?').run(rs.id);
       throw new HttpError(401, 'codigo_incorrecto', 'El código no coincide. Revisá los 6 dígitos o pedí uno nuevo.');
     }
-    const u = getUser(db, rs.user_id);
-    // Si la contraseña no cumple, el código sigue valiendo para reintentar con otra.
+    const u = titular;
+    // Si la contraseña no cumple, el código sigue valiendo para reintentar con otra (también con Verify: ver otp.ts).
     exigirPolitica(u, b.nueva);
     tx(db, () => {
       db.prepare('UPDATE users SET password_hash = ?, password_temporal = 0, password_cambiada_en = ? WHERE id = ?').run(hashSecret(b.nueva), nowIso(), u.id);

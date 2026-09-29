@@ -140,9 +140,13 @@ Todas las variables están documentadas en [`.env.example`](.env.example). En pr
 vez y se guardan en `data/.dev-keys.json` (ignorado por git).
 
 **SMS (Twilio).** Obligatorio en producción: el servidor no arranca sin `TWILIO_ACCOUNT_SID`,
-`TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` y `TWILIO_FROM_NUMBER` (o `TWILIO_MESSAGING_SERVICE_SID`), ni sin
-el webhook de la guardia. En desarrollo el código va a la consola, salvo con `SERENA_SMS=twilio`. Para probar el
-envío real: `npm run sms:prueba -w @serena/server -- +549…` (en una cuenta de prueba, a un número verificado).
+`TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` y uno de `TWILIO_VERIFY_SERVICE_SID`, `TWILIO_FROM_NUMBER` o
+`TWILIO_MESSAGING_SERVICE_SID`, ni sin el webhook de la guardia. Con **Twilio Verify** (`TWILIO_VERIFY_SERVICE_SID`)
+Twilio genera, envía y valida los códigos sin número propio; SERENA conserva los desafíos, vencimientos, intentos
+y límites (`apps/server/src/otp.ts`). Verify no envía los avisos de seguridad sin código: esos requieren además un
+número o Messaging Service. En desarrollo el código va a la consola, salvo con `SERENA_SMS=twilio`. Para probar el
+envío real: `npm run sms:prueba -w @serena/server -- +549…`; con Verify, repetir agregando el código recibido
+para validarlo (`… -- +549… 123456`).
 
 ## Pruebas
 

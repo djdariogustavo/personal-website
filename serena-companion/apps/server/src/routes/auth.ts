@@ -2,11 +2,12 @@ import { Router } from 'express';
 import { z } from 'zod';
 import type { AppContext } from '../context.ts';
 import { HttpError, auth, authenticate, openSession } from '../auth.ts';
-import { hashSecret, newId, newOtp, sha256, verifySecret } from '../crypto.ts';
+import { hashSecret, newId, sha256, verifySecret } from '../crypto.ts';
 import { nowIso } from '../db.ts';
 import { profile, type UserRow } from '../users.ts';
 import { rateLimit } from '../ratelimit.ts';
 import { SmsNoEnviado } from '../sms/twilio.ts';
+import { codigoValido, entregarCodigo, nuevoCodigo } from '../otp.ts';
 
 const deviceSchema = z.object({
   kind: z.enum(['mobile', 'tablet', 'desktop', 'kiosk']),
@@ -25,9 +26,9 @@ const deviceSchema = z.object({
  * Kiosco: legajo + PIN o QR de la credencial, desde un kiosco registrado.
  */
 /** Envía el código de ingreso; si el SMS no sale, lo informa sin exponer detalles del proveedor. */
-async function enviarCodigo(ctx: AppContext, to: { telefono: string | null; email: string | null }, code: string) {
+async function enviarCodigo(ctx: AppContext, to: { telefono: string | null; email: string | null }, code: string | null) {
   try {
-    await ctx.messenger.sendOtp(to, code);
+    await entregarCodigo(ctx, to, code, 'ingreso');
   } catch (e) {
     if (e instanceof SmsNoEnviado)
       throw new HttpError(502, 'sms_no_enviado', 'No pudimos enviarte el código por SMS. Probá de nuevo en un momento; si sigue fallando, pedí ayuda a salud ocupacional de tu faena.');
@@ -83,18 +84,18 @@ export function authRoutes(ctx: AppContext) {
       }
     }
 
-    const code = newOtp();
     const challengeId = newId();
+    const { codeHash, code } = nuevoCodigo(ctx, challengeId);
     db.prepare(
       `INSERT INTO login_challenges (id, user_id, code_hash, device_kind, device_nombre, device_sistema, vence_en)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
-    ).run(challengeId, u.id, sha256(`${challengeId}:${code}`), body.device.kind, body.device.nombre, body.device.sistema, new Date(Date.now() + 5 * 60_000).toISOString());
+    ).run(challengeId, u.id, codeHash, body.device.kind, body.device.nombre, body.device.sistema, new Date(Date.now() + 5 * 60_000).toISOString());
     await enviarCodigo(ctx, { telefono: u.telefono, email: u.email }, code);
     res.json({
       paso: 'segundo_factor',
       challengeId,
       telefonoTermina: u.telefono ? u.telefono.slice(-2) : null,
-      ...(ctx.exposeDevOtp ? { codigoDesarrollo: code } : {}),
+      ...(ctx.exposeDevOtp && code ? { codigoDesarrollo: code } : {}),
     });
   });
 
@@ -112,7 +113,8 @@ export function authRoutes(ctx: AppContext) {
       | undefined;
     if (!ch || ch.usado || Date.parse(ch.vence_en) < Date.now() || ch.intentos >= 5)
       throw new HttpError(401, 'codigo_vencido', 'El código venció. Pedí uno nuevo.');
-    if (ch.code_hash !== sha256(`${ch.id}:${body.codigo}`)) {
+    const u = db.prepare('SELECT telefono FROM users WHERE id = ?').get(ch.user_id) as { telefono: string | null } | undefined;
+    if (!(await codigoValido(ctx, 'login_challenges', ch, u?.telefono ?? null, body.codigo))) {
       db.prepare('UPDATE login_challenges SET intentos = intentos + 1 WHERE id = ?').run(ch.id);
       throw new HttpError(401, 'codigo_incorrecto', 'El código no coincide. Revisá los 6 dígitos o pedí uno nuevo.');
     }
@@ -128,14 +130,14 @@ export function authRoutes(ctx: AppContext) {
       | undefined;
     if (!ch) throw new HttpError(404, 'desafio_inexistente');
     const u = db.prepare('SELECT telefono, email FROM users WHERE id = ?').get(ch.user_id) as { telefono: string | null; email: string | null };
-    const code = newOtp();
+    const { codeHash, code } = nuevoCodigo(ctx, ch.id);
     db.prepare('UPDATE login_challenges SET code_hash = ?, intentos = 0, vence_en = ? WHERE id = ?').run(
-      sha256(`${ch.id}:${code}`),
+      codeHash,
       new Date(Date.now() + 5 * 60_000).toISOString(),
       ch.id,
     );
     await enviarCodigo(ctx, u, code);
-    res.json({ ok: true, ...(ctx.exposeDevOtp ? { codigoDesarrollo: code } : {}) });
+    res.json({ ok: true, ...(ctx.exposeDevOtp && code ? { codigoDesarrollo: code } : {}) });
   });
 
   /** Kiosco: sesión efímera. El token del kiosco lo emite un administrador. */

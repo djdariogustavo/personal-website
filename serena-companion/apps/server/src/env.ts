@@ -1,6 +1,9 @@
 import { randomBytes } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { TwilioMessenger } from './sms/twilio.ts';
+import { TwilioVerifyMessenger } from './sms/verify.ts';
+import type { Messenger } from './notify.ts';
 
 /**
  * Configuración por variables de entorno. Ver .env.example en la raíz.
@@ -62,6 +65,8 @@ export const env = {
     apiKeySecret: process.env.TWILIO_API_KEY_SECRET ?? null,
     from: process.env.TWILIO_FROM_NUMBER ?? null,
     messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID ?? null,
+    /** Twilio Verify (VA…): Twilio genera y valida los códigos, sin número propio. Tiene prioridad sobre el remitente. */
+    verifyServiceSid: process.env.TWILIO_VERIFY_SERVICE_SID ?? null,
   },
   smsReal: isProd || process.env.SERENA_SMS === 'twilio',
 
@@ -95,11 +100,19 @@ export function problemasDeProduccion(e: Pick<typeof env, 'guardWebhookUrl' | 'g
   if (!e.guardWebhookUrl) p.push('SERENA_GUARD_WEBHOOK_URL: sin canal hacia la guardia, los pedidos de ayuda no llegarían a nadie.');
   else if (!e.guardWebhookUrl.startsWith('https://')) p.push('SERENA_GUARD_WEBHOOK_URL debe usar https:// (el aviso incluye nombre, teléfono y ubicación).');
   if (e.guardWebhookUrl && !e.guardWebhookSecret) p.push('SERENA_GUARD_WEBHOOK_SECRET: sin firma, la guardia no puede verificar que el aviso viene de SERENA.');
-  if (!e.smsConfigurado) p.push('Twilio (TWILIO_ACCOUNT_SID, TWILIO_API_KEY_SID, TWILIO_API_KEY_SECRET y TWILIO_FROM_NUMBER o TWILIO_MESSAGING_SERVICE_SID): sin SMS no se puede entregar el segundo factor.');
+  if (!e.smsConfigurado)
+    p.push('Twilio (TWILIO_ACCOUNT_SID, TWILIO_API_KEY_SID, TWILIO_API_KEY_SECRET y TWILIO_VERIFY_SERVICE_SID, TWILIO_FROM_NUMBER o TWILIO_MESSAGING_SERVICE_SID): sin SMS no se puede entregar el segundo factor.');
   return p;
 }
 
-/** Twilio tiene lo mínimo para enviar: cuenta, API Key y remitente (número o Messaging Service). */
+/** Twilio tiene lo mínimo para enviar: cuenta, API Key y un servicio de Verify o un remitente (número o Messaging Service). */
 export function twilioConfigurado(t: (typeof env)['twilio']): boolean {
-  return Boolean(t.accountSid && t.apiKeySid && t.apiKeySecret && (t.from || t.messagingServiceSid));
+  return Boolean(t.accountSid && t.apiKeySid && t.apiKeySecret && (t.verifyServiceSid || t.from || t.messagingServiceSid));
+}
+
+/** Mensajero de Twilio según la configuración: Verify si hay servicio, si no Programmable Messaging. Null si falta algo. */
+export function twilioMessenger(t: (typeof env)['twilio']): Messenger | null {
+  if (!twilioConfigurado(t)) return null;
+  const base = { accountSid: t.accountSid!, apiKeySid: t.apiKeySid!, apiKeySecret: t.apiKeySecret!, from: t.from, messagingServiceSid: t.messagingServiceSid };
+  return t.verifyServiceSid ? new TwilioVerifyMessenger({ ...base, verifyServiceSid: t.verifyServiceSid }) : new TwilioMessenger(base);
 }

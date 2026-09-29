@@ -4,9 +4,9 @@ import type { Messenger, OtpProposito } from '../notify.ts';
  * Envío de SMS con Twilio (Programmable Messaging) por su API REST, sin el SDK:
  * funciona igual en Node y en Cloudflare Workers (A22) y es una dependencia menos.
  *
- * Los códigos los genera y verifica SERENA (hash, vencimiento, intentos y límites en
- * routes/auth.ts y routes/password.ts); Twilio solo los entrega. Cuando la cuenta se
- * actualice se puede pasar a Twilio Verify sin tocar las rutas (misma interfaz Messenger).
+ * Aquí los códigos los genera y verifica SERENA (hash, vencimiento, intentos y límites en
+ * otp.ts y en las rutas); Twilio solo los entrega. Con TWILIO_VERIFY_SERVICE_SID se usa
+ * Twilio Verify (sms/verify.ts), que genera y valida el código sin número propio.
  *
  * Nunca se escriben en los registros ni el código ni el teléfono completo.
  */
@@ -48,7 +48,7 @@ export function aE164(telefono: string): string | null {
 }
 
 /** Últimos 2 dígitos, para los registros. */
-const enmascarado = (e164: string) => `…${e164.slice(-2)}`;
+export const enmascarado = (e164: string) => `…${e164.slice(-2)}`;
 
 export class SmsNoEnviado extends Error {
   constructor(

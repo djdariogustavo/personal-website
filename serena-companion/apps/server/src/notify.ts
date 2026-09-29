@@ -16,6 +16,17 @@ export interface Messenger {
   sendOtp(to: { telefono: string | null; email: string | null }, code: string, proposito?: OtpProposito): Promise<void>;
   /** Aviso de seguridad sin código (p. ej. "cambiaron tu contraseña"). */
   sendAviso(to: { telefono: string | null; email: string | null }, texto: string): Promise<void>;
+  /**
+   * Presente si el proveedor genera y valida el código por su cuenta (Twilio Verify). Entonces SERENA
+   * no conoce el código ni usa sendOtp; los desafíos, vencimientos, intentos y límites siguen en SERENA.
+   */
+  readonly verificador?: VerificadorOtp;
+}
+
+export interface VerificadorOtp {
+  enviar(telefono: string | null, proposito: OtpProposito): Promise<void>;
+  /** true si el proveedor aprobó el código; false si no coincide, venció o ya se usó. */
+  comprobar(telefono: string | null, codigo: string): Promise<boolean>;
 }
 
 const produccion = () => process.env.NODE_ENV === 'production';
