@@ -6,6 +6,7 @@ import { hashSecret, newId, newOtp, sha256, verifySecret } from '../crypto.ts';
 import { nowIso } from '../db.ts';
 import { profile, type UserRow } from '../users.ts';
 import { rateLimit } from '../ratelimit.ts';
+import { SmsNoEnviado } from '../sms/twilio.ts';
 
 const deviceSchema = z.object({
   kind: z.enum(['mobile', 'tablet', 'desktop', 'kiosk']),
@@ -23,6 +24,17 @@ const deviceSchema = z.object({
  *    desbloqueo LOCAL de la app (no reemplazan el login).
  * Kiosco: legajo + PIN o QR de la credencial, desde un kiosco registrado.
  */
+/** Envía el código de ingreso; si el SMS no sale, lo informa sin exponer detalles del proveedor. */
+async function enviarCodigo(ctx: AppContext, to: { telefono: string | null; email: string | null }, code: string) {
+  try {
+    await ctx.messenger.sendOtp(to, code);
+  } catch (e) {
+    if (e instanceof SmsNoEnviado)
+      throw new HttpError(502, 'sms_no_enviado', 'No pudimos enviarte el código por SMS. Probá de nuevo en un momento; si sigue fallando, pedí ayuda a salud ocupacional de tu faena.');
+    throw e;
+  }
+}
+
 export function authRoutes(ctx: AppContext) {
   const r = Router();
   const { db } = ctx;
@@ -77,7 +89,7 @@ export function authRoutes(ctx: AppContext) {
       `INSERT INTO login_challenges (id, user_id, code_hash, device_kind, device_nombre, device_sistema, vence_en)
        VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ).run(challengeId, u.id, sha256(`${challengeId}:${code}`), body.device.kind, body.device.nombre, body.device.sistema, new Date(Date.now() + 5 * 60_000).toISOString());
-    await ctx.messenger.sendOtp({ telefono: u.telefono, email: u.email }, code);
+    await enviarCodigo(ctx, { telefono: u.telefono, email: u.email }, code);
     res.json({
       paso: 'segundo_factor',
       challengeId,
@@ -122,7 +134,7 @@ export function authRoutes(ctx: AppContext) {
       new Date(Date.now() + 5 * 60_000).toISOString(),
       ch.id,
     );
-    await ctx.messenger.sendOtp(u, code);
+    await enviarCodigo(ctx, u, code);
     res.json({ ok: true, ...(ctx.exposeDevOtp ? { codigoDesarrollo: code } : {}) });
   });
 

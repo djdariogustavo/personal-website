@@ -51,6 +51,20 @@ export const env = {
     model: process.env.SERENA_COMPANION_MODEL ?? 'claude-opus-5',
   },
 
+  /**
+   * SMS con Twilio (segundo factor, recuperación y avisos de seguridad). En producción se usa
+   * siempre que esté configurado; en desarrollo solo con SERENA_SMS=twilio, para no enviar SMS
+   * reales a los teléfonos inventados de los datos de ejemplo ni desde las pruebas.
+   */
+  twilio: {
+    accountSid: process.env.TWILIO_ACCOUNT_SID ?? null,
+    apiKeySid: process.env.TWILIO_API_KEY_SID ?? null,
+    apiKeySecret: process.env.TWILIO_API_KEY_SECRET ?? null,
+    from: process.env.TWILIO_FROM_NUMBER ?? null,
+    messagingServiceSid: process.env.TWILIO_MESSAGING_SERVICE_SID ?? null,
+  },
+  smsReal: isProd || process.env.SERENA_SMS === 'twilio',
+
   guardWebhookUrl: process.env.SERENA_GUARD_WEBHOOK_URL ?? null,
   guardWebhookSecret: process.env.SERENA_GUARD_WEBHOOK_SECRET ?? null,
 
@@ -81,6 +95,11 @@ export function problemasDeProduccion(e: Pick<typeof env, 'guardWebhookUrl' | 'g
   if (!e.guardWebhookUrl) p.push('SERENA_GUARD_WEBHOOK_URL: sin canal hacia la guardia, los pedidos de ayuda no llegarían a nadie.');
   else if (!e.guardWebhookUrl.startsWith('https://')) p.push('SERENA_GUARD_WEBHOOK_URL debe usar https:// (el aviso incluye nombre, teléfono y ubicación).');
   if (e.guardWebhookUrl && !e.guardWebhookSecret) p.push('SERENA_GUARD_WEBHOOK_SECRET: sin firma, la guardia no puede verificar que el aviso viene de SERENA.');
-  if (!e.smsConfigurado) p.push('Proveedor de SMS (Twilio, pendiente A15): sin él no se puede entregar el segundo factor.');
+  if (!e.smsConfigurado) p.push('Twilio (TWILIO_ACCOUNT_SID, TWILIO_API_KEY_SID, TWILIO_API_KEY_SECRET y TWILIO_FROM_NUMBER o TWILIO_MESSAGING_SERVICE_SID): sin SMS no se puede entregar el segundo factor.');
   return p;
+}
+
+/** Twilio tiene lo mínimo para enviar: cuenta, API Key y remitente (número o Messaging Service). */
+export function twilioConfigurado(t: (typeof env)['twilio']): boolean {
+  return Boolean(t.accountSid && t.apiKeySid && t.apiKeySecret && (t.from || t.messagingServiceSid));
 }

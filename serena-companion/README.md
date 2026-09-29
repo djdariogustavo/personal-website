@@ -139,6 +139,11 @@ Todas las variables están documentadas en [`.env.example`](.env.example). En pr
 `SERENA_MASTER_KEY` (32 bytes en base64) y `SERENA_JWT_SECRET`. En desarrollo, si faltan, se generan una
 vez y se guardan en `data/.dev-keys.json` (ignorado por git).
 
+**SMS (Twilio).** Obligatorio en producción: el servidor no arranca sin `TWILIO_ACCOUNT_SID`,
+`TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` y `TWILIO_FROM_NUMBER` (o `TWILIO_MESSAGING_SERVICE_SID`), ni sin
+el webhook de la guardia. En desarrollo el código va a la consola, salvo con `SERENA_SMS=twilio`. Para probar el
+envío real: `npm run sms:prueba -w @serena/server -- +549…` (en una cuenta de prueba, a un número verificado).
+
 ## Pruebas
 
 | Comando | Qué verifica |

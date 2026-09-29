@@ -26,7 +26,7 @@ import { rateLimit } from '../ratelimit.ts';
 const RESET_MIN = 10;
 const RESET_INTENTOS = 5;
 
-const AVISO = {
+export const AVISO = {
   cambiada: 'SERENA: se cambió la contraseña de tu cuenta. Si no fuiste vos, avisá a tu empresa.',
   sms: 'SERENA: se restableció la contraseña de tu cuenta con un código por SMS. Si no fuiste vos, avisá a tu empresa.',
   empresa: 'SERENA: tu empresa restableció la contraseña de tu cuenta. Vas a tener que elegir una nueva al ingresar.',

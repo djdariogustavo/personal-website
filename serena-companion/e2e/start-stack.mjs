@@ -23,9 +23,8 @@ const env = {
   SERENA_STATIC_DIR: join(root, 'apps/web/dist'),
   SERENA_PUBLIC_URL: `http://127.0.0.1:${process.env.E2E_PORT ?? '8790'}`,
 };
-// Nunca se usa un modelo real en las pruebas.
-delete env.ANTHROPIC_API_KEY;
-delete env.ANTHROPIC_AUTH_TOKEN;
+// Nunca se usan servicios reales en las pruebas (ni IA ni SMS), aunque haya credenciales en el entorno.
+for (const k of Object.keys(env)) if (k.startsWith('TWILIO_') || k.startsWith('ANTHROPIC_') || k === 'SERENA_SMS') delete env[k];
 
 const tsx = join(root, 'node_modules/.bin/tsx');
 const seed = spawnSync(tsx, ['apps/server/src/seed.ts'], { cwd: root, env, stdio: 'inherit' });

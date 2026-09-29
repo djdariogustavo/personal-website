@@ -1,7 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { DEFAULT_CONFIG } from '@serena/domain';
-import { env, problemasDeProduccion } from './env.ts';
+import { env, problemasDeProduccion, twilioConfigurado } from './env.ts';
+import { TwilioMessenger } from './sms/twilio.ts';
 import { openDb } from './db.ts';
 import { Vault } from './crypto.ts';
 import { createApp } from './app.ts';
@@ -16,7 +17,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 
 // En producción no se arranca a medias: sin guardia ni SMS el servicio prometería algo que no cumple.
 if (env.isProd) {
-  const problemas = problemasDeProduccion({ ...env, smsConfigurado: false /* Twilio: pendiente A15 */ });
+  const problemas = problemasDeProduccion({ ...env, smsConfigurado: twilioConfigurado(env.twilio) });
   if (problemas.length) {
     console.error(`[serena] No se puede iniciar en producción:\n  - ${problemas.join('\n  - ')}`);
     process.exit(1);
@@ -32,7 +33,16 @@ const ctx: AppContext = {
   config: process.env.SERENA_CONFIG_JSON ? { ...DEFAULT_CONFIG, ...JSON.parse(process.env.SERENA_CONFIG_JSON) } : DEFAULT_CONFIG,
   payments: buildRegistry({ ...env.payments, sandboxSecret: env.jwtSecret, publicUrl: env.publicUrl }),
   companion: env.anthropic.enabled ? new ClaudeCompanion(env.anthropic.model) : new BasicCompanion(),
-  messenger: new ConsoleMessenger(),
+  messenger:
+    env.smsReal && twilioConfigurado(env.twilio)
+      ? new TwilioMessenger({
+          accountSid: env.twilio.accountSid!,
+          apiKeySid: env.twilio.apiKeySid!,
+          apiKeySecret: env.twilio.apiKeySecret!,
+          from: env.twilio.from,
+          messagingServiceSid: env.twilio.messagingServiceSid,
+        })
+      : new ConsoleMessenger(),
   guard: env.guardWebhookUrl ? new WebhookGuardNotifier(env.guardWebhookUrl, env.guardWebhookSecret) : new ConsoleGuardNotifier(),
 };
 
@@ -48,5 +58,6 @@ const app = createApp(ctx, { staticDir: process.env.SERENA_STATIC_DIR ?? join(he
 app.listen(env.port, () => {
   console.info(`[serena] API en http://localhost:${env.port}`);
   console.info(`[serena] Acompañante: ${env.anthropic.enabled ? `modelo ${env.anthropic.model}` : 'básico (sin ANTHROPIC_API_KEY)'}`);
+  console.info(`[serena] SMS: ${ctx.messenger instanceof TwilioMessenger ? 'Twilio' : 'consola (desarrollo)'}`);
   console.info(`[serena] Pagos: ${ctx.payments.list().map((p) => p.nombre).join(', ') || 'ninguno configurado'}`);
 });

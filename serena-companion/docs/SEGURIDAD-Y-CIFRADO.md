@@ -103,7 +103,7 @@ en el servidor (cerrar sesión, cambio o restablecimiento de contraseña, baja).
 |---|---|---|---|
 | Anthropic (acompañante de IA) | Últimos 30 mensajes de la conversación, nombre de pila, día de roster y faena | Solo si la IA está configurada (`ANTHROPIC_API_KEY`) y la persona aceptó el acompañante | Retención, uso para entrenamiento, ubicación del procesamiento, transferencia internacional (Ley 25.326, art. 12) |
 | Sistema de la guardia de la empresa | Nombre, legajo, teléfono, tipo de aviso, ubicación si se compartió | Solo en un pedido de ayuda o un resultado alto confirmado | Quién accede en la guardia y cuánto lo guardan |
-| Proveedor de SMS (Twilio, pendiente A15) | Teléfono y texto del SMS (códigos y avisos de seguridad) | Ingreso, recuperación y cambios de contraseña | Retención de mensajes |
+| Twilio (SMS, región US1 — Estados Unidos) | Teléfono y texto del SMS: el código de ingreso o recuperación, o el aviso de seguridad. Nunca datos de bienestar | Ingreso, recuperación y cambios de contraseña | Retención de mensajes y registros; transferencia internacional (Ley 25.326, art. 12) |
 | Mercado Pago / Stripe | Datos de facturación de la **empresa** (nunca datos de salud) | Contratación | — |
 | Hosting (Cloudflare, plan) | Todo lo que pasa por el servidor, cifrado en tránsito | Siempre | Ubicación de los datos y subencargados |
 
@@ -112,8 +112,10 @@ en el servidor (cerrar sesión, cambio o restablecimiento de contraseña, baja).
 - En **producción** no se escriben códigos SMS, teléfonos ni nombres de quien pide ayuda
   (`apps/server/test/produccion.test.ts`).
 - En **desarrollo** sí se escriben (así funcionan la demo y las pruebas).
-- El servidor **no arranca en producción** sin canal hacia la guardia (HTTPS con firma) ni proveedor de
-  SMS: sin ellos prometería avisos que no llegan o no podría entregar el segundo factor.
+- El servidor **no arranca en producción** sin canal hacia la guardia (HTTPS con firma) ni Twilio
+  configurado: sin ellos prometería avisos que no llegan o no podría entregar el segundo factor.
+- Si Twilio rechaza un envío, el registro guarda el código de error de Twilio y los **últimos 2 dígitos** del
+  destino; nunca el código enviado ni el teléfono completo (`apps/server/test/twilio.test.ts`).
 
 ## 7. Recomendaciones, en orden de prioridad
 
