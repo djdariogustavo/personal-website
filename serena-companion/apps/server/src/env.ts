@@ -82,6 +82,15 @@ export const env = {
     to: process.env.SERENA_ALERTAS_EMAIL ?? null,
   },
 
+  /**
+   * Escaneo con el SDK real: aislamiento de origen (COOP/COEP, lo exige el SDK) y los orígenes a los que se conecta
+   * para la licencia, separados por espacios (los informa el proveedor).
+   */
+  escaneo: {
+    aislamientoOrigen: process.env.SERENA_AISLAMIENTO_ORIGEN === 'true',
+    connectSrc: (process.env.SERENA_ESCANEO_CONNECT_SRC ?? '').split(/\s+/).filter(Boolean),
+  },
+
   guardWebhookUrl: process.env.SERENA_GUARD_WEBHOOK_URL ?? null,
   guardWebhookSecret: process.env.SERENA_GUARD_WEBHOOK_SECRET ?? null,
 

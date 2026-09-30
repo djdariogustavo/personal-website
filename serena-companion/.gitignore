@@ -10,3 +10,5 @@ dist-demo/
 dist-preview/
 e2e/results/
 e2e/report/
+# SDK de escaneo (licencia comercial): se copia con `npm run scan:vendor -w @serena/web`, nunca se versiona
+apps/web/public/vendor/

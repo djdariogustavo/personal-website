@@ -15,7 +15,17 @@ import { passwordRecoveryRoutes, passwordRoutes } from './routes/password.ts';
 import { adminRoutes } from './routes/admin.ts';
 import { webhookRoutes } from './routes/webhooks.ts';
 
-export function createApp(ctx: AppContext, opts: { staticDir?: string } = {}) {
+/**
+ * - aislamientoOrigen: envía COOP/COEP (aislamiento de origen). Lo exige el SDK de escaneo, que usa SharedArrayBuffer.
+ * - escaneoConnectSrc: orígenes a los que el SDK de escaneo se conecta (licencia); los informa el proveedor.
+ */
+export interface OpcionesApp {
+  staticDir?: string;
+  aislamientoOrigen?: boolean;
+  escaneoConnectSrc?: string[];
+}
+
+export function createApp(ctx: AppContext, opts: OpcionesApp = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
@@ -28,12 +38,15 @@ export function createApp(ctx: AppContext, opts: { staticDir?: string } = {}) {
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'data:', 'blob:'],
           mediaSrc: ["'self'", 'blob:'],
-          connectSrc: ["'self'"],
-          workerSrc: ["'self'"],
+          // 'wasm-unsafe-eval' permite compilar WebAssembly (el SDK de escaneo), no eval() de JavaScript.
+          scriptSrc: opts.aislamientoOrigen ? ["'self'", "'wasm-unsafe-eval'"] : ["'self'"],
+          connectSrc: ["'self'", ...(opts.escaneoConnectSrc ?? [])],
+          workerSrc: opts.aislamientoOrigen ? ["'self'", 'blob:'] : ["'self'"],
         },
       },
-      // La cámara y el micrófono solo desde el propio origen; geolocalización idem.
-      crossOriginEmbedderPolicy: false,
+      // COOP/COEP solo con el SDK de escaneo: sin él no hacen falta y restringen recursos de otros orígenes.
+      crossOriginEmbedderPolicy: opts.aislamientoOrigen ? { policy: 'require-corp' } : false,
+      crossOriginOpenerPolicy: { policy: 'same-origin' },
     }),
   );
   app.use((_req, res, next) => {

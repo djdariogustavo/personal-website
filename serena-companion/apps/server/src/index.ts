@@ -48,7 +48,11 @@ const purgar = () => {
 };
 purgar();
 setInterval(purgar, 3_600_000).unref();
-const app = createApp(ctx, { staticDir: process.env.SERENA_STATIC_DIR ?? join(here, '../../web/dist') });
+const app = createApp(ctx, {
+  staticDir: process.env.SERENA_STATIC_DIR ?? join(here, '../../web/dist'),
+  aislamientoOrigen: env.escaneo.aislamientoOrigen,
+  escaneoConnectSrc: env.escaneo.connectSrc,
+});
 app.listen(env.port, () => {
   console.info(`[serena] API en http://localhost:${env.port}`);
   console.info(`[serena] Acompañante: ${env.anthropic.enabled ? `modelo ${env.anthropic.model}` : 'básico (sin ANTHROPIC_API_KEY)'}`);

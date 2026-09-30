@@ -3,17 +3,34 @@
 Lo que la app ya deja preparado pero depende de terceros o de decisiones del cliente.
 Cada punto indica **dónde** se completa, para no tocar el resto del código.
 
-## 1. SDK de escaneo (NeuroSentinel™ · Shen.AI en marca blanca) — NO INTEGRADO
+## 1. SDK de escaneo (NeuroSentinel™ · Shen.AI en marca blanca) — ADAPTADOR LISTO, FALTA EL CONTRATO
+
+El acceso al SDK es por invitación y requiere contrato B2B (pedido enviado; sin respuesta aún). La licencia del
+paquete no permite usarlo sin contrato, así que **el SDK no está en el repositorio**. El adaptador está escrito
+contra la API real del paquete web 3.x (`@shenai/sdk`) y probado con un SDK simulado.
+
+**Para activarlo, con el contrato vigente:**
+1. `npm install --no-save @shenai/sdk@3 && npm run scan:vendor -w @serena/web` (copia el SDK a `apps/web/public/vendor/`, ignorado por git).
+2. Build de la web con `VITE_SCAN_PROVIDER=sdk` y `VITE_SCAN_SDK_KEY=<API key del panel de cliente>`.
+3. Servidor con `SERENA_AISLAMIENTO_ORIGEN=true` y `SERENA_ESCANEO_CONNECT_SRC=<orígenes de la licencia que informe el proveedor>`.
+4. Configuración remota `escaneo.escalaEstresSdk` con el rango del índice de estrés que confirme el proveedor.
+   Sin ella el escaneo queda deshabilitado: el estrés decide el nivel de riesgo y el aviso a la guardia.
 
 | Punto | Estado | Dónde |
 |---|---|---|
-| Adaptador del SDK | Esqueleto con el contrato completo, sin implementación | `apps/web/src/scan/sdk-adapter.ts` |
+| Adaptador del SDK | **Implementado** (calidad, progreso, métricas, pérdida de señal, resultado, errores) y probado con un SDK simulado | `apps/web/src/scan/sdk-adapter.ts`, `shenai-map.ts`, `apps/web/test/scan-sdk.test.ts` |
+| Aislamiento de origen (COOP/COEP) y CSP con WebAssembly | **Implementado**, se activa con `SERENA_AISLAMIENTO_ORIGEN=true` | `apps/server/src/app.ts`, `apps/web/vite.config.ts` |
+| Escala del índice de estrés del SDK → 1–5 | **Por confirmar con el proveedor** (no documentada en el paquete) | `config.escaneo.escalaEstresSdk` |
+| Escala de `average_signal_quality` | Por confirmar; hoy se acota a 0–1 | `shenai-map.ts` (`calidadGlobal`) |
+| Duración | 60 s por defecto: el SDK marca 30 y 45 s como no validadas | `config.escaneo.duracionS` |
+| Orígenes de red de la licencia | Por pedir al proveedor (no figuran en el paquete) | `SERENA_ESCANEO_CONNECT_SRC` |
+| Peso del SDK (36 MB de WebAssembly) | Primera carga pesada en teléfono y kiosco; evaluar precarga y caché en el trial | `apps/web/public/sw.js` |
 | Contrato de eventos (`calidad`, `progreso`, `metrica`, `senal_perdida`, `completo`, `error`) | Definido y consumido por la UI | `packages/domain/src/scan.ts` |
 | Activación | `VITE_SCAN_PROVIDER=sdk` | `apps/web/src/scan/registry.ts` |
-| P1 · ¿Funciona offline con licencia? | Por confirmar. Hoy `escaneo.offline=false`: sin conexión se ofrece "Escaneo no disponible sin conexión" | `config.escaneo.offline` |
+| P1 · ¿Funciona offline con licencia? | Parcial: la licencia se obtiene en línea en el primer uso de cada dispositivo. Falta confirmar el uso posterior sin conexión. Hoy `escaneo.offline=false` | `config.escaneo.offline` |
 | P2 · Soporte web y kiosco | Por confirmar. `config.escaneo.disponibleEn` permite apagarlo por contexto | `config.escaneo.disponibleEn` |
 | P3 · Cámara y luz en todos los tonos de piel | Umbrales como configuración remota; calibrar en el trial de 30 días | `config.luz` |
-| P4 · No se almacenan ni transmiten imágenes | **Confirmar por escrito** antes de publicar el sello "El video no se guarda" y el texto del consentimiento | `LightStep.tsx`, `Onboarding.tsx` |
+| P4 · No se almacenan ni transmiten imágenes | El adaptador apaga el envío de errores a terceros (Sentry), la grabación, la memoria local y la interfaz del SDK, y nunca usa las funciones que envían resultados o imágenes (PDF por email, FHIR, fotos de tensiómetro, textura del rostro). **Igual hay que confirmarlo por escrito** antes de publicar "El video no se guarda" | `sdk-adapter.ts`, `LightStep.tsx`, `Onboarding.tsx` |
 
 Mientras tanto:
 - **Producción** usa `ninguno`: el check-in se hace con autorreporte y reacción.

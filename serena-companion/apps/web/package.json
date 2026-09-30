@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "tsc -p . && vite build",
     "preview": "vite preview",
-    "build:demo": "tsc -p . && VITE_DEMO=true vite build && node scripts/pack-demo.mjs"
+    "build:demo": "tsc -p . && VITE_DEMO=true vite build && node scripts/pack-demo.mjs",
+    "scan:vendor": "node scripts/vendor-shenai.mjs"
   },
   "dependencies": {
     "@serena/domain": "*",

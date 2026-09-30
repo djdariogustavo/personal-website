@@ -1,5 +1,5 @@
 import { DEMO } from '../demo/flags.ts';
-import type { ScanProvider } from '@serena/domain';
+import type { RemoteConfig, ScanProvider } from '@serena/domain';
 import { SimulatedScanProvider } from './simulated.ts';
 import { UnavailableScanProvider } from './unavailable.ts';
 
@@ -11,7 +11,7 @@ import { UnavailableScanProvider } from './unavailable.ts';
  *                y el check-in sigue con autorreporte y reacción.
  *   - "simulado" (por defecto en desarrollo): valores sintéticos para probar la UI.
  *                La pantalla muestra "SIMULACIÓN · SIN SDK"; nunca usar con personas.
- *   - "sdk":      adaptador del SDK real (ver ./sdk-adapter.ts), cuando llegue.
+ *   - "sdk":      adaptador del SDK real (ver ./sdk-adapter.ts); requiere licencia y el SDK en public/vendor.
  */
 export type ScanMode = 'ninguno' | 'simulado' | 'sdk';
 
@@ -20,12 +20,13 @@ export const scanMode: ScanMode =
 
 let instance: ScanProvider | null = null;
 
-export async function getScanProvider(): Promise<ScanProvider> {
+/** La primera llamada (paso de luz) pasa la configuración; las siguientes reciben la misma instancia. */
+export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promise<ScanProvider> {
   if (instance) return instance;
   if (scanMode === 'simulado') instance = new SimulatedScanProvider();
   else if (scanMode === 'sdk') {
     const { SdkScanProvider } = await import('./sdk-adapter.ts');
-    instance = new SdkScanProvider();
+    instance = new SdkScanProvider(escaneo?.escalaEstresSdk ?? null);
   } else instance = new UnavailableScanProvider();
   return instance;
 }

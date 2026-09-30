@@ -101,8 +101,9 @@ serena-companion/
 
 La UI consume solo el contrato `ScanProvider` / `ScanEvent` de `packages/domain/src/scan.ts`
 (eventos `calidad`, `progreso`, `metrica`, `senal_perdida`, `completo`, `error`). Para integrar el SDK
-se implementa `apps/web/src/scan/sdk-adapter.ts` y se activa con `VITE_SCAN_PROVIDER=sdk`; ninguna
-pantalla cambia. Hasta entonces:
+el adaptador ya está en `apps/web/src/scan/sdk-adapter.ts` (API del SDK web 3.x, probado con un SDK simulado) y
+se activa con `VITE_SCAN_PROVIDER=sdk` cuando haya contrato: los pasos están en `docs/PENDIENTES.md`. El SDK no se
+versiona (licencia comercial). Hasta entonces:
 
 - **Producción** (`ninguno`): el escaneo figura como no disponible y el check-in sigue con autorreporte y reacción.
 - **Desarrollo** (`simulado`): valores sintéticos, marcados en pantalla como *SIMULACIÓN · SIN SDK · VALORES NO REALES*.

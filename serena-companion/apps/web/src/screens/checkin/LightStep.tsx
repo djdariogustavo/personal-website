@@ -32,7 +32,7 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
     let monitor: LightMonitor | null = null;
     let cancelled = false;
     (async () => {
-      const provider = await getScanProvider();
+      const provider = await getScanProvider(config.escaneo);
       const kind = kiosk ? 'kiosk' : (session?.deviceKind ?? 'mobile');
       if (!config.escaneo.disponibleEn[kind]) return setCam({ kind: 'error', codigo: 'no_soportado' });
       if (!online && !config.escaneo.offline) return setCam({ kind: 'error', codigo: 'sin_conexion' });
@@ -215,6 +215,8 @@ function camMessage(c: ScanErrorCode): string {
       return 'No encontramos una cámara en este equipo. Podés hacer el check-in solo con autorreporte.';
     case 'sin_conexion':
       return 'Escaneo no disponible sin conexión. Podés hacer el check-in con autorreporte y reacción.';
+    case 'medicion_fallida':
+      return 'No pudimos completar la lectura. Probá de nuevo con buena luz y quieto, o seguí con autorreporte.';
     case 'sin_licencia':
     case 'no_soportado':
     default:

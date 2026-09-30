@@ -44,7 +44,8 @@ export interface CompleteEvent {
   resultado: ScanResult;
 }
 
-export type ScanErrorCode = 'sin_permiso' | 'sin_camara' | 'no_soportado' | 'sin_licencia' | 'sin_conexion';
+/** medicion_fallida: el SDK no logró una lectura completa (señal insuficiente); no se completa con valores inventados. */
+export type ScanErrorCode = 'sin_permiso' | 'sin_camara' | 'no_soportado' | 'sin_licencia' | 'sin_conexion' | 'medicion_fallida';
 
 export interface ErrorEvent {
   type: 'error';

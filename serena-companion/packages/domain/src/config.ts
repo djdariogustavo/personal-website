@@ -46,12 +46,20 @@ export interface Helpline {
 export interface RemoteConfig {
   version: string;
   escaneo: {
-    /** Duración del escaneo en segundos (30–60). */
+    /**
+     * Duración del escaneo en segundos. El SDK solo valida la medición de 60 s (las de 30 y 45 s figuran como
+     * no validadas), así que 60 es el valor por defecto.
+     */
     duracionS: 30 | 45 | 60;
     /** Disponibilidad del SDK por contexto. Se completa al confirmar P1/P2 con el proveedor. */
     disponibleEn: Record<'mobile' | 'tablet' | 'desktop' | 'kiosk', boolean>;
     /** P1: si el SDK funciona sin conexión. */
     offline: boolean;
+    /**
+     * Rango del índice de estrés del SDK que se lleva a la escala 1–5 de SERENA. Lo confirma el proveedor; hasta
+     * entonces es null y el escaneo con el SDK real queda deshabilitado (el estrés decide el nivel de riesgo).
+     */
+    escalaEstresSdk: { min: number; max: number } | null;
   };
   luz: LightThresholds;
   niveles: LevelThresholds;
@@ -77,9 +85,10 @@ export interface RemoteConfig {
 export const DEFAULT_CONFIG: RemoteConfig = {
   version: '2026-09-provisorio',
   escaneo: {
-    duracionS: 45,
+    duracionS: 60,
     disponibleEn: { mobile: true, tablet: true, desktop: true, kiosk: true },
     offline: false,
+    escalaEstresSdk: null,
   },
   luz: {
     insuficienteBajo: 60,
