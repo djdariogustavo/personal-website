@@ -54,7 +54,9 @@ export async function codigoValido(
     aprobado = await v.comprobar(telefono, codigo);
   } catch (e) {
     if (e instanceof SmsNoEnviado)
-      throw new HttpError(502, 'verificacion_no_disponible', 'No pudimos validar el código en este momento. Probá de nuevo en un minuto.');
+      throw e.motivo === 'cuenta'
+        ? new HttpError(503, 'verificacion_no_disponible', 'La validación de códigos no está disponible en este momento y ya lo estamos revisando. Mientras tanto, pedí ayuda a salud ocupacional de tu faena.')
+        : new HttpError(502, 'verificacion_no_disponible', 'No pudimos validar el código en este momento. Probá de nuevo en un minuto.');
     throw e;
   }
   if (aprobado) ctx.db.prepare(`UPDATE ${tabla} SET code_hash = ? WHERE id = ? AND code_hash = ?`).run(local, desafio.id, CODIGO_EXTERNO);

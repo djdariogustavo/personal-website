@@ -50,10 +50,65 @@ export function aE164(telefono: string): string | null {
 /** Últimos 2 dígitos, para los registros. */
 export const enmascarado = (e164: string) => `…${e164.slice(-2)}`;
 
+/**
+ * Por qué no salió un SMS, para decidir qué se le dice a la persona y a quién hay que avisar:
+ * - cuenta: la cuenta o la configuración de Twilio lo impide (credenciales, perfil de cumplimiento, servicio
+ *   inexistente). Reintentar no sirve: tiene que intervenir quien administra Twilio.
+ * - destino: el número de la persona no puede recibir SMS (inválido, fijo, bloqueado). Hay que corregir el teléfono.
+ * - temporal: Twilio no respondió, falló o limitó los envíos. Reintentar más tarde puede funcionar.
+ */
+export type MotivoSms = 'cuenta' | 'destino' | 'temporal';
+
+/**
+ * Códigos de error de Twilio por motivo (https://www.twilio.com/docs/api/errors).
+ * 20003: autenticación; 20005: cuenta suspendida; 21608: falta el perfil de cumplimiento (Trust Hub) para
+ * números no verificados; 21606/21659: el remitente no sirve; 60223: canal desactivado en el servicio de Verify.
+ * 21211/21214/21614/60200/60205: número inválido, inexistente o fijo; 21610: la persona se dio de baja (STOP);
+ * 21612: Twilio no llega a ese destino; 60410: prefijo bloqueado por el antifraude de Verify.
+ */
+const CODIGOS_CUENTA = new Set([20003, 20005, 21606, 21608, 21659, 60223]);
+const CODIGOS_DESTINO = new Set([21211, 21214, 21610, 21612, 21614, 60200, 60205, 60410]);
+
+export function motivoDeRechazo(httpStatus: number, codigo: number | null): MotivoSms {
+  if (codigo !== null && CODIGOS_CUENTA.has(codigo)) return 'cuenta';
+  if (codigo !== null && CODIGOS_DESTINO.has(codigo)) return 'destino';
+  // 401/403 sin un código conocido también son de la cuenta; 404 al enviar: el servicio o la cuenta no existen.
+  if (httpStatus === 401 || httpStatus === 403 || httpStatus === 404) return 'cuenta';
+  return 'temporal';
+}
+
+/** Cuerpo de error de la API de Twilio. */
+export interface ErrorTwilio {
+  code?: number;
+  message?: string;
+  more_info?: string;
+}
+
+/**
+ * Detalle del error para los registros: código, mensaje y enlace de Twilio. El mensaje de Twilio puede incluir
+ * el número de destino ("... to +549..."), así que se ocultan las secuencias de 7 dígitos o más que no forman
+ * parte de un identificador (los SID de Twilio, como AC…, quedan intactos).
+ */
+export function detalleParaRegistro(err: ErrorTwilio): string {
+  const mensaje = err.message ? err.message.replace(/(?<![\w+(])[+(]?\d[\d\s\-().]{5,}\d(?!\w)/g, '[número]') : '—';
+  return `código ${err.code ?? '—'}: ${mensaje}${err.more_info ? ` (${err.more_info})` : ''}`;
+}
+
+/**
+ * Registra un rechazo de Twilio. Los de la cuenta llevan la marca [ALERTA] para que el monitoreo de los registros
+ * avise a quien administra Twilio: afectan a todas las personas y no se resuelven reintentando.
+ */
+export function registrarRechazo(que: string, httpStatus: number, err: ErrorTwilio, destino: string, motivo: MotivoSms) {
+  const base = `${que} (HTTP ${httpStatus}, ${detalleParaRegistro(err)}, destino ${enmascarado(destino)})`;
+  if (motivo === 'cuenta') console.error(`[serena][sms][ALERTA] ${base}. Revisar la cuenta de Twilio: ningún SMS va a salir hasta corregirlo.`);
+  else console.error(`[serena][sms] ${base}`);
+}
+
 export class SmsNoEnviado extends Error {
   constructor(
     mensaje: string,
     readonly codigoTwilio: number | null = null,
+    readonly motivo: MotivoSms = 'temporal',
   ) {
     super(mensaje);
     this.name = 'SmsNoEnviado';
@@ -78,7 +133,7 @@ export class TwilioMessenger implements Messenger {
 
   private async enviar(telefono: string | null, texto: string) {
     const destino = telefono ? aE164(telefono) : null;
-    if (!destino) throw new SmsNoEnviado('La persona no tiene un teléfono válido en formato internacional (+54…).');
+    if (!destino) throw new SmsNoEnviado('La persona no tiene un teléfono válido en formato internacional (+54…).', null, 'destino');
     const body = new URLSearchParams({ To: destino, Body: aGsm7(texto) });
     if (this.cfg.messagingServiceSid) body.set('MessagingServiceSid', this.cfg.messagingServiceSid);
     else body.set('From', this.cfg.from!);
@@ -99,10 +154,11 @@ export class TwilioMessenger implements Messenger {
       throw new SmsNoEnviado('No pudimos contactar al proveedor de SMS.');
     }
     if (!r.ok) {
-      const err = (await r.json().catch(() => ({}))) as { code?: number; message?: string };
+      const err = (await r.json().catch(() => ({}))) as ErrorTwilio;
+      const motivo = motivoDeRechazo(r.status, err.code ?? null);
       // Sin el cuerpo del SMS ni el teléfono completo en los registros.
-      console.error(`[serena][sms] Twilio rechazó el envío (HTTP ${r.status}, código ${err.code ?? '—'}, destino ${enmascarado(destino)})`);
-      throw new SmsNoEnviado('El proveedor de SMS rechazó el envío.', err.code ?? null);
+      registrarRechazo('Twilio rechazó el envío', r.status, err, destino, motivo);
+      throw new SmsNoEnviado('El proveedor de SMS rechazó el envío.', err.code ?? null, motivo);
     }
   }
 }

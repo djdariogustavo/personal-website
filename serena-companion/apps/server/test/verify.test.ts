@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { TwilioVerifyMessenger } from '../src/sms/verify.ts';
-import { SmsNoEnviado } from '../src/sms/twilio.ts';
+import { SmsNoEnviado, detalleParaRegistro, motivoDeRechazo } from '../src/sms/twilio.ts';
 import { twilioConfigurado, twilioMessenger } from '../src/env.ts';
 import type { Messenger, OtpProposito } from '../src/notify.ts';
 import { addUser, device, makeCtx } from './helpers.ts';
@@ -90,6 +90,47 @@ describe('Twilio Verify: cliente', () => {
     expect(logs.join('\n')).not.toMatch(/2645550147/);
   });
 
+  it('un rechazo de la cuenta (21608) registra código, mensaje y enlace de Twilio con la marca [ALERTA]', async () => {
+    const logs: string[] = [];
+    vi.spyOn(console, 'error').mockImplementation((...a) => void logs.push(a.map(String).join(' ')));
+    const { f } = fetchFalso([
+      [
+        403,
+        {
+          code: 21608,
+          message: 'To send messages or make calls to unverified numbers, you must have an approved Primary Compliance Profile. Go to https://1console.twilio.com/account/ACprueba12345678901234/us1/trusthub/compliance-profiles/primary to create your profile.',
+          more_info: 'https://www.twilio.com/docs/errors/21608',
+        },
+      ],
+    ]);
+    const e = await new TwilioVerifyMessenger(CFG, f).verificador.enviar('+5492645550147', 'ingreso').catch((x: unknown) => x);
+    expect(e).toBeInstanceOf(SmsNoEnviado);
+    expect((e as SmsNoEnviado).motivo).toBe('cuenta');
+    const registro = logs.join('\n');
+    expect(registro).toMatch(/\[ALERTA\]/);
+    expect(registro).toMatch(/Primary Compliance Profile/);
+    expect(registro).toMatch(/https:\/\/www\.twilio\.com\/docs\/errors\/21608/);
+    expect(registro).toMatch(/ACprueba12345678901234/);
+    expect(registro).not.toMatch(/2645550147/);
+  });
+
+  it('el detalle para los registros oculta los teléfonos del mensaje de Twilio en cualquier formato', () => {
+    for (const tel of ['+5492645550147', '+54 9 264 555-0147', '2645550147', '(264) 555-0147'])
+      expect(detalleParaRegistro({ code: 21211, message: `The 'To' number ${tel} is not valid` })).toBe("código 21211: The 'To' number [número] is not valid");
+    expect(detalleParaRegistro({})).toBe('código —: —');
+  });
+
+  it('clasifica los rechazos: cuenta, destino o temporal', () => {
+    expect(motivoDeRechazo(403, 21608)).toBe('cuenta');
+    expect(motivoDeRechazo(401, 20003)).toBe('cuenta');
+    expect(motivoDeRechazo(401, null)).toBe('cuenta');
+    expect(motivoDeRechazo(404, 20404)).toBe('cuenta');
+    expect(motivoDeRechazo(400, 21211)).toBe('destino');
+    expect(motivoDeRechazo(400, 60410)).toBe('destino');
+    expect(motivoDeRechazo(429, 20429)).toBe('temporal');
+    expect(motivoDeRechazo(503, null)).toBe('temporal');
+  });
+
   it('una falla del servicio al validar no se confunde con un código incorrecto', async () => {
     vi.spyOn(console, 'error').mockImplementation(() => undefined);
     const { f } = fetchFalso([[503, { code: 20500 }]]);
@@ -156,6 +197,39 @@ describe('ingreso con Twilio Verify', () => {
     expect(r.body.error).toBe('verificacion_no_disponible');
     const { intentos } = ctx.db.prepare('SELECT intentos FROM login_challenges WHERE id = ?').get(r1.body.challengeId) as { intentos: number };
     expect(intentos).toBe(0);
+  });
+});
+
+describe('ingreso cuando el SMS no sale, según el motivo', () => {
+  const casos = [
+    ['cuenta', 503, 'sms_no_disponible', /no está disponible/],
+    ['destino', 502, 'sms_telefono_invalido', /revise tu número/],
+    ['temporal', 502, 'sms_no_enviado', /Probá de nuevo/],
+  ] as const;
+  for (const [motivo, status, error, mensaje] of casos)
+    it(`${motivo}: HTTP ${status} y ${error}`, async () => {
+      const { ctx, app, orgId, verify } = ctxConVerify();
+      addUser(ctx, orgId, { dni: '30111222', legajo: '1', password: 'p' });
+      verify.verificador.enviar = async () => {
+        throw new SmsNoEnviado('rechazado', null, motivo);
+      };
+      const r = await request(app).post('/api/auth/login').send({ identificador: '30111222', password: 'p', device: device() });
+      expect(r.status).toBe(status);
+      expect(r.body.error).toBe(error);
+      expect(r.body.mensaje).toMatch(mensaje);
+    });
+
+  it('si la cuenta de Twilio no permite validar, no invita a reintentar', async () => {
+    const { ctx, app, orgId, verify } = ctxConVerify();
+    addUser(ctx, orgId, { dni: '30111222', legajo: '1', password: 'p' });
+    const r1 = await request(app).post('/api/auth/login').send({ identificador: '30111222', password: 'p', device: device() });
+    verify.verificador.comprobar = async () => {
+      throw new SmsNoEnviado('rechazado', 20003, 'cuenta');
+    };
+    const r = await request(app).post('/api/auth/verify').send({ challengeId: r1.body.challengeId, codigo: '135790', device: device() });
+    expect(r.status).toBe(503);
+    expect(r.body.error).toBe('verificacion_no_disponible');
+    expect(r.body.mensaje).not.toMatch(/Probá de nuevo/);
   });
 });
 

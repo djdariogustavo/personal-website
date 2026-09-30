@@ -25,14 +25,27 @@ const deviceSchema = z.object({
  *    desbloqueo LOCAL de la app (no reemplazan el login).
  * Kiosco: legajo + PIN o QR de la credencial, desde un kiosco registrado.
  */
-/** Envía el código de ingreso; si el SMS no sale, lo informa sin exponer detalles del proveedor. */
+/**
+ * Envía el código de ingreso; si el SMS no sale, lo informa sin exponer detalles del proveedor. El mensaje depende
+ * del motivo: invitar a reintentar solo tiene sentido si la falla es pasajera.
+ */
 async function enviarCodigo(ctx: AppContext, to: { telefono: string | null; email: string | null }, code: string | null) {
   try {
     await entregarCodigo(ctx, to, code, 'ingreso');
   } catch (e) {
-    if (e instanceof SmsNoEnviado)
-      throw new HttpError(502, 'sms_no_enviado', 'No pudimos enviarte el código por SMS. Probá de nuevo en un momento; si sigue fallando, pedí ayuda a salud ocupacional de tu faena.');
+    if (e instanceof SmsNoEnviado) throw errorDeSms(e);
     throw e;
+  }
+}
+
+function errorDeSms(e: SmsNoEnviado): HttpError {
+  switch (e.motivo) {
+    case 'cuenta':
+      return new HttpError(503, 'sms_no_disponible', 'El envío de códigos por SMS no está disponible en este momento y ya lo estamos revisando. Mientras tanto, pedí ayuda a salud ocupacional de tu faena para ingresar.');
+    case 'destino':
+      return new HttpError(502, 'sms_telefono_invalido', 'No pudimos enviar el SMS al teléfono registrado en tu cuenta. Pedí a salud ocupacional de tu faena que revise tu número.');
+    default:
+      return new HttpError(502, 'sms_no_enviado', 'No pudimos enviarte el código por SMS. Probá de nuevo en un momento; si sigue fallando, pedí ayuda a salud ocupacional de tu faena.');
   }
 }
 

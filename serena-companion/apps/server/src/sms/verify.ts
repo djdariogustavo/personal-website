@@ -1,5 +1,5 @@
 import type { Messenger, OtpProposito, VerificadorOtp } from '../notify.ts';
-import { SmsNoEnviado, TwilioMessenger, aE164, enmascarado, type TwilioConfig } from './twilio.ts';
+import { SmsNoEnviado, TwilioMessenger, aE164, enmascarado, motivoDeRechazo, registrarRechazo, type ErrorTwilio, type TwilioConfig } from './twilio.ts';
 
 /**
  * Twilio Verify: Twilio genera, entrega (con remitentes compartidos, sin número propio) y valida el
@@ -44,13 +44,14 @@ export class TwilioVerifyMessenger implements Messenger {
 
   private async enviar(telefono: string | null, _proposito: OtpProposito) {
     const destino = telefono ? aE164(telefono) : null;
-    if (!destino) throw new SmsNoEnviado('La persona no tiene un teléfono válido en formato internacional (+54…).');
+    if (!destino) throw new SmsNoEnviado('La persona no tiene un teléfono válido en formato internacional (+54…).', null, 'destino');
     // El texto es la plantilla del servicio de Verify (en español), igual para ingreso y recuperación.
     const r = await this.post('Verifications', { To: destino, Channel: 'sms', Locale: 'es' }, destino);
     if (!r.ok) {
       const err = await detalle(r);
-      console.error(`[serena][sms] Twilio Verify rechazó el envío (HTTP ${r.status}, código ${err.code ?? '—'}, destino ${enmascarado(destino)})`);
-      throw new SmsNoEnviado('El proveedor de SMS rechazó el envío.', err.code ?? null);
+      const motivo = motivoDeRechazo(r.status, err.code ?? null);
+      registrarRechazo('Twilio Verify rechazó el envío', r.status, err, destino, motivo);
+      throw new SmsNoEnviado('El proveedor de SMS rechazó el envío.', err.code ?? null, motivo);
     }
   }
 
@@ -62,8 +63,9 @@ export class TwilioVerifyMessenger implements Messenger {
     const err = await detalle(r);
     // 404: la verificación venció, ya se aprobó o no existe. 60202: demasiados intentos. En ambos, el código no vale.
     if (r.status === 404 || CODIGO_NO_VALE.has(err.code ?? 0)) return false;
-    console.error(`[serena][sms] Twilio Verify no pudo validar el código (HTTP ${r.status}, código ${err.code ?? '—'}, destino ${enmascarado(destino)})`);
-    throw new SmsNoEnviado('El proveedor de SMS no pudo validar el código.', err.code ?? null);
+    const motivo = motivoDeRechazo(r.status, err.code ?? null);
+    registrarRechazo('Twilio Verify no pudo validar el código', r.status, err, destino, motivo);
+    throw new SmsNoEnviado('El proveedor de SMS no pudo validar el código.', err.code ?? null, motivo);
   }
 
   private async post(recurso: 'Verifications' | 'VerificationCheck', campos: Record<string, string>, destino: string): Promise<Response> {
@@ -85,4 +87,4 @@ export class TwilioVerifyMessenger implements Messenger {
   }
 }
 
-const detalle = async (r: Response) => (await r.json().catch(() => ({}))) as { code?: number; message?: string };
+const detalle = async (r: Response) => (await r.json().catch(() => ({}))) as ErrorTwilio;

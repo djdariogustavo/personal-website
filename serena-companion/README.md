@@ -148,6 +148,14 @@ número o Messaging Service. En desarrollo el código va a la consola, salvo con
 envío real: `npm run sms:prueba -w @serena/server -- +549…`; con Verify, repetir agregando el código recibido
 para validarlo (`… -- +549… 123456`).
 
+Para enviar a números no verificados, la cuenta de Twilio necesita un **Primary Customer Profile aprobado en Trust
+Hub**; sin él, Twilio rechaza con el error 21608 y solo llegan SMS a los *Verified Caller IDs*. Cada rechazo de
+Twilio queda en los registros con código, mensaje y enlace de la documentación (sin el teléfono completo). Los que
+dependen de la cuenta (credenciales, perfil de cumplimiento, servicio inexistente) llevan la marca
+`[serena][sms][ALERTA]`: conviene que el monitoreo de registros avise con esa marca, porque ningún SMS sale hasta
+corregirlos. A la persona se le muestra un mensaje según el motivo (cuenta, número o falla pasajera) y solo se la
+invita a reintentar cuando reintentar puede servir.
+
 ## Pruebas
 
 | Comando | Qué verifica |
