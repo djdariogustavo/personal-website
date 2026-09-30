@@ -1,4 +1,5 @@
 import type { Messenger, OtpProposito } from '../notify.ts';
+import type { AvisoOperaciones } from '../avisoOperaciones.ts';
 
 /**
  * Envío de SMS con Twilio (Programmable Messaging) por su API REST, sin el SDK:
@@ -18,6 +19,8 @@ export interface TwilioConfig {
   /** Número remitente en formato E.164 (+1…) o, en su lugar, un Messaging Service. */
   from?: string | null;
   messagingServiceSid?: string | null;
+  /** Aviso por email a quien opera SERENA cuando la cuenta de Twilio rechaza los envíos. */
+  avisoOperaciones?: AvisoOperaciones | null;
 }
 
 /** Texto de cada SMS: corto y en alfabeto GSM-7 (160 caracteres por segmento). */
@@ -95,13 +98,36 @@ export function detalleParaRegistro(err: ErrorTwilio): string {
 }
 
 /**
- * Registra un rechazo de Twilio. Los de la cuenta llevan la marca [ALERTA] para que el monitoreo de los registros
- * avise a quien administra Twilio: afectan a todas las personas y no se resuelven reintentando.
+ * Registra un rechazo de Twilio. Los de la cuenta llevan la marca [ALERTA] y, si está configurado, se avisan por
+ * email a quien administra Twilio: afectan a todas las personas y no se resuelven reintentando.
  */
-export function registrarRechazo(que: string, httpStatus: number, err: ErrorTwilio, destino: string, motivo: MotivoSms) {
-  const base = `${que} (HTTP ${httpStatus}, ${detalleParaRegistro(err)}, destino ${enmascarado(destino)})`;
-  if (motivo === 'cuenta') console.error(`[serena][sms][ALERTA] ${base}. Revisar la cuenta de Twilio: ningún SMS va a salir hasta corregirlo.`);
-  else console.error(`[serena][sms] ${base}`);
+export function registrarRechazo(
+  que: string,
+  httpStatus: number,
+  err: ErrorTwilio,
+  destino: string,
+  motivo: MotivoSms,
+  aviso?: AvisoOperaciones | null,
+) {
+  const detalle = detalleParaRegistro(err);
+  const base = `${que} (HTTP ${httpStatus}, ${detalle}, destino ${enmascarado(destino)})`;
+  if (motivo !== 'cuenta') return console.error(`[serena][sms] ${base}`);
+  console.error(`[serena][sms][ALERTA] ${base}. Revisar la cuenta de Twilio: ningún SMS va a salir hasta corregirlo.`);
+  aviso?.avisar(
+    `twilio:${err.code ?? httpStatus}`,
+    `Twilio rechaza los SMS (código ${err.code ?? httpStatus})`,
+    [
+      'La cuenta de Twilio de SERENA está rechazando los envíos de SMS. Mientras no se corrija, nadie recibe',
+      'códigos de ingreso ni de recuperación de contraseña: ven un mensaje que les pide contactar a salud ocupacional.',
+      '',
+      `Qué falló: ${que}`,
+      `Respuesta de Twilio: HTTP ${httpStatus}, ${detalle}`,
+      `Hora: ${new Date().toISOString()}`,
+      '',
+      'Qué hacer: revisar la cuenta en la consola de Twilio (Monitor → Logs → Errors). El enlace de arriba explica',
+      'el código. Este aviso se repite como máximo una vez por hora mientras la falla continúe.',
+    ].join('\n'),
+  );
 }
 
 export class SmsNoEnviado extends Error {
@@ -157,7 +183,7 @@ export class TwilioMessenger implements Messenger {
       const err = (await r.json().catch(() => ({}))) as ErrorTwilio;
       const motivo = motivoDeRechazo(r.status, err.code ?? null);
       // Sin el cuerpo del SMS ni el teléfono completo en los registros.
-      registrarRechazo('Twilio rechazó el envío', r.status, err, destino, motivo);
+      registrarRechazo('Twilio rechazó el envío', r.status, err, destino, motivo, this.cfg.avisoOperaciones);
       throw new SmsNoEnviado('El proveedor de SMS rechazó el envío.', err.code ?? null, motivo);
     }
   }

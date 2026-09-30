@@ -4,6 +4,7 @@ import { dirname } from 'node:path';
 import { TwilioMessenger } from './sms/twilio.ts';
 import { TwilioVerifyMessenger } from './sms/verify.ts';
 import type { Messenger } from './notify.ts';
+import type { AvisoOperaciones } from './avisoOperaciones.ts';
 
 /**
  * Configuración por variables de entorno. Ver .env.example en la raíz.
@@ -70,6 +71,17 @@ export const env = {
   },
   smsReal: isProd || process.env.SERENA_SMS === 'twilio',
 
+  /**
+   * Avisos por email a quien opera SERENA (p. ej. la cuenta de Twilio rechaza todos los SMS), con Resend.
+   * Opcional: sin estas variables, esas fallas quedan solo en los registros con la marca [ALERTA].
+   */
+  alertas: {
+    resendApiKey: process.env.RESEND_API_KEY ?? null,
+    from: process.env.SERENA_ALERTAS_FROM ?? null,
+    /** Una o más direcciones separadas por comas. */
+    to: process.env.SERENA_ALERTAS_EMAIL ?? null,
+  },
+
   guardWebhookUrl: process.env.SERENA_GUARD_WEBHOOK_URL ?? null,
   guardWebhookSecret: process.env.SERENA_GUARD_WEBHOOK_SECRET ?? null,
 
@@ -111,8 +123,15 @@ export function twilioConfigurado(t: (typeof env)['twilio']): boolean {
 }
 
 /** Mensajero de Twilio según la configuración: Verify si hay servicio, si no Programmable Messaging. Null si falta algo. */
-export function twilioMessenger(t: (typeof env)['twilio']): Messenger | null {
+export function twilioMessenger(t: (typeof env)['twilio'], aviso: AvisoOperaciones | null = null): Messenger | null {
   if (!twilioConfigurado(t)) return null;
-  const base = { accountSid: t.accountSid!, apiKeySid: t.apiKeySid!, apiKeySecret: t.apiKeySecret!, from: t.from, messagingServiceSid: t.messagingServiceSid };
+  const base = {
+    accountSid: t.accountSid!,
+    apiKeySid: t.apiKeySid!,
+    apiKeySecret: t.apiKeySecret!,
+    from: t.from,
+    messagingServiceSid: t.messagingServiceSid,
+    avisoOperaciones: aviso,
+  };
   return t.verifyServiceSid ? new TwilioVerifyMessenger({ ...base, verifyServiceSid: t.verifyServiceSid }) : new TwilioMessenger(base);
 }

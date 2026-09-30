@@ -8,7 +8,8 @@
     "seed": "tsx --env-file-if-exists=../../.env src/seed.ts",
     "build": "esbuild src/index.ts src/seed.ts --bundle --platform=node --format=esm --target=node22 --external:@anthropic-ai/sdk --external:express --external:helmet --external:jose --external:stripe --external:zod --outdir=dist",
     "start": "node --env-file-if-exists=../../.env dist/index.js",
-    "sms:prueba": "tsx --env-file-if-exists=../../.env src/sms/probar.ts"
+    "sms:prueba": "tsx --env-file-if-exists=../../.env src/sms/probar.ts",
+    "alertas:prueba": "tsx --env-file-if-exists=../../.env src/alertas-prueba.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.128.0",

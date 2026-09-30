@@ -152,8 +152,10 @@ Para enviar a números no verificados, la cuenta de Twilio necesita un **Primary
 Hub**; sin él, Twilio rechaza con el error 21608 y solo llegan SMS a los *Verified Caller IDs*. Cada rechazo de
 Twilio queda en los registros con código, mensaje y enlace de la documentación (sin el teléfono completo). Los que
 dependen de la cuenta (credenciales, perfil de cumplimiento, servicio inexistente) llevan la marca
-`[serena][sms][ALERTA]`: conviene que el monitoreo de registros avise con esa marca, porque ningún SMS sale hasta
-corregirlos. A la persona se le muestra un mensaje según el motivo (cuenta, número o falla pasajera) y solo se la
+`[serena][sms][ALERTA]` y, si están definidas `RESEND_API_KEY`, `SERENA_ALERTAS_FROM` y `SERENA_ALERTAS_EMAIL`,
+se avisan por email con [Resend](https://resend.com) (como máximo una vez por hora por cada código de error, sin
+datos personales), porque ningún SMS sale hasta corregirlos. Para probar el email:
+`npm run alertas:prueba -w @serena/server`. A la persona se le muestra un mensaje según el motivo (cuenta, número o falla pasajera) y solo se la
 invita a reintentar cuando reintentar puede servir.
 
 ## Pruebas

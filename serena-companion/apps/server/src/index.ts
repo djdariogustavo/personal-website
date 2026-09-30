@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { DEFAULT_CONFIG } from '@serena/domain';
 import { env, problemasDeProduccion, twilioConfigurado, twilioMessenger } from './env.ts';
 import { TwilioVerifyMessenger } from './sms/verify.ts';
+import { avisoOperaciones } from './avisoOperaciones.ts';
 import { openDb } from './db.ts';
 import { Vault } from './crypto.ts';
 import { createApp } from './app.ts';
@@ -24,6 +25,8 @@ if (env.isProd) {
   }
 }
 
+const aviso = avisoOperaciones(env.alertas);
+
 const ctx: AppContext = {
   db: openDb(env.dbPath),
   vault: new Vault(env.masterKey),
@@ -33,7 +36,7 @@ const ctx: AppContext = {
   config: process.env.SERENA_CONFIG_JSON ? { ...DEFAULT_CONFIG, ...JSON.parse(process.env.SERENA_CONFIG_JSON) } : DEFAULT_CONFIG,
   payments: buildRegistry({ ...env.payments, sandboxSecret: env.jwtSecret, publicUrl: env.publicUrl }),
   companion: env.anthropic.enabled ? new ClaudeCompanion(env.anthropic.model) : new BasicCompanion(),
-  messenger: (env.smsReal ? twilioMessenger(env.twilio) : null) ?? new ConsoleMessenger(),
+  messenger: (env.smsReal ? twilioMessenger(env.twilio, aviso) : null) ?? new ConsoleMessenger(),
   guard: env.guardWebhookUrl ? new WebhookGuardNotifier(env.guardWebhookUrl, env.guardWebhookSecret) : new ConsoleGuardNotifier(),
 };
 
@@ -51,5 +54,6 @@ app.listen(env.port, () => {
   console.info(`[serena] Acompañante: ${env.anthropic.enabled ? `modelo ${env.anthropic.model}` : 'básico (sin ANTHROPIC_API_KEY)'}`);
   const sms = ctx.messenger instanceof TwilioVerifyMessenger ? 'Twilio Verify' : ctx.messenger instanceof ConsoleMessenger ? 'consola (desarrollo)' : 'Twilio';
   console.info(`[serena] SMS: ${sms}`);
+  console.info(`[serena] Alertas de operación: ${aviso ? `email a ${env.alertas.to}` : 'solo en los registros (sin RESEND_API_KEY, SERENA_ALERTAS_FROM o SERENA_ALERTAS_EMAIL)'}`);
   console.info(`[serena] Pagos: ${ctx.payments.list().map((p) => p.nombre).join(', ') || 'ninguno configurado'}`);
 });

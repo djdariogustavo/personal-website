@@ -50,7 +50,7 @@ export class TwilioVerifyMessenger implements Messenger {
     if (!r.ok) {
       const err = await detalle(r);
       const motivo = motivoDeRechazo(r.status, err.code ?? null);
-      registrarRechazo('Twilio Verify rechazó el envío', r.status, err, destino, motivo);
+      registrarRechazo('Twilio Verify rechazó el envío', r.status, err, destino, motivo, this.cfg.avisoOperaciones);
       throw new SmsNoEnviado('El proveedor de SMS rechazó el envío.', err.code ?? null, motivo);
     }
   }
@@ -64,7 +64,7 @@ export class TwilioVerifyMessenger implements Messenger {
     // 404: la verificación venció, ya se aprobó o no existe. 60202: demasiados intentos. En ambos, el código no vale.
     if (r.status === 404 || CODIGO_NO_VALE.has(err.code ?? 0)) return false;
     const motivo = motivoDeRechazo(r.status, err.code ?? null);
-    registrarRechazo('Twilio Verify no pudo validar el código', r.status, err, destino, motivo);
+    registrarRechazo('Twilio Verify no pudo validar el código', r.status, err, destino, motivo, this.cfg.avisoOperaciones);
     throw new SmsNoEnviado('El proveedor de SMS no pudo validar el código.', err.code ?? null, motivo);
   }
 
