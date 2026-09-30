@@ -57,6 +57,11 @@ describe('avisos de operación por email (Resend)', () => {
     aviso.avisar('twilio:21608', 'a', 'b');
     await vi.waitFor(() => expect(llamadas).toHaveLength(2));
 
+    const proxy = (async () => new Response('Forbidden', { status: 403 })) as unknown as typeof fetch;
+    expect(await new ResendAvisoOperaciones(CFG, proxy).enviar('a', 'b')).toBe(false);
+    expect(logs.at(-1)).toMatch(/no llegó a Resend.*api\.resend\.com/);
+    expect(logs.at(-1)).not.toMatch(/Resend rechazó/);
+
     const caido = (async () => {
       throw new TypeError('fetch failed');
     }) as unknown as typeof fetch;

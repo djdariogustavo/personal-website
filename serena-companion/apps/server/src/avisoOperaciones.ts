@@ -56,8 +56,11 @@ export class ResendAvisoOperaciones implements AvisoOperaciones {
         signal: AbortSignal.timeout(10_000),
       });
       if (r.ok) return true;
-      const err = (await r.json().catch(() => ({}))) as { name?: string; message?: string };
-      console.error(`[serena][alertas] Resend rechazó el aviso por email (HTTP ${r.status}, ${err.name ?? '—'}: ${err.message ?? '—'})`);
+      const err = (await r.json().catch(() => null)) as { name?: string; message?: string } | null;
+      // Resend siempre responde sus errores en JSON con name y message. Sin ellos, la respuesta no vino de Resend:
+      // suele ser un proxy o un firewall de salida que bloquea api.resend.com.
+      if (err?.name || err?.message) console.error(`[serena][alertas] Resend rechazó el aviso por email (HTTP ${r.status}, ${err.name ?? '—'}: ${err.message ?? '—'})`);
+      else console.error(`[serena][alertas] El aviso por email no llegó a Resend (HTTP ${r.status} sin respuesta de Resend): revisar que la red permita salir a api.resend.com.`);
       return false;
     } catch (e) {
       console.error('[serena][alertas] Resend no respondió:', (e as Error).name);
