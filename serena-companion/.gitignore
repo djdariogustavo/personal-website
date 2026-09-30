@@ -10,5 +10,6 @@ dist-demo/
 dist-preview/
 e2e/results/
 e2e/report/
-# SDK de escaneo (licencia comercial): se copia con `npm run scan:vendor -w @serena/web`, nunca se versiona
+# Terceros servidos desde el propio origen, generados al compilar: SDK de escaneo (licencia comercial, `scan:vendor`)
+# y detector de rostro de MediaPipe (`ocular:vendor`). Nunca se versionan.
 apps/web/public/vendor/

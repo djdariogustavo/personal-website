@@ -3,7 +3,7 @@
  * abra sin conexión. Nunca guarda respuestas de /api (datos personales): esos
  * viven cifrados en IndexedDB y se sincronizan con la cola de la app.
  */
-const CACHE = 'serena-shell-v1';
+const CACHE = 'serena-shell-v2';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/assets/serena-logo-white.png', '/assets/serena-mark.png'];
 
 self.addEventListener('install', (e) => {
@@ -24,13 +24,14 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(e.request).catch(() => caches.match('/index.html')));
     return;
   }
-  // Recursos estáticos con hash: caché primero.
+  // Recursos estáticos con hash y motores de terceros servidos desde el origen (/vendor: detector de rostro,
+  // SDK de escaneo, varios MB): caché primero, para descargarlos una sola vez por dispositivo.
   e.respondWith(
     caches.match(e.request).then(
       (hit) =>
         hit ||
         fetch(e.request).then((res) => {
-          if (res.ok && (url.pathname.startsWith('/assets/'))) {
+          if (res.ok && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/vendor/'))) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(e.request, copy));
           }

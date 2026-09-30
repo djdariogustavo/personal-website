@@ -1,3 +1,4 @@
+import type { ResultadoOcular } from './ocular.ts';
 /**
  * Tipos compartidos entre la app (web/PWA) y el servidor.
  * Los nombres siguen el vocabulario del handoff de diseño (§ State Management).
@@ -63,6 +64,11 @@ export interface CheckIn {
   animo: MoodIndex | null;
   sueno: SleepIndex | null;
   escaneo: ScanResult | null;
+  /**
+   * Indicadores oculares de somnolencia (packages/domain/src/ocular.ts). MODO REGISTRO: se guardan para la
+   * evaluación clínica pero no intervienen en el nivel. Opcional: los registros anteriores no lo tienen.
+   */
+  ocular?: ResultadoOcular | null;
   reaccion: ReactionResult | null;
   voz: VoiceResult | null;
   nivel: Level;

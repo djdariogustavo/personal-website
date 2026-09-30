@@ -1,12 +1,30 @@
 import { useEffect, useRef, useState } from 'react';
-import { fmt, METRIC_LABELS, type ScanMetrics, type ScanResult } from '@serena/domain';
+import { fmt, METRIC_LABELS, type ResultadoOcular, type ScanMetrics, type ScanResult } from '@serena/domain';
+import { useApp } from '../../lib/store.tsx';
+import { MonitorOcular } from '../../ocular/monitor.ts';
 import { getScanProvider, scanMode } from '../../scan/registry.ts';
 
 type Ind = { valor: number | null; estable: boolean };
 const ORDER: Array<keyof ScanMetrics> = ['pulso', 'hrv', 'respiracion', 'estres'];
 
-/** 6.7 Paso 3: escaneo NeuroSentinel™ (slot del SDK). */
-export function ScanStep({ stream, duracionS, onDone, onAbort }: { stream: MediaStream | null; duracionS: number; onDone: (r: ScanResult) => void; onAbort: () => void }) {
+/**
+ * 6.7 Paso 3: escaneo NeuroSentinel™ (slot del SDK). Si la configuración lo habilita, en paralelo mide los
+ * indicadores oculares de somnolencia sobre el mismo video (modo registro) y los entrega con onOcular.
+ */
+export function ScanStep({
+  stream,
+  duracionS,
+  onDone,
+  onAbort,
+  onOcular,
+}: {
+  stream: MediaStream | null;
+  duracionS: number;
+  onDone: (r: ScanResult) => void;
+  onAbort: () => void;
+  onOcular?: (r: ResultadoOcular | null) => void;
+}) {
+  const { config } = useApp();
   const [progress, setProgress] = useState(0);
   const [ind, setInd] = useState<Record<keyof ScanMetrics, Ind>>({
     pulso: { valor: null, estable: false },
@@ -27,6 +45,15 @@ export function ScanStep({ stream, duracionS, onDone, onAbort }: { stream: Media
     }
     let alive = true;
     let lostTimer: ReturnType<typeof setInterval> | null = null;
+    // Indicadores oculares: se miden sobre el mismo video y terminan junto con el escaneo.
+    const ocular = config.ocular.habilitado && stream && video.current ? new MonitorOcular(video.current, config.ocular) : null;
+    let ocularEntregado = false;
+    const entregarOcular = () => {
+      if (ocularEntregado || !ocular) return;
+      ocularEntregado = true;
+      onOcular?.(ocular.detener());
+    };
+    void ocular?.iniciar();
     void (async () => {
       const p = await getScanProvider();
       try {
@@ -38,16 +65,24 @@ export function ScanStep({ stream, duracionS, onDone, onAbort }: { stream: Media
             setLost(3);
             if (lostTimer) clearInterval(lostTimer);
             lostTimer = setInterval(() => setLost((n) => (n && n > 1 ? n - 1 : (lostTimer && clearInterval(lostTimer), null))), 1000);
-          } else if (e.type === 'completo') setResult(e.resultado);
-          else if (e.type === 'error') setFailed(true);
+          } else if (e.type === 'completo') {
+            entregarOcular();
+            setResult(e.resultado);
+          } else if (e.type === 'error') {
+            entregarOcular();
+            setFailed(true);
+          }
         });
       } catch {
+        entregarOcular();
         setFailed(true);
       }
     })();
     return () => {
       alive = false;
       if (lostTimer) clearInterval(lostTimer);
+      // Si se sale antes de terminar, se descartan las muestras: una lectura parcial no se guarda.
+      if (!ocularEntregado) ocular?.detener();
       void getScanProvider().then((p) => p.stop());
     };
   }, [stream, duracionS]);

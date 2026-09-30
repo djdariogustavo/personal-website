@@ -25,6 +25,22 @@ export const checkinSchema = z.object({
   animo: z.number().int().min(0).max(4).nullable(),
   sueno: z.number().int().min(0).max(3).nullable(),
   escaneo: z.object({ metricas: metrics, calidad: z.number().min(0).max(1), duracionS: z.number().min(0).max(120) }).nullable(),
+  // Indicadores oculares (modo registro). Opcional: las versiones anteriores de la app no lo envían.
+  ocular: z
+    .object({
+      perclos: z.number().min(0).max(1),
+      parpadeosPorMin: z.number().min(0).max(300),
+      parpadeoMedioMs: z.number().min(0).max(2000).nullable(),
+      cierresLargos: z.number().int().min(0).max(500),
+      cierreMaxMs: z.number().min(0).max(120_000),
+      cabeceos: z.number().int().min(0).max(500),
+      cobertura: z.number().min(0).max(1),
+      duracionS: z.number().min(0).max(120),
+      cuadrosPorS: z.number().min(0).max(240),
+      valido: z.boolean(),
+    })
+    .nullable()
+    .optional(),
   reaccion: z.object({ toques: z.number().int().min(0).max(20), mediaMs: z.number().min(0).max(5000), anticipados: z.number().int().min(0).max(20) }).nullable(),
   voz: z.object({ duracionS: z.number().min(0).max(60), nivelMedio: z.number().min(0).max(1) }).nullable(),
   nivel: z.enum(['bajo', 'moderado', 'alto']),

@@ -8,7 +8,7 @@
  * momento de procesar: retirar un permiso detiene el procesamiento desde ese
  * momento, incluido lo que estaba en cola.
  *
- * - camara   → escaneo (valores fisiológicos)
+ * - camara   → escaneo (valores fisiológicos) e indicadores oculares
  * - animo    → autorreporte de ánimo y sueño, y la nota libre
  * - reaccion → prueba de reacción y lectura en voz alta
  * - chat y geo no forman parte del check-in (se aplican en sus propias rutas).
@@ -23,8 +23,9 @@ export function applyConsents(c: CheckIn, consents: Consents, otorgado = true): 
   if (!otorgado) return { ok: false, motivo: 'consentimiento_retirado' };
   const out: CheckIn = { ...c };
   const quitados: Array<keyof Consents> = [];
-  if (!consents.camara && out.escaneo) {
+  if (!consents.camara && (out.escaneo || out.ocular)) {
     out.escaneo = null;
+    out.ocular = null;
     quitados.push('camara');
   }
   if (!consents.animo && (out.animo !== null || out.sueno !== null || out.nota)) {

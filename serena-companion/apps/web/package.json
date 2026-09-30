@@ -5,12 +5,14 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -p . && vite build",
+    "build": "node scripts/vendor-mediapipe.mjs && tsc -p . && vite build",
+    "ocular:vendor": "node scripts/vendor-mediapipe.mjs",
     "preview": "vite preview",
     "build:demo": "tsc -p . && VITE_DEMO=true vite build && node scripts/pack-demo.mjs",
     "scan:vendor": "node scripts/vendor-shenai.mjs"
   },
   "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
     "@serena/domain": "*",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

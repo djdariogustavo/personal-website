@@ -15,7 +15,8 @@ const destino = join(aqui, '../public/vendor/shenai');
 
 let origen;
 try {
-  origen = dirname(createRequire(import.meta.url).resolve('@shenai/sdk/package.json'));
+  // El paquete no exporta package.json: se ubica por su entrada principal (index.mjs, en la raíz).
+  origen = dirname(createRequire(import.meta.url).resolve('@shenai/sdk'));
 } catch {
   console.error('No está instalado @shenai/sdk. Con el contrato vigente: npm install --no-save @shenai/sdk@3');
   process.exit(1);

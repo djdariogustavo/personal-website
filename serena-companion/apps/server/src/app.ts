@@ -39,9 +39,10 @@ export function createApp(ctx: AppContext, opts: OpcionesApp = {}) {
           imgSrc: ["'self'", 'data:', 'blob:'],
           mediaSrc: ["'self'", 'blob:'],
           // 'wasm-unsafe-eval' permite compilar WebAssembly (el SDK de escaneo), no eval() de JavaScript.
-          scriptSrc: opts.aislamientoOrigen ? ["'self'", "'wasm-unsafe-eval'"] : ["'self'"],
+          // Lo necesitan el SDK de escaneo y el detector de rostro de los indicadores oculares.
+          scriptSrc: opts.aislamientoOrigen || ctx.config.ocular.habilitado ? ["'self'", "'wasm-unsafe-eval'"] : ["'self'"],
           connectSrc: ["'self'", ...(opts.escaneoConnectSrc ?? [])],
-          workerSrc: opts.aislamientoOrigen ? ["'self'", 'blob:'] : ["'self'"],
+          workerSrc: opts.aislamientoOrigen || ctx.config.ocular.habilitado ? ["'self'", 'blob:'] : ["'self'"],
         },
       },
       // COOP/COEP solo con el SDK de escaneo: sin él no hacen falta y restringen recursos de otros orígenes.

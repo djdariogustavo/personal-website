@@ -1,3 +1,4 @@
+import { PARAMETROS_OCULAR, type ParametrosOcular } from './ocular.ts';
 /**
  * Configuración remota. Todo lo que el handoff marca como "se calibra en el trial
  * de 30 días" o "configurable por faena" vive acá y lo sirve el servidor en
@@ -62,6 +63,11 @@ export interface RemoteConfig {
     escalaEstresSdk: { min: number; max: number } | null;
   };
   luz: LightThresholds;
+  /**
+   * Indicadores oculares de somnolencia durante el escaneo (MODO REGISTRO: no afectan el nivel). Apagado por
+   * defecto; se enciende para el piloto de evaluación clínica.
+   */
+  ocular: { habilitado: boolean } & ParametrosOcular;
   niveles: LevelThresholds;
   resultadoAlto: {
     /** Segundos de la cuenta regresiva antes de conectar con la guardia. */
@@ -99,6 +105,7 @@ export const DEFAULT_CONFIG: RemoteConfig = {
     luxInsuficiente: 50,
     luxJusta: 150,
   },
+  ocular: { habilitado: false, ...PARAMETROS_OCULAR },
   niveles: {
     estresModerado: 2.6,
     estresAlto: 4.2,

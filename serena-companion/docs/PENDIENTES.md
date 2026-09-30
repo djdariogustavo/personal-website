@@ -40,6 +40,31 @@ Mientras tanto:
   de luz ambiente) **sí está implementada** en el dispositivo y no depende del SDK.
   El "rostro centrado" lo informa el SDK: sin SDK se muestra neutro (·).
 
+## 1 bis. Indicadores oculares de somnolencia — IMPLEMENTADO EN MODO REGISTRO, FALTA LA EVALUACIÓN CLÍNICA
+
+Durante el escaneo, MediaPipe Face Landmarker (Google, Apache-2.0) mide en el dispositivo, sobre el mismo video,
+**PERCLOS** (proporción del tiempo con ojos cerrados, criterio P80), **parpadeos por minuto**, **duración media del
+parpadeo**, **cierres largos** (≥ 500 ms, candidatos a microsueño) y **cabeceos**. Solo se guardan esos números con el
+check-in; ninguna imagen se guarda ni se envía. Los cubre el consentimiento de cámara.
+
+**Modo registro:** se guardan pero **no intervienen en el nivel de riesgo ni en el aviso a la guardia** hasta que el
+equipo de salud ocupacional (Dra. Karina Viñas) los evalúe. Apagado por defecto; para el piloto:
+`SERENA_CONFIG_JSON={"ocular":{"habilitado":true}}`.
+
+| Punto para la evaluación clínica | Estado | Dónde |
+|---|---|---|
+| Umbral de ojo cerrado (P80 aproximado: EAR < 50 % de la apertura habitual de la persona en esa lectura) | Provisorio | `config.ocular.fraccionCerrado` |
+| Cierre largo ≥ 500 ms | Provisorio (criterio frecuente en la literatura) | `config.ocular.cierreLargoMs` |
+| Cabeceo (proxy geométrico nariz entre frente y mentón) | Experimental, calibrar | `config.ocular.cabeceoDelta` |
+| Validez: rostro ≥ 70 % del tiempo, ≥ 20 s observados, ≥ 15 cuadros/s | Provisorio | `config.ocular.coberturaMin`, `cuadrosMinPorS` |
+| Ventana de 60 s: PERCLOS se validó sobre todo en varios minutos y en conducción | **Limitación**: indicador complementario, no diagnóstico | — |
+| Rendimiento del equipo: con GPU ~30 cuadros/s; sin GPU ~10 (medido en un entorno sin GPU: ~100 ms por cuadro) | Medir en los teléfonos, tablets y kioscos de la faena | `ResultadoOcular.cuadrosPorS` |
+| Umbrales de somnolencia para usar en el nivel de riesgo | **Por definir** con el equipo clínico | `packages/domain/src/levels.ts` (hoy no se usan) |
+
+Verificado en un navegador real con la política de seguridad de la app: el detector carga (~0,4 s) y sobre una foto
+de un rostro real da 478 puntos y EAR ≈ 0,21 en ambos ojos (abiertos). El cálculo se prueba con series sintéticas
+(`packages/domain/test/ocular.test.ts`).
+
 ## 2. Umbrales clínicos y de luz (trial de 30 días)
 - `config.niveles` (bajo / moderado / alto) y `config.luz` son **provisorios**.
 - Por seguridad, `autorreportePuedeSerAlto=false`: el autorreporte solo nunca dispara

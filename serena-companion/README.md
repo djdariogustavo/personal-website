@@ -113,6 +113,15 @@ La **verificación de luz** sí está implementada y es independiente del SDK: l
 de luz ambiente donde el navegador lo expone. Con luz insuficiente el botón "Empezar escaneo" queda
 desactivado. Los umbrales son configuración remota.
 
+### Indicadores oculares de somnolencia (modo registro)
+
+Durante el escaneo, MediaPipe Face Landmarker mide en el dispositivo PERCLOS, parpadeos, cierres largos y cabeceos
+(`packages/domain/src/ocular.ts`, `apps/web/src/ocular/`). Solo se guardan números, cubiertos por el consentimiento
+de cámara; no afectan el nivel de riesgo hasta la evaluación clínica. Apagado por defecto
+(`SERENA_CONFIG_JSON={"ocular":{"habilitado":true}}` para el piloto). El detector y su modelo se sirven desde el
+propio origen: `npm run build -w @serena/web` los deja en `public/vendor/mediapipe` (ignorado por git). Detalle y
+puntos a validar en `docs/PENDIENTES.md`, sección 1 bis.
+
 ## Servicio de pago
 
 SERENA se contrata **por organización/faena y por puesto activo**. Paga la empresa, nunca el trabajador,

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
-import { classify, rosterStatus, type CheckIn, type MoodIndex, type ReactionResult, type ScanResult, type SleepIndex, type VoiceResult } from '@serena/domain';
+import { classify, rosterStatus, type CheckIn, type MoodIndex, type ReactionResult, type ResultadoOcular, type ScanResult, type SleepIndex, type VoiceResult } from '@serena/domain';
 import { useApp } from '../../lib/store.tsx';
 import { stopStream } from '../../lib/camera.ts';
 import { StepProgress } from '../../components/ui.tsx';
@@ -30,6 +30,8 @@ export function CheckinFlow({ kiosk = false }: { kiosk?: boolean }) {
   const [animo, setAnimo] = useState<MoodIndex | null>(null);
   const [sueno, setSueno] = useState<SleepIndex | null>(null);
   const [scan, setScan] = useState<ScanResult | null>(null);
+  // Indicadores oculares (modo registro): se guardan con el check-in, no cambian el nivel.
+  const ocular = useRef<ResultadoOcular | null>(null);
   const stream = useRef<MediaStream | null>(null);
   const saving = useRef(false);
 
@@ -57,6 +59,7 @@ export function CheckinFlow({ kiosk = false }: { kiosk?: boolean }) {
       animo: enabled.animo ? animo : null,
       sueno: enabled.animo ? sueno : null,
       escaneo,
+      ocular: enabled.escaneo ? ocular.current : null,
       reaccion,
       voz: extra.voz ?? null,
       nivel: 'bajo',
@@ -121,6 +124,7 @@ export function CheckinFlow({ kiosk = false }: { kiosk?: boolean }) {
               else void finish({ escaneo: r });
             }}
             onAbort={skipScan}
+            onOcular={(r) => (ocular.current = r)}
           />
         )}
         {step === 3 && <ReactionStep kiosk={kiosk} onDone={(reaccion, voz) => void finish({ reaccion, voz })} />}

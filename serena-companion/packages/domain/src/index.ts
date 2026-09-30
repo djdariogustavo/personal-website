@@ -4,6 +4,7 @@ export * from './roster.ts';
 export * from './config.ts';
 export * from './levels.ts';
 export * from './scan.ts';
+export * from './ocular.ts';
 export * from './light.ts';
 export * from './risk.ts';
 export * from './sync.ts';

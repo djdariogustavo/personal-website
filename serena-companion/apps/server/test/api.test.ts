@@ -26,6 +26,45 @@ function checkin(over: Record<string, unknown> = {}) {
   };
 }
 
+describe('indicadores oculares (modo registro)', () => {
+  const ocular = { perclos: 0.04, parpadeosPorMin: 16.5, parpadeoMedioMs: 180, cierresLargos: 1, cierreMaxMs: 620, cabeceos: 0, cobertura: 0.95, duracionS: 60, cuadrosPorS: 29.5, valido: true };
+
+  async function sesion() {
+    const { ctx, app, orgId, messenger } = makeCtx();
+    addUser(ctx, orgId, { dni: '30111222', legajo: '1', password: 'p' });
+    const s = await login(app, messenger, '30111222', 'p');
+    const push = (c: Record<string, unknown> & { id: string; updatedAt: string }) =>
+      request(app)
+        .post('/api/sync/push')
+        .set(bearer(s.token))
+        .send({ mutations: [{ mutationId: randomUUID(), entity: 'checkin', id: c.id, op: 'upsert', data: c, updatedAt: c.updatedAt, deviceId: s.deviceId }] });
+    return { app, s, push };
+  }
+
+  it('se guardan con el check-in y no cambian el nivel', async () => {
+    const { app, s, push } = await sesion();
+    // El mismo check-in con y sin somnolencia extrema en los ojos: el nivel tiene que ser el mismo (modo registro).
+    const sin = checkin();
+    const con = { ...checkin(), ocular: { ...ocular, perclos: 0.6, cierresLargos: 9 } };
+    expect((await push(sin)).body.resultados[0].status).toBe('aplicada');
+    expect((await push(con)).body.resultados[0].status).toBe('aplicada');
+    const pull = await request(app).get('/api/sync/pull?cursor=0').set(bearer(s.token));
+    const dato = (id: string) => pull.body.cambios.find((x: { id: string }) => x.id === id).data;
+    expect(dato(con.id).ocular).toEqual(con.ocular);
+    expect(dato(con.id).nivel).toBe(dato(sin.id).nivel);
+  });
+
+  it('las versiones anteriores de la app, sin el campo, siguen funcionando', async () => {
+    const { push } = await sesion();
+    expect((await push(checkin())).body.resultados[0].status).toBe('aplicada');
+  });
+
+  it('valores fuera de rango se rechazan', async () => {
+    const { push } = await sesion();
+    expect((await push(checkin({ ocular: { ...ocular, perclos: 1.5 } }))).body.resultados[0]).toMatchObject({ status: 'rechazada', motivo: 'formato' });
+  });
+});
+
 describe('ingreso seguro', () => {
   it('pide segundo factor, rechaza código incorrecto y abre sesión con el correcto', async () => {
     const { ctx, app, orgId, messenger } = makeCtx();
