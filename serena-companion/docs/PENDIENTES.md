@@ -102,9 +102,25 @@ de un rostro real da 478 puntos y EAR ≈ 0,21 en ambos ojos (abiertos). El cál
 - Integración con la guardia: webhook firmado `SERENA_GUARD_WEBHOOK_URL`
   (HMAC-SHA256 en `X-Serena-Signature`). Definir el sistema receptor del PEC.
 
-## 4. Envío del segundo factor (SMS)
-- `ConsoleMessenger` imprime el código en la consola. Implementar un `Messenger`
-  real (proveedor de SMS) en `apps/server/src/notify.ts`.
+## 4. Envío del segundo factor (SMS con Twilio) — IMPLEMENTADO, FALTA LA PRUEBA REAL DE ENVÍO
+
+Implementado con Twilio Verify (`apps/server/src/sms/verify.ts`) y Programmable Messaging (`sms/twilio.ts`), con
+rechazos detallados y avisos por email a operaciones (README, sección SMS).
+
+**Estado al 2026-10-02:**
+
+| Punto | Estado |
+|---|---|
+| Trust Hub: Primary Customer Profile (Business, Velasco Group SRL) | **Aprobado** (captura del panel de Twilio). Debería eliminar el rechazo 21608 a números no verificados: confirmarlo con el envío real |
+| Credenciales en el entorno (`TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`, `TWILIO_VERIFY_SERVICE_SID`) | Definidas y con formato válido. Consulta de solo lectura al servicio Verify: **HTTP 200**, servicio "SERENA", códigos de 6 dígitos |
+| Permisos de la API key | Restringida: no lee los datos de la cuenta (70004). No hace falta para enviar ni validar códigos |
+| Avisos de seguridad sin código | **No salen**: Verify solo envía códigos. Falta `TWILIO_FROM_NUMBER` o `TWILIO_MESSAGING_SERVICE_SID` |
+| Alertas por email (Resend) | Variables definidas en el entorno; probar con `npm run alertas:prueba -w @serena/server` |
+
+**Próximo paso:** prueba real con un teléfono de destino:
+1. `npm run sms:prueba -w @serena/server -- +549…` (envía un código de Verify).
+2. `npm run sms:prueba -w @serena/server -- +549… <código recibido>` (lo valida contra Twilio).
+3. Registrar acá el resultado (entregado, 21608 u otro código) y decidir número o Messaging Service para los avisos.
 
 ## 5. Legal y contenido
 - Texto completo de la política de privacidad (Ley 25.326 AR y ley vigente en Chile):
