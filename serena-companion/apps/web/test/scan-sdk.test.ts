@@ -55,7 +55,7 @@ describe('traducción del SDK de escaneo al contrato de SERENA', () => {
 const en = <K extends string>(...nombres: K[]) => Object.fromEntries(nombres.map((n, i) => [n, { value: i }])) as Record<K, { value: number }>;
 
 /** SDK falso con la misma API que el real (subconjunto que usa SERENA). */
-function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' | 'SIN_RESPUESTA'; resultados?: typeof RESULTADOS | null; falla?: boolean } = {}) {
+function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' | 'SIN_RESPUESTA'; initDemoraMs?: number; resultados?: typeof RESULTADOS | null; falla?: boolean } = {}) {
   const MeasurementState = en('NOT_STARTED', 'WAITING_FOR_FACE', 'RUNNING_SIGNAL_SHORT', 'RUNNING_SIGNAL_GOOD', 'RUNNING_SIGNAL_BAD', 'RUNNING_SIGNAL_BAD_DEVICE_UNSTABLE', 'FINALIZING', 'FINISHED', 'FAILED');
   const InitializationResult = en('OK', 'INVALID_API_KEY', 'CONNECTION_ERROR', 'INTERNAL_ERROR');
   let estado = MeasurementState.NOT_STARTED;
@@ -68,8 +68,12 @@ function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' |
       settings.push(s);
       // Como el SDK real ante algunas fallas: el motor se detiene y nunca llama al callback.
       if (opts.init === 'SIN_RESPUESTA') return;
-      inicializado = (opts.init ?? 'OK') === 'OK';
-      cb(InitializationResult[opts.init ?? 'OK']);
+      const responder = () => {
+        inicializado = (opts.init ?? 'OK') === 'OK';
+        cb(InitializationResult[opts.init ?? 'OK']);
+      };
+      if (opts.initDemoraMs) setTimeout(responder, opts.initDemoraMs);
+      else responder();
     },
     deinitialize: () => void (llamadas.push('deinitialize'), (inicializado = false)),
     isInitialized: () => inicializado,
@@ -178,6 +182,16 @@ describe('adaptador del SDK de escaneo', () => {
     await vi.advanceTimersByTimeAsync(INIT_TOPE_MS + 100);
     await montaje;
     expect(eventos).toEqual([{ type: 'error', codigo: 'sin_conexion' }]);
+  });
+
+  it('acepta una inicialización lenta como la medida con el SDK real (hasta ~20 s sin GPU)', async () => {
+    const f = sdkFalso({ initDemoraMs: 20_000 });
+    const eventos: ScanEvent[] = [];
+    const montaje = new SdkScanProvider(ESCALA, f.crear, 'k').mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
+    await vi.advanceTimersByTimeAsync(20_100);
+    await montaje;
+    expect(eventos).toEqual([]);
+    expect(f.llamadas).toContain('attachToCanvas');
   });
 
   it('una API key inválida o sin conexión al validar la licencia se informan como tales', async () => {

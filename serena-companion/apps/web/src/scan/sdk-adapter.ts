@@ -71,10 +71,11 @@ const SDK_KEY = (import.meta.env.VITE_SCAN_SDK_KEY as string | undefined) ?? '';
 const CANVAS_ID = 'serena-scan-sdk';
 const CADA_MS = 250;
 /**
- * Tope para que el SDK responda a initialize (valida la licencia en línea). Probado con el SDK real 3.1.15: ante
- * algunas fallas el motor se detiene (Aborted) sin llamar al callback, y sin tope la persona quedaría esperando.
+ * Tope para que el SDK responda a initialize (valida la licencia en línea y descarga sus modelos). Probado con el SDK
+ * real 3.1.15: ante algunas fallas el motor se detiene (Aborted) sin llamar al callback, y sin tope la persona quedaría
+ * esperando. Con la clave real, sin GPU, respondió OK en 11,5 a 19,6 s: el tope deja más del doble de margen.
  */
-export const INIT_TOPE_MS = 20_000;
+export const INIT_TOPE_MS = 45_000;
 
 /** Nombre del valor de un enum del SDK (los enums son objetos con `value`). */
 function nombre<K extends string>(e: Enums<K>, v: EnumSdk | null): K | null {

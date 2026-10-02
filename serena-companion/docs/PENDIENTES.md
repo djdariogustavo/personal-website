@@ -3,7 +3,7 @@
 Lo que la app ya deja preparado pero depende de terceros o de decisiones del cliente.
 Cada punto indica **dónde** se completa, para no tocar el resto del código.
 
-## 1. SDK de escaneo (NeuroSentinel™ · Shen.AI en marca blanca) — ADAPTADOR LISTO, FALTA EL CONTRATO
+## 1. SDK de escaneo (NeuroSentinel™ · Shen.AI en marca blanca) — INICIALIZA CON LA CLAVE REAL, FALTA LA PRUEBA CON UNA PERSONA
 
 Acceso al SDK concedido (contrato con el proveedor). El paquete se instala como dependencia; sus archivos no se
 versionan: se copian al compilar. El adaptador está escrito
@@ -14,7 +14,8 @@ contra la API real del paquete web 3.x (`@shenai/sdk`) y probado con un SDK simu
    `VITE_SCAN_PROVIDER=sdk`, `npm run build -w @serena/web` lo copia solo a `apps/web/public/vendor/` (ignorado por git).
 2. Build de la web con `VITE_SCAN_PROVIDER=sdk` y `VITE_SCAN_SDK_KEY=<API key del panel de cliente>` (restringida a
    los dominios de SERENA en el panel: viaja dentro de la app que descarga el navegador).
-3. Servidor con `SERENA_AISLAMIENTO_ORIGEN=true` y `SERENA_ESCANEO_CONNECT_SRC=<orígenes de la licencia que informe el proveedor>`.
+3. Servidor con `SERENA_AISLAMIENTO_ORIGEN=true`. `SERENA_ESCANEO_CONNECT_SRC` ya trae por defecto los hosts medidos
+   con la clave real (ver abajo); solo hay que cambiarlo si el proveedor agrega otros.
 4. Configuración remota `escaneo.escalaEstresSdk` con el rango del índice de estrés que confirme el proveedor.
    Sin ella el escaneo queda deshabilitado: el estrés decide el nivel de riesgo y el aviso a la guardia.
 
@@ -25,7 +26,7 @@ contra la API real del paquete web 3.x (`@shenai/sdk`) y probado con un SDK simu
 | Escala del índice de estrés del SDK → 1–5 | **Confirmada en la documentación oficial: 0 a 10** (Baevsky modificado). Cargada: `{ min: 0, max: 10 }` | `config.escaneo.escalaEstresSdk` |
 | **Umbrales de estrés con la escala real** | **Decisión clínica pendiente** (ver tabla abajo) | `config.niveles` |
 | Escala de `average_signal_quality` | No documentada; hoy se acota a 0–1. Confirmar con el proveedor o medir en el piloto | `shenai-map.ts` (`calidadGlobal`) |
-| Servidor de licencias | `https://api.shen.ai` por defecto en `connect-src` (único host de API documentado). Verificar con la clave real que no haya otros | `SERENA_ESCANEO_CONNECT_SRC` |
+| Hosts del SDK (`connect-src`) | **Medidos con la clave real** (2026-10-02): `licensing-web.shen.ai` (licencia, gRPC-web `ActivateLicense`), `plumbus.shen.ai` (modelos: 4 archivos, ~9,6 MB), `translations.shen.ai` (textos en español, con `language: 'es'`). Se conserva `api.shen.ai` para los tokens. Sin `licensing-web` el resultado es `CONNECTION_ERROR`. Son el valor por defecto | `SERENA_ESCANEO_CONNECT_SRC` (`apps/server/src/env.ts`) |
 | Clave en el cliente | La clave permanente viaja en la app. Para producción el proveedor recomienda **tokens de corta duración** emitidos por el servidor (`POST https://api.shen.ai/v1/token`, credencial de administración con `tokens:generate`, TTL ≤ 1 h, `single_device`) | Pendiente: endpoint en el servidor |
 
 **Estrés: escala del proveedor frente a los umbrales provisorios de SERENA** (conversión lineal: SERENA = 1 + 0,4 × SI):
@@ -42,10 +43,10 @@ empieza en SI 8. Es más conservador para evitar falsas alarmas, pero **lo decid
 ejemplo, `estresAlto: 3.0` alinearía el aviso con SI > 5. El proveedor advierte además que el índice es muy individual
 (ver línea base personal).
 | Duración | 60 s por defecto: el SDK marca 30 y 45 s como no validadas | `config.escaneo.duracionS` |
-| Orígenes de red de la licencia | Por pedir al proveedor (no figuran en el paquete) | `SERENA_ESCANEO_CONNECT_SRC` |
+| Orígenes de red de la licencia | **Medidos** (fila "Hosts del SDK"). Pedir igual al proveedor la lista oficial, por si cambian | `SERENA_ESCANEO_CONNECT_SRC` |
 | Peso del SDK (36 MB de WebAssembly) | Primera carga pesada en teléfono y kiosco; el service worker lo cachea en `/vendor` | `apps/web/public/sw.js` |
 | **CSP: el SDK 3.1.15 usa `new Function`** (embind de Emscripten) | Con el SDK activo la CSP agrega `'unsafe-eval'` (concesión de seguridad). **Pedir al proveedor una compilación con `-sDYNAMIC_EXECUTION=0`** y quitarla | `apps/server/src/app.ts` |
-| Inicialización sin respuesta | Con una clave falsa, sin GPU y sin acceso al servidor de licencias, el motor se detuvo (`Aborted`) sin llamar al callback. El adaptador corta a los 20 s e informa "sin conexión". Repetir con la clave real y la red habilitada para saber la causa | `sdk-adapter.ts` (`INIT_TOPE_MS`) |
+| Inicialización con la clave real | **`OK`** en Chromium sin GPU (SwiftShader), con aislamiento de origen y la CSP de la app: 10 de 13 intentos con el host de licencias habilitado, en **10,6 a 19,6 s**; los otros 3 dieron `CONNECTION_ERROR` (9 a 15 s), causa **no determinada** (el proxy del entorno de prueba no registró rechazos hacia Shen.AI; la respuesta del servidor de licencias no es observable desde el worker): medir la tasa en el teléfono y, si persiste, consultar al proveedor. La persona ve "sin conexión" y puede reintentar. Sin `Aborted` ni `RuntimeError`: aquel corte venía de la clave falsa / sin red. El tope del adaptador pasó de 20 a **45 s** (la medición tocó los 19,6 s). Medir el tiempo en teléfono con GPU | `sdk-adapter.ts` (`INIT_TOPE_MS`) |
 
 **Verificado con el SDK real 3.1.15** (sin clave), en Chromium y con las cabeceras de la app: carga en ~0,9 s, el
 aislamiento de origen queda activo y **todas las funciones y enums que usa el adaptador existen en el SDK**.

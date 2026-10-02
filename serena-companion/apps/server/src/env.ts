@@ -88,8 +88,14 @@ export const env = {
    */
   escaneo: {
     aislamientoOrigen: process.env.SERENA_AISLAMIENTO_ORIGEN === 'true',
-    // Por defecto, el servidor de licencias y API del proveedor (developer.shen.ai).
-    connectSrc: (process.env.SERENA_ESCANEO_CONNECT_SRC ?? 'https://api.shen.ai').split(/\s+/).filter(Boolean),
+    // Por defecto, los hosts medidos con la clave real y el SDK 3.1.15: licencia (licensing-web), modelos (plumbus),
+    // textos de la interfaz en español (translations) y la API del proveedor (api.shen.ai, para los tokens).
+    connectSrc: (
+      process.env.SERENA_ESCANEO_CONNECT_SRC ??
+      'https://licensing-web.shen.ai https://plumbus.shen.ai https://translations.shen.ai https://api.shen.ai'
+    )
+      .split(/\s+/)
+      .filter(Boolean),
   },
 
   guardWebhookUrl: process.env.SERENA_GUARD_WEBHOOK_URL ?? null,
