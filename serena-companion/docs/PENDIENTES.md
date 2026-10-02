@@ -24,7 +24,12 @@ contra la API real del paquete web 3.x (`@shenai/sdk`) y probado con un SDK simu
 | Escala de `average_signal_quality` | Por confirmar; hoy se acota a 0–1 | `shenai-map.ts` (`calidadGlobal`) |
 | Duración | 60 s por defecto: el SDK marca 30 y 45 s como no validadas | `config.escaneo.duracionS` |
 | Orígenes de red de la licencia | Por pedir al proveedor (no figuran en el paquete) | `SERENA_ESCANEO_CONNECT_SRC` |
-| Peso del SDK (36 MB de WebAssembly) | Primera carga pesada en teléfono y kiosco; evaluar precarga y caché en el trial | `apps/web/public/sw.js` |
+| Peso del SDK (36 MB de WebAssembly) | Primera carga pesada en teléfono y kiosco; el service worker lo cachea en `/vendor` | `apps/web/public/sw.js` |
+| **CSP: el SDK 3.1.15 usa `new Function`** (embind de Emscripten) | Con el SDK activo la CSP agrega `'unsafe-eval'` (concesión de seguridad). **Pedir al proveedor una compilación con `-sDYNAMIC_EXECUTION=0`** y quitarla | `apps/server/src/app.ts` |
+| Inicialización sin respuesta | Con una clave falsa, sin GPU y sin acceso al servidor de licencias, el motor se detuvo (`Aborted`) sin llamar al callback. El adaptador corta a los 20 s e informa "sin conexión". Repetir con la clave real y la red habilitada para saber la causa | `sdk-adapter.ts` (`INIT_TOPE_MS`) |
+
+**Verificado con el SDK real 3.1.15** (sin clave), en Chromium y con las cabeceras de la app: carga en ~0,9 s, el
+aislamiento de origen queda activo y **todas las funciones y enums que usa el adaptador existen en el SDK**.
 | Contrato de eventos (`calidad`, `progreso`, `metrica`, `senal_perdida`, `completo`, `error`) | Definido y consumido por la UI | `packages/domain/src/scan.ts` |
 | Activación | `VITE_SCAN_PROVIDER=sdk` | `apps/web/src/scan/registry.ts` |
 | P1 · ¿Funciona offline con licencia? | Parcial: la licencia se obtiene en línea en el primer uso de cada dispositivo. Falta confirmar el uso posterior sin conexión. Hoy `escaneo.offline=false` | `config.escaneo.offline` |

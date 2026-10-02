@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScanEvent } from '@serena/domain';
 import { calidadDesdeSdk, estresAEscala, metricasFinales, metricasParciales, presetParaDuracion, senalPerdida } from '../src/scan/shenai-map.ts';
-import { SdkScanProvider } from '../src/scan/sdk-adapter.ts';
+import { INIT_TOPE_MS, SdkScanProvider } from '../src/scan/sdk-adapter.ts';
 
 const ESCALA = { min: 0, max: 10 };
 const RESULTADOS = { heart_rate_bpm: 72.4, hrv_sdnn_ms: 48.6, breathing_rate_bpm: 14.2, stress_index: 5, average_signal_quality: 0.87 };
@@ -55,7 +55,7 @@ describe('traducción del SDK de escaneo al contrato de SERENA', () => {
 const en = <K extends string>(...nombres: K[]) => Object.fromEntries(nombres.map((n, i) => [n, { value: i }])) as Record<K, { value: number }>;
 
 /** SDK falso con la misma API que el real (subconjunto que usa SERENA). */
-function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR'; resultados?: typeof RESULTADOS | null; falla?: boolean } = {}) {
+function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' | 'SIN_RESPUESTA'; resultados?: typeof RESULTADOS | null; falla?: boolean } = {}) {
   const MeasurementState = en('NOT_STARTED', 'WAITING_FOR_FACE', 'RUNNING_SIGNAL_SHORT', 'RUNNING_SIGNAL_GOOD', 'RUNNING_SIGNAL_BAD', 'RUNNING_SIGNAL_BAD_DEVICE_UNSTABLE', 'FINALIZING', 'FINISHED', 'FAILED');
   const InitializationResult = en('OK', 'INVALID_API_KEY', 'CONNECTION_ERROR', 'INTERNAL_ERROR');
   let estado = MeasurementState.NOT_STARTED;
@@ -66,6 +66,8 @@ function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR'; 
   const sdk = {
     initialize: (_k: string, _u: string, s: Record<string, unknown>, cb: (r: { value: number }) => void) => {
       settings.push(s);
+      // Como el SDK real ante algunas fallas: el motor se detiene y nunca llama al callback.
+      if (opts.init === 'SIN_RESPUESTA') return;
       inicializado = (opts.init ?? 'OK') === 'OK';
       cb(InitializationResult[opts.init ?? 'OK']);
     },
@@ -168,6 +170,14 @@ describe('adaptador del SDK de escaneo', () => {
       expect(eventos.at(-1)).toEqual({ type: 'error', codigo: 'medicion_fallida' });
       expect(eventos.some((e) => e.type === 'completo')).toBe(false);
     }
+  });
+
+  it('si el SDK no responde a la inicialización, no deja a la persona esperando', async () => {
+    const eventos: ScanEvent[] = [];
+    const montaje = new SdkScanProvider(ESCALA, sdkFalso({ init: 'SIN_RESPUESTA' }).crear, 'k').mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
+    await vi.advanceTimersByTimeAsync(INIT_TOPE_MS + 100);
+    await montaje;
+    expect(eventos).toEqual([{ type: 'error', codigo: 'sin_conexion' }]);
   });
 
   it('una API key inválida o sin conexión al validar la licencia se informan como tales', async () => {

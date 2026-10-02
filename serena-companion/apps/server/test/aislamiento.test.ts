@@ -10,6 +10,15 @@ describe('cabeceras para el SDK de escaneo', () => {
     expect(r.headers['cross-origin-embedder-policy']).toBeUndefined();
     expect(r.headers['cross-origin-opener-policy']).toBe('same-origin');
     expect(r.headers['content-security-policy']).not.toMatch(/wasm-unsafe-eval/);
+    expect(r.headers['content-security-policy']).not.toMatch(/'unsafe-eval'/);
+  });
+
+  it('con solo los indicadores oculares: WebAssembly sí, eval de JavaScript no', async () => {
+    const { ctx } = makeCtx();
+    ctx.config = { ...ctx.config, ocular: { ...ctx.config.ocular, habilitado: true } };
+    const csp = (await request(createApp(ctx)).get('/api/health')).headers['content-security-policy'];
+    expect(csp).toMatch(/script-src 'self' 'wasm-unsafe-eval'/);
+    expect(csp).not.toMatch(/'unsafe-eval'/);
   });
 
   it('con el SDK: aislamiento de origen, WebAssembly y los orígenes de la licencia en connect-src', async () => {
@@ -19,7 +28,8 @@ describe('cabeceras para el SDK de escaneo', () => {
     expect(r.headers['cross-origin-embedder-policy']).toBe('require-corp');
     expect(r.headers['cross-origin-opener-policy']).toBe('same-origin');
     const csp = r.headers['content-security-policy'];
-    expect(csp).toMatch(/script-src 'self' 'wasm-unsafe-eval'/);
+    // 'unsafe-eval' solo con el SDK: lo exige su código generado (embind). Ver docs/PENDIENTES.md.
+    expect(csp).toMatch(/script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'/);
     expect(csp).toMatch(/connect-src 'self' https:\/\/licencias\.ejemplo\.test/);
   });
 });

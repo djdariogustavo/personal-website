@@ -38,9 +38,15 @@ export function createApp(ctx: AppContext, opts: OpcionesApp = {}) {
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'data:', 'blob:'],
           mediaSrc: ["'self'", 'blob:'],
-          // 'wasm-unsafe-eval' permite compilar WebAssembly (el SDK de escaneo), no eval() de JavaScript.
-          // Lo necesitan el SDK de escaneo y el detector de rostro de los indicadores oculares.
-          scriptSrc: opts.aislamientoOrigen || ctx.config.ocular.habilitado ? ["'self'", "'wasm-unsafe-eval'"] : ["'self'"],
+          scriptSrc: [
+            "'self'",
+            // Compilar WebAssembly (no es eval de JavaScript): SDK de escaneo y detector de rostro de los indicadores oculares.
+            ...(opts.aislamientoOrigen || ctx.config.ocular.habilitado ? ["'wasm-unsafe-eval'"] : []),
+            // El SDK de escaneo 3.x genera código con `new Function` (embind de Emscripten) y no inicia sin esto.
+            // Es una concesión de seguridad solo con el SDK activo: pedir al proveedor una compilación con
+            // -sDYNAMIC_EXECUTION=0 y quitarla (docs/PENDIENTES.md).
+            ...(opts.aislamientoOrigen ? ["'unsafe-eval'"] : []),
+          ],
           connectSrc: ["'self'", ...(opts.escaneoConnectSrc ?? [])],
           workerSrc: opts.aislamientoOrigen || ctx.config.ocular.habilitado ? ["'self'", 'blob:'] : ["'self'"],
         },

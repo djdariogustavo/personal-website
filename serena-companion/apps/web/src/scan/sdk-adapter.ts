@@ -70,6 +70,11 @@ const SDK_URL = (import.meta.env.VITE_SCAN_SDK_URL as string | undefined) || '/v
 const SDK_KEY = (import.meta.env.VITE_SCAN_SDK_KEY as string | undefined) ?? '';
 const CANVAS_ID = 'serena-scan-sdk';
 const CADA_MS = 250;
+/**
+ * Tope para que el SDK responda a initialize (valida la licencia en línea). Probado con el SDK real 3.1.15: ante
+ * algunas fallas el motor se detiene (Aborted) sin llamar al callback, y sin tope la persona quedaría esperando.
+ */
+export const INIT_TOPE_MS = 20_000;
 
 /** Nombre del valor de un enum del SDK (los enums son objetos con `value`). */
 function nombre<K extends string>(e: Enums<K>, v: EnumSdk | null): K | null {
@@ -207,27 +212,43 @@ export class SdkScanProvider implements ScanProvider {
       document.body.appendChild(canvas);
     }
 
-    const resultado = await new Promise<EnumSdk>((listo) =>
-      sdk.initialize(
-        this.apiKey,
-        idSeudonimo(),
-        {
-          cameraMode: this.stream ? sdk.CameraMode.MEDIA_STREAM : sdk.CameraMode.FACING_USER,
-          precisionMode: sdk.PrecisionMode.STRICT,
-          measurementPreset: sdk.MeasurementPreset.ONE_MINUTE_HR_HRV_BR,
-          onboardingMode: sdk.OnboardingMode.HIDDEN,
-          showUserInterface: false,
-          hideShenaiLogo: true,
-          showDisclaimer: false,
-          enableSummaryScreen: false,
-          enableHealthRisks: false,
-          enableMeasurementsDashboard: false,
-          localMemoryEnabled: false,
-          language: 'es',
-        },
-        listo,
-      ),
-    );
+    let tope: ReturnType<typeof setTimeout> | undefined;
+    const resultado = await new Promise<EnumSdk | null>((listo) => {
+      tope = setTimeout(() => listo(null), INIT_TOPE_MS);
+      try {
+        sdk.initialize(
+          this.apiKey,
+          idSeudonimo(),
+          {
+            cameraMode: this.stream ? sdk.CameraMode.MEDIA_STREAM : sdk.CameraMode.FACING_USER,
+            precisionMode: sdk.PrecisionMode.STRICT,
+            measurementPreset: sdk.MeasurementPreset.ONE_MINUTE_HR_HRV_BR,
+            onboardingMode: sdk.OnboardingMode.HIDDEN,
+            showUserInterface: false,
+            hideShenaiLogo: true,
+            showDisclaimer: false,
+            enableSummaryScreen: false,
+            enableHealthRisks: false,
+            enableMeasurementsDashboard: false,
+            localMemoryEnabled: false,
+            language: 'es',
+          },
+          listo,
+        );
+      } catch (e) {
+        console.error('[serena][escaneo] El SDK falló al inicializarse:', (e as Error).message);
+        listo(null);
+      }
+    }).finally(() => clearTimeout(tope));
+    if (resultado === null) {
+      // El motor puede haber quedado inutilizable: la próxima vez se vuelve a crear desde cero.
+      console.error(`[serena][escaneo] El SDK no respondió a la inicialización en ${INIT_TOPE_MS / 1000} s.`);
+      this.sdk = null;
+      this.cargando = null;
+      document.getElementById(CANVAS_ID)?.remove();
+      listener({ type: 'error', codigo: 'sin_conexion' });
+      return null;
+    }
     const r = nombre(sdk.InitializationResult, resultado);
     if (r !== 'OK') {
       console.error(`[serena][escaneo] El SDK no se inicializó: ${r ?? 'desconocido'}`);
