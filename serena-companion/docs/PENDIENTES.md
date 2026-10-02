@@ -5,13 +5,15 @@ Cada punto indica **dónde** se completa, para no tocar el resto del código.
 
 ## 1. SDK de escaneo (NeuroSentinel™ · Shen.AI en marca blanca) — ADAPTADOR LISTO, FALTA EL CONTRATO
 
-El acceso al SDK es por invitación y requiere contrato B2B (pedido enviado; sin respuesta aún). La licencia del
-paquete no permite usarlo sin contrato, así que **el SDK no está en el repositorio**. El adaptador está escrito
+Acceso al SDK concedido (contrato con el proveedor). El paquete se instala como dependencia; sus archivos no se
+versionan: se copian al compilar. El adaptador está escrito
 contra la API real del paquete web 3.x (`@shenai/sdk`) y probado con un SDK simulado.
 
 **Para activarlo, con el contrato vigente:**
-1. `npm install --no-save @shenai/sdk@3 && npm run scan:vendor -w @serena/web` (copia el SDK a `apps/web/public/vendor/`, ignorado por git).
-2. Build de la web con `VITE_SCAN_PROVIDER=sdk` y `VITE_SCAN_SDK_KEY=<API key del panel de cliente>`.
+1. El SDK ya es dependencia del proyecto (`@shenai/sdk` 3.1.15, fijada: es la versión probada). Con
+   `VITE_SCAN_PROVIDER=sdk`, `npm run build -w @serena/web` lo copia solo a `apps/web/public/vendor/` (ignorado por git).
+2. Build de la web con `VITE_SCAN_PROVIDER=sdk` y `VITE_SCAN_SDK_KEY=<API key del panel de cliente>` (restringida a
+   los dominios de SERENA en el panel: viaja dentro de la app que descarga el navegador).
 3. Servidor con `SERENA_AISLAMIENTO_ORIGEN=true` y `SERENA_ESCANEO_CONNECT_SRC=<orígenes de la licencia que informe el proveedor>`.
 4. Configuración remota `escaneo.escalaEstresSdk` con el rango del índice de estrés que confirme el proveedor.
    Sin ella el escaneo queda deshabilitado: el estrés decide el nivel de riesgo y el aviso a la guardia.

@@ -1,24 +1,31 @@
 // Copia el SDK de escaneo (Shen.AI Web SDK) a public/vendor/shenai para servirlo desde el propio origen.
-// Requiere el contrato con el proveedor: la licencia del paquete no permite usarlo sin él. El resultado está en
-// .gitignore y nunca se versiona.
+// El SDK es una dependencia fija del proyecto (@shenai/sdk 3.1.15, la versión probada con el adaptador), con
+// licencia comercial bajo el contrato con el proveedor. La copia está en .gitignore y nunca se versiona.
 //
-// Uso (con el contrato vigente):
-//   npm install --no-save @shenai/sdk@3
-//   npm run scan:vendor -w @serena/web
+// Uso:
+//   npm run scan:vendor -w @serena/web     copia siempre
+//   node scripts/vendor-shenai.mjs --si-activo   (lo usa `build`) copia solo con VITE_SCAN_PROVIDER=sdk, para no
+//                                                 incluir 36 MB en las compilaciones que no usan el SDK
 import { cpSync, existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const aqui = dirname(fileURLToPath(import.meta.url));
+
 const destino = join(aqui, '../public/vendor/shenai');
+// Sin el SDK activo no se incluye (y se borra una copia de una compilación anterior con el SDK).
+if (process.argv.includes('--si-activo') && process.env.VITE_SCAN_PROVIDER !== 'sdk') {
+  rmSync(destino, { recursive: true, force: true });
+  process.exit(0);
+}
 
 let origen;
 try {
   // El paquete no exporta package.json: se ubica por su entrada principal (index.mjs, en la raíz).
   origen = dirname(createRequire(import.meta.url).resolve('@shenai/sdk'));
 } catch {
-  console.error('No está instalado @shenai/sdk. Con el contrato vigente: npm install --no-save @shenai/sdk@3');
+  console.error('No está instalado @shenai/sdk: correr npm install en serena-companion.');
   process.exit(1);
 }
 
