@@ -57,8 +57,9 @@ export interface RemoteConfig {
     /** P1: si el SDK funciona sin conexión. */
     offline: boolean;
     /**
-     * Rango del índice de estrés del SDK que se lleva a la escala 1–5 de SERENA. Lo confirma el proveedor; hasta
-     * entonces es null y el escaneo con el SDK real queda deshabilitado (el estrés decide el nivel de riesgo).
+     * Rango del índice de estrés del SDK que se lleva a la escala 1–5 de SERENA. Shen.AI documenta un Stress Index
+     * (Baevsky modificado) de 0 a 10: 0–4 normal, > 5 estrés alto, > 9 estado crítico (developer.shen.ai,
+     * "Video measurement → Results"). Con null el escaneo con el SDK real queda deshabilitado.
      */
     escalaEstresSdk: { min: number; max: number } | null;
   };
@@ -94,7 +95,7 @@ export const DEFAULT_CONFIG: RemoteConfig = {
     duracionS: 60,
     disponibleEn: { mobile: true, tablet: true, desktop: true, kiosk: true },
     offline: false,
-    escalaEstresSdk: null,
+    escalaEstresSdk: { min: 0, max: 10 },
   },
   luz: {
     insuficienteBajo: 60,

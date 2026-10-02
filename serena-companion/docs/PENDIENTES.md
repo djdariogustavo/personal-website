@@ -22,8 +22,25 @@ contra la API real del paquete web 3.x (`@shenai/sdk`) y probado con un SDK simu
 |---|---|---|
 | Adaptador del SDK | **Implementado** (calidad, progreso, métricas, pérdida de señal, resultado, errores) y probado con un SDK simulado | `apps/web/src/scan/sdk-adapter.ts`, `shenai-map.ts`, `apps/web/test/scan-sdk.test.ts` |
 | Aislamiento de origen (COOP/COEP) y CSP con WebAssembly | **Implementado**, se activa con `SERENA_AISLAMIENTO_ORIGEN=true` | `apps/server/src/app.ts`, `apps/web/vite.config.ts` |
-| Escala del índice de estrés del SDK → 1–5 | **Por confirmar con el proveedor** (no documentada en el paquete) | `config.escaneo.escalaEstresSdk` |
-| Escala de `average_signal_quality` | Por confirmar; hoy se acota a 0–1 | `shenai-map.ts` (`calidadGlobal`) |
+| Escala del índice de estrés del SDK → 1–5 | **Confirmada en la documentación oficial: 0 a 10** (Baevsky modificado). Cargada: `{ min: 0, max: 10 }` | `config.escaneo.escalaEstresSdk` |
+| **Umbrales de estrés con la escala real** | **Decisión clínica pendiente** (ver tabla abajo) | `config.niveles` |
+| Escala de `average_signal_quality` | No documentada; hoy se acota a 0–1. Confirmar con el proveedor o medir en el piloto | `shenai-map.ts` (`calidadGlobal`) |
+| Servidor de licencias | `https://api.shen.ai` por defecto en `connect-src` (único host de API documentado). Verificar con la clave real que no haya otros | `SERENA_ESCANEO_CONNECT_SRC` |
+| Clave en el cliente | La clave permanente viaja en la app. Para producción el proveedor recomienda **tokens de corta duración** emitidos por el servidor (`POST https://api.shen.ai/v1/token`, credencial de administración con `tokens:generate`, TTL ≤ 1 h, `single_device`) | Pendiente: endpoint en el servidor |
+
+**Estrés: escala del proveedor frente a los umbrales provisorios de SERENA** (conversión lineal: SERENA = 1 + 0,4 × SI):
+
+| Índice de estrés del SDK (0–10) | Interpretación del proveedor | Valor SERENA (1–5) | Nivel con los umbrales actuales (2,6 / 4,2) |
+|---|---|---|---|
+| 0–4 | Normal | 1,0–2,6 | Bajo (moderado desde 4,0) |
+| 4–5 | Aumento moderado | 2,6–3,0 | Moderado |
+| > 5 | **Estrés alto** | > 3,0 | Moderado (alto recién desde SI 8) |
+| > 9 | **Estado crítico** | > 4,6 | Alto: aviso a la guardia |
+
+Con los umbrales actuales, lo que el proveedor llama "estrés alto" (SI > 5) queda en **moderado**, y el aviso a la guardia
+empieza en SI 8. Es más conservador para evitar falsas alarmas, pero **lo decide el equipo clínico (Dra. Viñas)**: por
+ejemplo, `estresAlto: 3.0` alinearía el aviso con SI > 5. El proveedor advierte además que el índice es muy individual
+(ver línea base personal).
 | Duración | 60 s por defecto: el SDK marca 30 y 45 s como no validadas | `config.escaneo.duracionS` |
 | Orígenes de red de la licencia | Por pedir al proveedor (no figuran en el paquete) | `SERENA_ESCANEO_CONNECT_SRC` |
 | Peso del SDK (36 MB de WebAssembly) | Primera carga pesada en teléfono y kiosco; el service worker lo cachea en `/vendor` | `apps/web/public/sw.js` |

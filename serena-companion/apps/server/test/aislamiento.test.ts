@@ -26,6 +26,8 @@ describe('cabeceras para el SDK de escaneo', () => {
     const app = createApp(ctx, { aislamientoOrigen: true, escaneoConnectSrc: ['https://licencias.ejemplo.test'] });
     const r = await request(app).get('/api/health');
     expect(r.headers['cross-origin-embedder-policy']).toBe('require-corp');
+    // El proveedor exige también Cross-Origin-Resource-Policy: same-origin (developer.shen.ai, System requirements).
+    expect(r.headers['cross-origin-resource-policy']).toBe('same-origin');
     expect(r.headers['cross-origin-opener-policy']).toBe('same-origin');
     const csp = r.headers['content-security-policy'];
     // 'unsafe-eval' solo con el SDK: lo exige su código generado (embind). Ver docs/PENDIENTES.md.

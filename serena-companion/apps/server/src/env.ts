@@ -88,7 +88,8 @@ export const env = {
    */
   escaneo: {
     aislamientoOrigen: process.env.SERENA_AISLAMIENTO_ORIGEN === 'true',
-    connectSrc: (process.env.SERENA_ESCANEO_CONNECT_SRC ?? '').split(/\s+/).filter(Boolean),
+    // Por defecto, el servidor de licencias y API del proveedor (developer.shen.ai).
+    connectSrc: (process.env.SERENA_ESCANEO_CONNECT_SRC ?? 'https://api.shen.ai').split(/\s+/).filter(Boolean),
   },
 
   guardWebhookUrl: process.env.SERENA_GUARD_WEBHOOK_URL ?? null,
