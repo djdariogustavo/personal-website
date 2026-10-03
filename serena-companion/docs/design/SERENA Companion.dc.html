@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+html,body{margin:0;height:100%;background:#06062a;color:#fff;font-family:'IBM Plex Sans',sans-serif;-webkit-font-smoothing:antialiased}
+*{box-sizing:border-box}
+button,input{font-family:inherit}
+a{color:#2FA8C0}a:hover{color:#7FD3E3}
+@keyframes halo{0%,100%{transform:scale(.94);opacity:.7}50%{transform:scale(1.05);opacity:1}}
+@keyframes breathe{0%,100%{transform:scale(.5)}40%{transform:scale(1)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes wave{0%,100%{transform:scaleY(.2)}50%{transform:scaleY(1)}}
+@media (prefers-reduced-motion:reduce){[data-anim]{animation:none!important}}
+</style>
+</helmet>
+<div style="height:100vh;display:flex;flex-direction:column;background:#06062a;color:#fff;font-family:'IBM Plex Sans',sans-serif">
+<div style="height:60px;flex:none;display:flex;align-items:center;gap:20px;padding:0 20px;border-bottom:1px solid rgba(255,255,255,.10);background:#010147;overflow:hidden">
+<img src="assets/serena-logo-white.png" alt="SERENA" style="height:24px;width:auto;flex:none">
+<div style="display:flex;flex-direction:column;gap:2px;min-width:0">
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:14px;white-space:nowrap">Companion™ · Vista previa UX</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:#9999B5;white-space:nowrap">VELASCO ROBOTA · ROBOTA TECHNOLOGIES · SEP 2026</div>
+</div>
+<div style="flex:1"></div>
+<div style="display:flex;gap:2px;background:#101052;padding:3px;border-radius:4px;border:1px solid rgba(255,255,255,.10);flex:none">
+<sc-for list="{{ devices }}" as="d" hint-placeholder-count="4">
+<button onClick="{{ d.onClick }}" style="height:34px;padding:0 14px;border:none;border-radius:2px;background:{{ d.bg }};color:{{ d.color }};font-size:13px;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:8px;white-space:nowrap">{{ d.label }}<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;opacity:.7">{{ d.size }}</span></button>
+</sc-for>
+</div>
+<button onClick="{{ next }}" style="height:40px;padding:0 16px;border:1px solid #2FA8C0;border-radius:2px;background:transparent;color:#7FD3E3;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap;flex:none">Siguiente en el flujo →</button>
+</div>
+<div style="flex:1;display:flex;min-height:0">
+<sc-if value="{{ showPanels }}" hint-placeholder-val="{{ true }}">
+<aside style="width:232px;flex:none;border-right:1px solid rgba(255,255,255,.10);overflow:auto;padding:16px 10px;display:flex;flex-direction:column;gap:18px;background:#03033f">
+<sc-for list="{{ groups }}" as="g" hint-placeholder-count="5">
+<div style="flex:none;display:flex;flex-direction:column;gap:2px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:#9999B5;padding:0 10px 6px">{{ g.name }}</div>
+<sc-for list="{{ g.items }}" as="it" hint-placeholder-count="3">
+<button onClick="{{ it.onClick }}" style="flex:none;text-align:left;min-height:36px;line-height:1.3;padding:8px 10px;border:none;border-radius:4px;background:{{ it.bg }};color:{{ it.color }};font-size:13.5px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:8px">{{ it.label }}<span style="font-family:'IBM Plex Mono',monospace;font-size:10px;color:#9999B5">{{ it.ref }}</span></button>
+</sc-for>
+</div>
+</sc-for>
+</aside>
+</sc-if>
+<main data-serena-stage="1" style="flex:1;min-width:0;position:relative;overflow:hidden;background:radial-gradient(ellipse at 50% 0%,#14145a 0%,#06062a 70%)">
+<sc-if value="{{ isFrame }}" hint-placeholder-val="{{ true }}">
+<div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center">
+<div style="width:{{ frameW }}px;height:{{ frameH }}px;position:relative;flex:none">
+<div style="width:{{ fw }}px;height:{{ fh }}px;transform:scale({{ scale }});transform-origin:0 0;position:absolute;top:0;left:0;background:#010147;border-radius:{{ frameRadius }}px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.14),0 30px 80px rgba(0,0,0,.55);display:flex">
+<sc-if value="{{ showSidebar }}" hint-placeholder-val="{{ false }}">
+<nav style="width:{{ sideW }}px;flex:none;background:#010140;border-right:1px solid rgba(255,255,255,.10);display:flex;flex-direction:column;gap:6px;padding:24px 14px">
+<sc-if value="{{ sideFull }}" hint-placeholder-val="{{ true }}"><img src="assets/serena-logo-white.png" alt="SERENA" style="width:170px;height:auto;margin:0 8px 28px"></sc-if>
+<sc-if value="{{ isTablet }}" hint-placeholder-val="{{ false }}"><img src="assets/serena-mark.png" alt="SERENA" style="width:44px;height:44px;margin:0 auto 24px"></sc-if>
+<sc-for list="{{ navItems }}" as="n" hint-placeholder-count="7">
+<button onClick="{{ n.onClick }}" title="{{ n.label }}" style="min-height:48px;display:flex;align-items:center;justify-content:{{ n.justify }};gap:14px;padding:0 14px;border:none;border-radius:4px;background:{{ n.bg }};color:{{ n.color }};font-size:16px;font-weight:500;cursor:pointer;text-align:left">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="{{ n.icon }}"></path></svg>
+<sc-if value="{{ sideFull }}" hint-placeholder-val="{{ true }}"><span>{{ n.label }}</span></sc-if>
+</button>
+</sc-for>
+<div style="flex:1"></div>
+<sc-if value="{{ sideFull }}" hint-placeholder-val="{{ true }}">
+<div style="padding:14px;border-top:1px solid rgba(255,255,255,.10);display:flex;flex-direction:column;gap:4px">
+<div style="font-weight:600;font-size:15px">Matías R.</div>
+<div style="font-size:13px;color:#B8B8CB">Operador de planta · Mina Los Andes</div>
+</div>
+</sc-if>
+</nav>
+</sc-if>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;position:relative">
+<sc-if value="{{ isMobile }}" hint-placeholder-val="{{ true }}">
+<div style="height:44px;flex:none;display:flex;align-items:center;justify-content:space-between;padding:0 28px;font-size:15px;font-weight:600;background:{{ statusBg }}"><span>23:48</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.06em;color:#B8B8CB">LTE ▮▮▮ 72%</span></div>
+</sc-if>
+<sc-if value="{{ showHeader }}" hint-placeholder-val="{{ true }}">
+<div style="height:{{ headH }}px;flex:none;display:flex;align-items:center;gap:14px;padding:0 20px;border-bottom:1px solid rgba(255,255,255,.10)">
+<sc-if value="{{ showLogoInHeader }}" hint-placeholder-val="{{ true }}"><img src="assets/serena-logo-white.png" alt="SERENA" style="height:{{ logoH }}px;width:auto"></sc-if>
+<sc-if value="{{ showSidebar }}" hint-placeholder-val="{{ false }}"><div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">{{ headerTitle }}</div></sc-if>
+<sc-if value="{{ kioskNotice }}" hint-placeholder-val="{{ false }}"><div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:14px;letter-spacing:.08em;color:#9999B5;margin-left:12px">SESIÓN EFÍMERA · SE CIERRA A LOS 5 MIN SIN USO</div></sc-if>
+<div style="flex:1"></div>
+<div title="{{ syncLabel }}" style="display:flex;align-items:center;gap:8px">
+{{ syncDot }}
+<sc-if value="{{ isDesk }}" hint-placeholder-val="{{ false }}"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:11px;letter-spacing:.08em;color:#9999B5">{{ syncLabel }}</span></sc-if>
+</div>
+<sc-if value="{{ showAvatar }}" hint-placeholder-val="{{ true }}"><div style="width:36px;height:36px;border-radius:50%;background:#20205D;border:1px solid rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex:none">MR</div></sc-if>
+<button onClick="{{ openEmerg }}" style="height:{{ pillH }}px;padding:0 18px 0 14px;border:none;border-radius:999px;background:#E62E9C;color:#0B0B1A;font-weight:600;font-size:{{ pillFs }}px;display:flex;align-items:center;gap:8px;cursor:pointer;flex:none"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 13v8M8.8 9.8a4.5 4.5 0 0 1 6.4 0M5.6 6.6a9 9 0 0 1 12.8 0"></path><circle cx="12" cy="13" r="1.2" fill="currentColor"></circle></svg>Ayuda</button>
+</div>
+</sc-if>
+<sc-if value="{{ offline }}" hint-placeholder-val="{{ false }}">
+<div style="flex:none;background:#2E2E4A;color:#fff;font-size:14px;padding:10px 20px;display:flex;align-items:center;gap:10px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#B8B8CB" stroke-width="1.5" stroke-linecap="round"><path d="M3 3l18 18M8.5 16.5a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 5-2.7M14 10.2a10 10 0 0 1 5 2.7M2 9a15 15 0 0 1 5-3M11 5a15 15 0 0 1 11 4"></path></svg>Sin conexión. Todo se guarda y se sincroniza después.</div>
+</sc-if>
+<div ref="{{ scrollRef }}" style="flex:1;min-height:0;overflow:auto;container-type:inline-size;position:relative;display:flex;flex-direction:column">
+<sc-if value="{{ is.splash }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="6.1 Splash" style="flex:1;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:40px;padding:48px 32px;text-align:center;background-color:#010147;background-image:linear-gradient(rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.06) 1px,transparent 1px),linear-gradient(180deg,#5D0158 0%,#2a0150 45%,#010147 90%);background-size:64px 64px,64px 64px,100% 100%">
+<sc-if value="{{ splash0 }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:36px;width:100%;max-width:640px">
+<img src="assets/serena-logo-white.png" alt="SERENA · Sistema de Equilibrio, Recreación y Neuro-Bienestar Avanzado" style="width:100%;max-width:560px;height:auto">
+<p style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:clamp(24px,4cqi,38px);line-height:1.2;margin:0;text-wrap:balance">Un minuto para vos, en medio del turno.</p>
+<button onClick="{{ splashNext }}" style="min-height:{{ tap }}px;padding:0 40px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Empezar</button>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:11px;letter-spacing:.08em;color:#B8B8CB">SERENA COMPANION™ · TECNOLOGÍA ROBOTA TECHNOLOGIES</div>
+</div>
+</sc-if>
+<sc-if value="{{ splashSlide }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:28px;width:100%;max-width:560px">
+<img src="assets/serena-mark.png" alt="" style="width:120px;height:120px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#2FA8C0">{{ slideN }}</div>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:clamp(34px,6cqi,56px);line-height:1.05;margin:0">{{ slideT }}</h1>
+<p style="font-size:18px;line-height:1.55;color:#B8B8CB;margin:0;text-wrap:pretty">{{ slideD }}</p>
+<div style="display:flex;gap:8px">
+<sc-for list="{{ slideDots }}" as="sd" hint-placeholder-count="3"><span style="height:8px;width:{{ sd.w }};border-radius:999px;background:{{ sd.bg }};transition:all .2s"></span></sc-for>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;width:100%;max-width:360px">
+<button onClick="{{ splashNext }}" style="min-height:{{ tap }}px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Siguiente</button>
+<button onClick="{{ skipWelcome }}" style="min-height:48px;border:none;background:transparent;color:#B8B8CB;font-size:15px;cursor:pointer">Saltear</button>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ is.consent }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.2 Consentimiento" style="padding:clamp(20px,4cqi,48px);max-width:720px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#2FA8C0">CONSENTIMIENTO INFORMADO</div>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(28px,4.4cqi,42px);text-wrap:balance">Vos elegís qué se usa.</h1>
+<p style="margin:0;color:#B8B8CB;font-size:16px;line-height:1.55">Cada permiso es independiente. Si apagás uno, el resto sigue funcionando.</p>
+</div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;display:flex;flex-direction:column">
+<sc-for list="{{ consentList }}" as="c" hint-placeholder-count="5">
+<div style="display:flex;gap:16px;align-items:flex-start;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.10)">
+<div style="flex:1;display:flex;flex-direction:column;gap:6px;min-width:0">
+<div style="font-weight:600;font-size:16px;line-height:1.35">{{ c.label }}</div>
+<div style="font-size:14.5px;color:#B8B8CB;line-height:1.5">{{ c.desc }}</div>
+</div>
+<button onClick="{{ c.onToggle }}" aria-label="{{ c.label }}" style="width:48px;height:48px;flex:none;border:none;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center"><span style="width:48px;height:28px;border-radius:999px;background:{{ c.track }};position:relative;display:block;border:1px solid rgba(255,255,255,.16);transition:background .2s"><span style="position:absolute;top:1px;left:{{ c.knob }};width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s"></span></span></button>
+</div>
+</sc-for>
+</div>
+<a href="#" style="font-size:15px">Leer la política completa</a>
+<button onClick="{{ goLogin }}" style="min-height:{{ tap }}px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Acepto y continúo</button>
+<p style="margin:0;font-size:14px;color:#9999B5;text-align:center">Podés cambiar esto cuando quieras en Privacidad.</p>
+</div>
+</sc-if>
+<sc-if value="{{ is.login }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.3 Ingreso" style="flex:1;padding:clamp(20px,4cqi,48px);max-width:460px;width:100%;margin:0 auto;display:flex;flex-direction:column;justify-content:center;gap:24px">
+<img src="assets/serena-mark.png" alt="" style="width:72px;height:72px">
+<sc-if value="{{ loginCred }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:20px">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:32px">Ingresá a tu cuenta</h1>
+<label style="display:flex;flex-direction:column;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">USUARIO CORPORATIVO O DNI</span><input value="30.456.789" readOnly style="height:{{ tap }}px;background:#20205D;border:1px solid rgba(255,255,255,.14);border-radius:2px;color:#fff;padding:0 16px;font-size:16px;outline:none"></label>
+<label style="display:flex;flex-direction:column;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">CONTRASEÑA</span><input type="password" value="contraseña" readOnly style="height:{{ tap }}px;background:#20205D;border:1px solid #2FA8C0;border-radius:2px;color:#fff;padding:0 16px;font-size:16px;outline:none"></label>
+<sc-if value="{{ isDesk }}" hint-placeholder-val="{{ false }}">
+<button onClick="{{ toggleRemember }}" style="display:flex;align-items:center;gap:12px;min-height:48px;border:none;background:transparent;color:#B8B8CB;font-size:15px;cursor:pointer;padding:0;text-align:left"><span style="width:22px;height:22px;border:1.5px solid #2FA8C0;border-radius:2px;background:{{ rememberBg }};flex:none"></span>Recordar este dispositivo por 30 días</button>
+</sc-if>
+<button onClick="{{ toLogin2fa }}" style="min-height:{{ tap }}px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Ingresar</button>
+<a href="#" style="font-size:15px;text-align:center">Olvidé mi contraseña</a>
+</div>
+</sc-if>
+<sc-if value="{{ login2fa }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:20px">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:32px">Confirmá que sos vos</h1>
+<p style="margin:0;color:#B8B8CB;font-size:16px;line-height:1.55">Te mandamos un código de 6 dígitos al teléfono terminado en 47.</p>
+<div style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px">
+<sc-for list="{{ codeDigits }}" as="cd" hint-placeholder-count="6"><div style="height:60px;background:#20205D;border:1.5px solid {{ codeBorder }};border-radius:2px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:500">{{ cd }}</div></sc-for>
+</div>
+<sc-if value="{{ loginErr }}" hint-placeholder-val="{{ false }}"><div role="alert" style="font-size:15px;color:#F37CC2;background:rgba(230,46,156,.18);padding:12px 14px;border-radius:2px;line-height:1.5">El código no coincide. Revisá los 6 dígitos o pedí uno nuevo.</div></sc-if>
+<button onClick="{{ verify }}" style="min-height:{{ tap }}px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Verificar</button>
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><a href="#" style="font-size:15px">Pedir un código nuevo</a><a href="#" style="font-size:15px">Usar la biometría del teléfono</a></div>
+</div>
+</sc-if>
+<sc-if value="{{ loginPin }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:24px;align-items:center;text-align:center">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:28px">Hola de nuevo, Matías.</h1>
+<p style="margin:0;color:#B8B8CB;font-size:16px">Ingresá tu PIN de 4 dígitos o usá tu huella.</p>
+<div style="display:flex;gap:16px"><sc-for list="{{ pinDots }}" as="pd" hint-placeholder-count="4"><span style="width:16px;height:16px;border-radius:50%;border:1.5px solid #2FA8C0;background:{{ pd.bg }}"></span></sc-for></div>
+<div style="display:grid;grid-template-columns:repeat(3,76px);gap:12px">
+<sc-for list="{{ keys }}" as="k" hint-placeholder-count="12"><button onClick="{{ k.onClick }}" style="height:64px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:#101052;color:#fff;font-size:22px;font-weight:500;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">{{ k.label }}</button></sc-for>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ is.hoy }}" hint-placeholder-val="{{ false }}">
+<sc-if value="{{ hoyClaro }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.4 Hoy · Alto contraste" style="flex:1;min-height:100%;background:#F4F4FA;color:#010147;display:flex;flex-direction:column">
+<div style="height:60px;flex:none;display:flex;align-items:center;gap:12px;padding:0 20px;border-bottom:1px solid rgba(1,1,71,.14)">
+<img src="assets/serena-mark.png" alt="SERENA" style="width:32px;height:32px">
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:800;font-size:16px">SERENA</div>
+<div style="flex:1"></div>
+<span style="width:10px;height:10px;border-radius:50%;background:#1B7F93"></span>
+<div style="width:36px;height:36px;border-radius:50%;background:#fff;border:1.5px solid #010147;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">MR</div>
+<button style="height:40px;padding:0 16px;border:none;border-radius:999px;background:#C0167A;color:#fff;font-weight:600;font-size:15px">Ayuda</button>
+</div>
+<div style="flex:1;padding:24px 20px;display:flex;flex-direction:column;gap:18px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#1B7F93">MODO ALTO CONTRASTE · SOL DIRECTO</div>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:30px">Buenas noches, Matías.</h1>
+<div style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;border:1.5px solid #010147;border-radius:999px;padding:6px 12px">ROSTER · DÍA 9 DE 14 · TURNO NOCHE</div>
+<div style="background:#fff;border:1.5px solid #010147;border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:22px">¿Cómo estás hoy?</div>
+<button style="min-height:56px;border:none;border-radius:2px;background:#C0167A;color:#fff;font-size:17px;font-weight:600">Hacer mi check-in</button>
+<div style="font-size:15px;color:#010147">Menos de un minuto · Voluntario</div>
+</div>
+<div style="background:#fff;border:1.5px solid rgba(1,1,71,.3);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:6px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#1B7F93">ÚLTIMO RESULTADO · HOY 06:12</div>
+<div style="font-weight:600;font-size:17px">Nivel moderado · estrés 3,1 de 5</div>
+</div>
+</div>
+<div style="height:84px;flex:none;display:flex;border-top:1.5px solid #010147;background:#fff;padding-bottom:14px">
+<sc-for list="{{ bottomItems }}" as="n" hint-placeholder-count="5"><div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:600;color:#010147"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="{{ n.icon }}"></path></svg>{{ n.label }}</div></sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ hoyTurno }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="6.4 Hoy" style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(28px,4.4cqi,46px)">Buenas noches, Matías.</h1>
+<div style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#7FD3E3;background:rgba(47,168,192,.16);border-radius:999px;padding:6px 12px">ROSTER · DÍA 9 DE 14 · TURNO NOCHE</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px">
+<div style="background:linear-gradient(160deg,#20205D 0%,#101052 100%);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:clamp(20px,2.6cqi,32px);display:flex;flex-direction:column;gap:18px">
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:clamp(24px,3cqi,32px);line-height:1.15">¿Cómo estás hoy?</div>
+<button onClick="{{ goC1 }}" style="min-height:{{ tap }}px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Hacer mi check-in</button>
+<div style="font-size:15px;color:#B8B8CB">Menos de un minuto · Voluntario</div>
+</div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:clamp(20px,2.6cqi,32px);display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">ÚLTIMO RESULTADO</div>
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:11px;letter-spacing:.08em;color:#F0CF7A;background:rgba(233,190,80,.16);border-radius:999px;padding:5px 10px">NIVEL MODERADO</span>
+</div>
+<div style="display:flex;align-items:baseline;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:40px;font-variant-numeric:tabular-nums">3,1</span><span style="color:#B8B8CB;font-size:15px">índice de estrés, de 5</span></div>
+<div style="font-size:15px;color:#B8B8CB;line-height:1.5">Hoy 06:12 · Tablet comedor — Módulo 3</div>
+<div style="display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid rgba(255,255,255,.10);gap:12px;flex-wrap:wrap">
+<span style="font-size:15px">6 check-ins en los últimos 9 días</span>
+<button onClick="{{ goBienestar }}" style="border:none;background:none;color:#2FA8C0;font-size:15px;cursor:pointer;padding:0;min-height:44px">Ver mi historial</button>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">ACCESOS RÁPIDOS</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px">
+<button onClick="{{ goRespira }}" style="min-height:76px;text-align:left;padding:16px 18px;background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;color:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px"><span style="font-size:16px;font-weight:500">Respirar 2 minutos</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#2FA8C0">2 MIN</span></button>
+<button onClick="{{ goRecursos }}" style="min-height:76px;text-align:left;padding:16px 18px;background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;color:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px"><span style="font-size:16px;font-weight:500">Dormir mejor en turno noche</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#2FA8C0">4 LECT.</span></button>
+<button onClick="{{ goChat }}" style="min-height:76px;text-align:left;padding:16px 18px;background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;color:#fff;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:12px"><span style="font-size:16px;font-weight:500">Hablar con el acompañante</span><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;color:#2FA8C0">24/7</span></button>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ hoyCasa }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.4 Hoy · En casa" style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(28px,4.4cqi,46px);text-wrap:balance">Bienvenido a casa. Tu cuerpo también necesita volver.</h1>
+<div style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#B8B8CB;background:#20205D;border-radius:999px;padding:6px 12px">DESCANSO · DÍA 3 DE 14</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:16px">
+<button onClick="{{ goRecursos }}" style="text-align:left;min-height:180px;padding:24px;background:linear-gradient(160deg,#5D0158 0%,#20205D 100%);border:1px solid rgba(255,255,255,.10);border-radius:12px;color:#fff;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;gap:16px"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;color:#F37CC2">DESCONEXIÓN · 6 MIN</span><span style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:22px;line-height:1.2">Volver a casa después del roster</span></button>
+<button onClick="{{ goRecursos }}" style="text-align:left;min-height:180px;padding:24px;background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;color:#fff;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;gap:16px"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;color:#2FA8C0">SUEÑO · 4 LECTURAS</span><span style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:22px;line-height:1.2">Recuperar el ritmo de día</span></button>
+<button onClick="{{ goRecursos }}" style="text-align:left;min-height:180px;padding:24px;background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;color:#fff;cursor:pointer;display:flex;flex-direction:column;justify-content:space-between;gap:16px"><span style="font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;color:#2FA8C0">FAMILIA · 5 MIN</span><span style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:22px;line-height:1.2">El reencuentro, sin apuro</span></button>
+</div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:20px 24px;display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap">
+<div style="display:flex;flex-direction:column;gap:4px"><div style="font-weight:600;font-size:17px">¿Querés hacer un check-in desde casa?</div><div style="font-size:15px;color:#B8B8CB">Voluntario. Lo ves también en tu teléfono.</div></div>
+<button onClick="{{ goC1 }}" style="min-height:{{ tap }}px;padding:0 22px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:16px;font-weight:500;cursor:pointer">Hacer mi check-in</button>
+</div>
+</div>
+</sc-if>
+</sc-if>
+<sc-if value="{{ is.c1 }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.5 Check-in 1" style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;gap:6px"><sc-for list="{{ steps }}" as="st" hint-placeholder-count="4"><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div style="height:4px;border-radius:2px;background:{{ st.bar }}"></div><div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:{{ st.color }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ st.label }}</div></div></sc-for></div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.12;margin:0;font-size:clamp(26px,4cqi,40px);text-wrap:balance">¿Cómo llegás a este momento del turno?</h1>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px">
+<sc-for list="{{ moods }}" as="m" hint-placeholder-count="5"><button onClick="{{ m.onClick }}" style="min-height:{{ tap }}px;padding:14px 16px;border:1.5px solid {{ m.border }};border-radius:12px;background:{{ m.bg }};color:{{ m.color }};font-size:17px;font-weight:500;cursor:pointer;text-align:left">{{ m.label }}</button></sc-for>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:16px">
+<h2 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.01em;line-height:1.2;margin:0;font-size:clamp(20px,2.8cqi,26px)">¿Cuánto dormiste en tu último descanso?</h2>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:10px">
+<sc-for list="{{ sleeps }}" as="m" hint-placeholder-count="4"><button onClick="{{ m.onClick }}" style="min-height:{{ tap }}px;padding:0 16px;border:1.5px solid {{ m.border }};border-radius:12px;background:{{ m.bg }};color:{{ m.color }};font-size:16px;font-weight:500;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">{{ m.label }}</button></sc-for>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px;max-width:420px">
+<button onClick="{{ goC2 }}" style="min-height:{{ tap }}px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Siguiente</button>
+<button onClick="{{ skipScan }}" style="min-height:48px;border:none;background:transparent;color:#B8B8CB;font-size:15px;cursor:pointer;text-decoration:underline">Prefiero saltear el escaneo</button>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.c2 }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.6 Luz y encuadre" style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;gap:6px"><sc-for list="{{ steps }}" as="st" hint-placeholder-count="4"><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div style="height:4px;border-radius:2px;background:{{ st.bar }}"></div><div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:{{ st.color }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ st.label }}</div></div></sc-for></div>
+<div style="display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start">
+<div style="flex:1 1 320px;display:flex;flex-direction:column;gap:10px;min-width:0">
+<div style="position:relative;width:100%;aspect-ratio:4/5;max-height:560px;border-radius:12px;overflow:hidden;background:radial-gradient(ellipse at 50% 30%,#2c2c72 0%,#0b0b2e 80%)">
+<sc-if value="{{ camOk }}" hint-placeholder-val="{{ true }}">
+<svg viewBox="0 0 200 240" style="position:absolute;left:50%;bottom:0;transform:translateX(-50%);width:80%;height:auto" fill="rgba(184,184,203,.22)"><ellipse cx="100" cy="98" rx="44" ry="54"></ellipse><path d="M18 240c4-50 38-76 82-76s78 26 82 76z"></path></svg>
+<div style="position:absolute;inset:0;background:#000;opacity:{{ camDim }};transition:opacity .2s"></div>
+<div style="position:absolute;left:50%;top:12%;width:52%;height:58%;transform:translateX(-50%);border:2.5px solid {{ ovalColor }};border-radius:50%;box-shadow:0 0 0 2000px rgba(1,1,71,.35)"></div>
+<div style="position:absolute;left:12px;right:12px;bottom:12px;display:flex;flex-wrap:wrap;gap:6px">
+<sc-for list="{{ checks }}" as="ck" hint-placeholder-count="4"><span style="white-space:nowrap;font-size:13px;font-weight:500;color:{{ ck.color }};background:rgba(1,1,71,.85);border:1px solid {{ ck.color }};border-radius:999px;padding:5px 10px">{{ ck.mark }} {{ ck.label }}</span></sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ camMissing }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:32px;text-align:center">
+<svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#9999B5" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18M9 5h6l2 2h3v11M20 20H4V7h3"></path><circle cx="12" cy="13" r="3"></circle></svg>
+<sc-if value="{{ camNoPerm }}" hint-placeholder-val="{{ true }}"><p style="margin:0;font-size:17px;line-height:1.55;max-width:340px">Para el escaneo necesitamos la cámara. Podés habilitarla en ajustes o hacer el check-in sin escaneo.</p></sc-if>
+<sc-if value="{{ camNone }}" hint-placeholder-val="{{ false }}"><p style="margin:0;font-size:17px;line-height:1.55;max-width:340px">No encontramos una cámara en este equipo. Podés hacer el check-in solo con autorreporte.</p></sc-if>
+<div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center">
+<sc-if value="{{ camNoPerm }}" hint-placeholder-val="{{ true }}"><button style="min-height:48px;padding:0 18px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:15px;cursor:pointer">Abrir ajustes</button></sc-if>
+<button onClick="{{ skipScan }}" style="min-height:48px;padding:0 18px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:15px;font-weight:600;cursor:pointer">Check-in sin escaneo</button>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ marcadores }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;inset:6px;border:1.5px dashed #2FA8C0;border-radius:10px;pointer-events:none"><div style="position:absolute;top:8px;left:8px;background:#010147;border:1px solid #2FA8C0;color:#7FD3E3;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10px;letter-spacing:.08em;padding:4px 8px;border-radius:999px">SLOT SDK · VISTA DE CÁMARA + CALIDAD DE SEÑAL</div></div></sc-if>
+</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:11.5px;letter-spacing:.08em;color:#9999B5;text-align:center;display:flex;justify-content:center;gap:8px;align-items:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="11" width="14" height="10" rx="1"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>EL VIDEO NO SE GUARDA · SE PROCESA EN ESTE DISPOSITIVO</div>
+</div>
+<div style="flex:1 1 300px;display:flex;flex-direction:column;gap:20px;min-width:0">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.12;margin:0;font-size:clamp(26px,3.6cqi,36px)">Revisemos la luz</h1>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;gap:4px"><sc-for list="{{ lightSegs }}" as="sg" hint-placeholder-count="3"><div style="flex:1;height:10px;border-radius:2px;background:{{ sg.bg }};transition:background .2s"></div></sc-for></div>
+<span style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:{{ lightColor }};background:{{ lightBg }};border-radius:999px;padding:5px 12px">{{ lightLabel }}</span>
+</div>
+<p style="margin:0;font-size:18px;line-height:1.5">{{ lightMsg }}</p>
+<div style="border:1px solid rgba(255,255,255,.10);border-radius:12px;overflow:hidden">
+<button onClick="{{ toggleTips }}" style="width:100%;min-height:52px;padding:0 18px;border:none;background:#101052;color:#fff;font-size:15px;font-weight:500;cursor:pointer;display:flex;justify-content:space-between;align-items:center">{{ tipsLabel }}<span style="color:#2FA8C0">＋</span></button>
+<sc-if value="{{ tipsOpen }}" hint-placeholder-val="{{ false }}">
+<div style="padding:4px 18px 16px;background:#101052;display:flex;flex-direction:column;gap:10px;font-size:15px;color:#B8B8CB">
+<div>Sacate el casco o las antiparras.</div><div>Evitá tener una ventana detrás.</div><div>Apoyá el dispositivo para que no se mueva.</div>
+</div>
+</sc-if>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<button onClick="{{ goC3 }}" disabled="{{ startDisabled }}" style="min-height:{{ tap }}px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer;opacity:{{ startOpacity }}">Empezar escaneo</button>
+<sc-if value="{{ lightWarn }}" hint-placeholder-val="{{ false }}"><div style="font-size:14px;color:#F0CF7A">Podés empezar igual; la lectura puede ser menos precisa.</div></sc-if>
+<button onClick="{{ skipScan }}" style="min-height:48px;border:none;background:transparent;color:#B8B8CB;font-size:15px;cursor:pointer;text-decoration:underline">Prefiero saltear el escaneo</button>
+</div>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.c3 }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.7 Escaneo" style="flex:1;min-height:100%;background-color:#010147;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px);background-size:64px 64px">
+<div style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px;align-items:center">
+<div style="display:flex;gap:6px;width:100%"><sc-for list="{{ steps }}" as="st" hint-placeholder-count="4"><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div style="height:4px;border-radius:2px;background:{{ st.bar }}"></div><div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:{{ st.color }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ st.label }}</div></div></sc-for></div>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#2FA8C0">NEUROSENTINEL™</div>
+<div style="position:relative;width:min(100%,400px);aspect-ratio:1">
+{{ halo }}
+<svg viewBox="0 0 100 100" style="position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)"><circle cx="50" cy="50" r="48" fill="none" stroke="rgba(255,255,255,.10)" stroke-width="1.2"></circle><circle cx="50" cy="50" r="48" fill="none" stroke="#2FA8C0" stroke-width="1.6" stroke-linecap="round" stroke-dasharray="{{ ringC }}" stroke-dashoffset="{{ ringOffset }}" style="transition:stroke-dashoffset 1s linear"></circle></svg>
+<div style="position:absolute;left:24%;top:12%;width:52%;height:76%;border-radius:50%;overflow:hidden;background:radial-gradient(ellipse at 50% 35%,#2c2c72 0%,#0b0b2e 85%);border:2px solid rgba(127,211,227,.6)">
+<svg viewBox="0 0 200 300" style="position:absolute;left:0;bottom:0;width:100%;height:auto" fill="rgba(184,184,203,.22)"><ellipse cx="100" cy="120" rx="58" ry="74"></ellipse><path d="M0 300c6-60 48-92 100-92s94 32 100 92z"></path></svg>
+</div>
+<sc-if value="{{ marcadores }}" hint-placeholder-val="{{ true }}"><div style="position:absolute;inset:-8px;border:1.5px dashed #2FA8C0;border-radius:14px;pointer-events:none"><div style="position:absolute;top:-12px;left:50%;transform:translateX(-50%);white-space:nowrap;background:#010147;border:1px solid #2FA8C0;color:#7FD3E3;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10px;letter-spacing:.08em;padding:4px 8px;border-radius:999px">SLOT SDK · MÓDULO DE ESCANEO (MARCA BLANCA)</div></div></sc-if>
+</div>
+<sc-if value="{{ scanRunning }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:8px">
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:clamp(48px,7cqi,72px);letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1">{{ scanClock }}</div>
+<div style="font-size:18px;color:#B8B8CB">{{ scanMsg }}</div>
+</div>
+</sc-if>
+<sc-if value="{{ scanLost }}" hint-placeholder-val="{{ false }}"><div role="status" style="font-size:16px;color:#F0CF7A;background:rgba(233,190,80,.16);padding:12px 18px;border-radius:12px;text-align:center">Perdimos la señal por movimiento. Retomamos en {{ lostT }} segundos.</div></sc-if>
+<sc-if value="{{ scanDone }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:420px">
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:28px">Lectura completa</div>
+<button onClick="{{ goC4 }}" style="min-height:{{ tap }}px;width:100%;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Continuar</button>
+</div>
+</sc-if>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px;width:100%;max-width:860px">
+<sc-for list="{{ indicators }}" as="ind" hint-placeholder-count="4">
+<div style="background:#101052;border:1px solid {{ ind.border }};border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;transition:border-color .2s">
+<div style="font-size:14px;color:#B8B8CB">{{ ind.label }}</div>
+<div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:26px;color:{{ ind.vcolor }};font-variant-numeric:tabular-nums">{{ ind.value }}</span><span style="font-size:13px;color:#9999B5">{{ ind.unit }}</span></div>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10px;letter-spacing:.08em;color:{{ ind.color }}">{{ ind.state }}</div>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.c4 }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.8 Reacción y voz" style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;gap:6px"><sc-for list="{{ steps }}" as="st" hint-placeholder-count="4"><div style="flex:1;display:flex;flex-direction:column;gap:8px;min-width:0"><div style="height:4px;border-radius:2px;background:{{ st.bar }}"></div><div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:{{ st.color }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ st.label }}</div></div></sc-for></div>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.12;margin:0;font-size:clamp(26px,3.6cqi,36px)">Dos pruebas cortas</h1>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px">
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:600;font-size:17px">Reacción</div><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#2FA8C0">{{ reactN }} / 10</span></div>
+<div style="font-size:15px;color:#B8B8CB">Tocá el círculo apenas aparezca.</div>
+<div style="position:relative;height:240px;background:#0a0a3a;border-radius:8px;overflow:hidden">
+<sc-if value="{{ reactPending }}" hint-placeholder-val="{{ true }}"><button onClick="{{ onReact }}" aria-label="Círculo" style="position:absolute;left:{{ rx }};top:{{ ry }};transform:translate(-50%,-50%);width:64px;height:64px;border-radius:50%;border:none;background:#2FA8C0;box-shadow:0 0 0 10px rgba(47,168,192,.18);cursor:pointer;transition:left .15s,top .15s"></button></sc-if>
+<sc-if value="{{ reactDone }}" hint-placeholder-val="{{ false }}"><div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px"><div style="font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:500">312 ms</div><div style="font-size:14px;color:#B8B8CB">Tiempo medio de reacción</div></div></sc-if>
+</div>
+<button onClick="{{ skipReact }}" style="align-self:flex-start;min-height:44px;border:none;background:transparent;color:#B8B8CB;font-size:15px;cursor:pointer;text-decoration:underline;padding:0">Saltear</button>
+</div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px">
+<div style="font-weight:600;font-size:17px">Voz</div>
+<div style="font-size:15px;color:#B8B8CB">Leé en voz alta:</div>
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:22px;line-height:1.3">“Hoy es un buen día para volver a casa sano.”</div>
+<div style="height:80px;display:flex;align-items:center;justify-content:center;background:#0a0a3a;border-radius:8px">{{ voiceBars }}</div>
+<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+<button onClick="{{ toggleRec }}" style="min-height:48px;padding:0 20px;border:1px solid #2FA8C0;border-radius:2px;background:transparent;color:#7FD3E3;font-size:15px;font-weight:500;cursor:pointer">{{ recLabel }}</button>
+<button style="min-height:44px;border:none;background:transparent;color:#B8B8CB;font-size:15px;cursor:pointer;text-decoration:underline">Saltear</button>
+</div>
+</div>
+</div>
+<div style="max-width:420px;width:100%"><button onClick="{{ goRes }}" style="min-height:{{ tap }}px;width:100%;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Ver mi resultado</button></div>
+</div>
+</sc-if>
+<sc-if value="{{ is.resultado }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.9 Resultado" style="flex:1;display:flex;flex-direction:column">
+<div style="flex:1;padding:clamp(20px,4cqi,48px);max-width:920px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+<sc-if value="{{ resBajo }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:14px">
+<span style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#7FD3E3;background:rgba(47,168,192,.16);border-radius:999px;padding:6px 12px">TODO EN ORDEN</span>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(30px,4.6cqi,48px)">Estás en buen ritmo.</h1>
+</div>
+</sc-if>
+<sc-if value="{{ resMod }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:14px">
+<span style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#F0CF7A;background:rgba(233,190,80,.16);border-radius:999px;padding:6px 12px">TE CONVIENE UNA PAUSA</span>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(30px,4.6cqi,48px);text-wrap:balance">Tu cuerpo está pidiendo un respiro.</h1>
+</div>
+</sc-if>
+<sc-if value="{{ resAlto }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:18px">
+<span style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#F37CC2;background:rgba(230,46,156,.18);border-radius:999px;padding:6px 12px">ACOMPAÑAMIENTO</span>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(30px,4.6cqi,48px);text-wrap:balance">No tenés que atravesar esto solo.</h1>
+<p style="margin:0;font-size:18px;line-height:1.55;color:#B8B8CB;max-width:620px">Vamos a conectarte con la guardia de tu faena. Solo ellos reciben este aviso, no tu supervisor.</p>
+<div style="display:flex;align-items:center;gap:16px;background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:16px 20px">
+<sc-if value="{{ altoCounting }}" hint-placeholder-val="{{ true }}">
+<div style="position:relative;width:52px;height:52px;flex:none"><svg viewBox="0 0 52 52" style="width:52px;height:52px;transform:rotate(-90deg)"><circle cx="26" cy="26" r="22" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="3"></circle><circle cx="26" cy="26" r="22" fill="none" stroke="#2FA8C0" stroke-width="3" stroke-dasharray="{{ altoRingC }}" stroke-dashoffset="{{ altoRingOffset }}" style="transition:stroke-dashoffset 1s linear"></circle></svg><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:16px">{{ altoT }}</span></div>
+<div style="font-size:16px;line-height:1.45">Te conectamos con la guardia en {{ altoT }} s, salvo que elijas otra opción.</div>
+</sc-if>
+<sc-if value="{{ altoConnected }}" hint-placeholder-val="{{ false }}"><div style="font-size:16px;line-height:1.45;color:#7FD3E3">Conectando con la guardia de Mina Los Andes. Quedate en línea.</div></sc-if>
+<sc-if value="{{ altoDeclined }}" hint-placeholder-val="{{ false }}"><div style="font-size:16px;line-height:1.45">Está bien. Cuando quieras, la guardia sigue disponible. Te dejamos las líneas de ayuda acá abajo.</div></sc-if>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px;max-width:520px">
+<button onClick="{{ connectNow }}" style="min-height:{{ tap }}px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Conectarme ahora</button>
+<button onClick="{{ declineAlto }}" style="min-height:{{ tap }}px;padding:0 16px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:15px;font-weight:500;cursor:pointer">Ahora no, prefiero hablar con alguien de confianza</button>
+</div>
+<div style="position:relative;display:flex;flex-direction:column;gap:6px;padding:16px 20px;border:1px solid rgba(230,46,156,.4);border-radius:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:11px;letter-spacing:.08em;color:#F37CC2">LÍNEA DE EMERGENCIA · SIEMPRE DISPONIBLE</div>
+<div style="font-size:16px">Emergencias <strong>911</strong> · Guardia de faena por radio, canal de emergencia</div>
+<sc-if value="{{ marcadores }}" hint-placeholder-val="{{ true }}"><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:#7FD3E3;border:1px dashed #2FA8C0;border-radius:999px;padding:3px 8px;align-self:flex-start">NÚMEROS Y CANAL PEC · POR CONFIRMAR</div></sc-if>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ notAltoRes }}" hint-placeholder-val="{{ true }}">
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:10px">
+<sc-for list="{{ resVals }}" as="rv" hint-placeholder-count="4">
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:16px;display:flex;flex-direction:column;gap:8px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10.5px;letter-spacing:.08em;color:#9999B5">{{ rv.label }}</div>
+<div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:32px;font-variant-numeric:tabular-nums">{{ rv.value }}</span><span style="font-size:14px;color:#B8B8CB">{{ rv.unit }}</span></div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+<sc-if value="{{ resBajo }}" hint-placeholder-val="{{ false }}">
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px">
+<div style="font-size:16px">¿Querés dejar un registro de cómo te sentís?</div>
+<input value="{{ note }}" onChange="{{ onNote }}" placeholder="Opcional · solo lo ves vos" style="height:52px;background:#20205D;border:1px solid rgba(255,255,255,.14);border-radius:2px;color:#fff;padding:0 16px;font-size:16px;outline:none">
+</div>
+<div style="max-width:420px"><button onClick="{{ resDone }}" style="min-height:{{ tap }}px;width:100%;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Listo</button></div>
+</sc-if>
+<sc-if value="{{ resMod }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:10px;max-width:520px">
+<button onClick="{{ goRespira }}" style="min-height:{{ tap }}px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer;padding:0 16px">Hacer una respiración guiada de 2 minutos</button>
+<button onClick="{{ goChat }}" style="min-height:{{ tap }}px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:16px;font-weight:500;cursor:pointer">Contarle al acompañante</button>
+</div>
+<p style="margin:0;font-size:15px;color:#B8B8CB">Te propongo otro check-in al final del turno.</p>
+</sc-if>
+</div>
+<div style="position:sticky;bottom:0;flex:none;background:#010147;border-top:1px solid rgba(255,255,255,.10);padding:14px 20px;display:flex;justify-content:center;align-items:center;gap:8px;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="11" width="14" height="10" rx="1"></rect><path d="M8 11V8a4 4 0 0 1 8 0v3"></path></svg>SOLO VOS VES ESTE RESULTADO</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.respira }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Respiración guiada" style="flex:1;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:32px;padding:32px 24px;text-align:center">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#2FA8C0">RESPIRACIÓN GUIADA · 2 MIN</div>
+<div style="position:relative;width:min(80cqi,340px);aspect-ratio:1">
+<div style="position:absolute;inset:0;border-radius:50%;border:1px solid rgba(255,255,255,.12)"></div>
+{{ breathEl }}
+<div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px"><div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:32px">{{ phase }}</div><div style="font-family:'IBM Plex Mono',monospace;font-size:20px;color:#B8B8CB">{{ phaseN }}</div></div>
+</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:28px;font-variant-numeric:tabular-nums">{{ breathClock }}</div>
+<p style="margin:0;font-size:17px;color:#B8B8CB;max-width:360px;line-height:1.55">Seguí el círculo. Inhalá cuando crece, soltá el aire cuando se achica.</p>
+<button onClick="{{ endBreath }}" style="min-height:{{ tap }}px;padding:0 28px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:16px;font-weight:500;cursor:pointer">Terminar</button>
+</div>
+</sc-if>
+<sc-if value="{{ is.chat }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.10 Acompañante" style="flex:1;min-height:100%;display:flex;flex-direction:column;max-width:880px;width:100%;margin:0 auto">
+<div style="flex:none;display:flex;align-items:center;gap:14px;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.10)">
+<div style="width:48px;height:48px;flex:none;border-radius:58% 42% 55% 45% / 48% 58% 42% 52%;background:conic-gradient(from 200deg,#E62E9C,#5D0158,#2FA8C0,#E62E9C)"></div>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="font-weight:600;font-size:17px">Acompañante SERENA</div><div style="font-size:13px;color:#7FD3E3;display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:#2FA8C0"></span>Disponible 24/7</div></div>
+<button style="min-height:44px;padding:0 14px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:14px;font-weight:500;cursor:pointer;flex:none">Hablar con una persona</button>
+</div>
+<div style="flex:none;background:#20205D;border-bottom:1px solid rgba(255,255,255,.10)">
+<button onClick="{{ toggleBanner }}" style="width:100%;min-height:44px;padding:10px 20px;border:none;background:transparent;color:#fff;display:flex;gap:10px;align-items:flex-start;text-align:left;cursor:pointer">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2FA8C0" stroke-width="1.5" style="flex:none;margin-top:2px"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v6M12 7.5v.5"></path></svg>
+<sc-if value="{{ bannerOpen }}" hint-placeholder-val="{{ true }}"><span style="font-size:14px;line-height:1.5;color:#fff">Soy un acompañante, no un profesional de la salud. Estoy para escucharte y charlar. Si necesitás ayuda profesional, te ayudo a encontrarla.</span></sc-if>
+<sc-if value="{{ bannerClosed }}" hint-placeholder-val="{{ false }}"><span style="font-size:14px;color:#B8B8CB">Soy un acompañante, no un profesional de la salud.</span></sc-if>
+</button>
+</div>
+<sc-if value="{{ chatCare }}" hint-placeholder-val="{{ false }}">
+<div style="flex:none;margin:16px 20px 0;padding:20px;border-radius:12px;background:#101052;border:1.5px solid #F37CC2;display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:20px;line-height:1.3">Lo que me contás es importante y merece ayuda de una persona ahora.</div>
+<div style="display:flex;flex-wrap:wrap;gap:10px">
+<button style="flex:1 1 220px;min-height:52px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:16px;font-weight:600;cursor:pointer">Conectarme con la guardia de mi faena</button>
+<button onClick="{{ toggleLines }}" style="flex:1 1 200px;min-height:52px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:16px;font-weight:500;cursor:pointer">Llamar a una línea de ayuda</button>
+</div>
+<sc-if value="{{ showLines }}" hint-placeholder-val="{{ false }}">
+<div style="position:relative;display:flex;flex-direction:column;gap:8px;padding:14px;background:#20205D;border-radius:8px;font-size:15px">
+<div>Emergencias · <strong style="font-family:'IBM Plex Mono',monospace">911</strong></div>
+<div>Argentina · Centro de Asistencia al Suicida · <strong style="font-family:'IBM Plex Mono',monospace">135</strong></div>
+<div>Chile · Línea de prevención · <strong style="font-family:'IBM Plex Mono',monospace">*4141</strong></div>
+<sc-if value="{{ marcadores }}" hint-placeholder-val="{{ true }}"><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:#7FD3E3;border:1px dashed #2FA8C0;border-radius:999px;padding:3px 8px;align-self:flex-start">LÍNEAS POR PAÍS · VALIDAR ANTES DE PUBLICAR</div></sc-if>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<div style="flex:1;padding:20px;display:flex;flex-direction:column;gap:14px">
+<sc-for list="{{ msgs }}" as="m" hint-placeholder-count="4">
+<sc-if value="{{ m.isBot }}" hint-placeholder-val="{{ true }}"><div style="align-self:flex-start;max-width:min(82%,560px);display:flex;flex-direction:column;gap:4px"><div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px 12px 12px 2px;padding:12px 16px;font-size:16px;line-height:1.55">{{ m.t }}</div><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#9999B5">{{ m.h }}</span></div></sc-if>
+<sc-if value="{{ m.isUser }}" hint-placeholder-val="{{ false }}"><div style="align-self:flex-end;max-width:min(82%,560px);display:flex;flex-direction:column;gap:4px;align-items:flex-end"><div style="background:#20205D;border:1px solid #2FA8C0;border-radius:12px 12px 2px 12px;padding:12px 16px;font-size:16px;line-height:1.55">{{ m.t }}</div><span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#9999B5">{{ m.h }}</span></div></sc-if>
+</sc-for>
+</div>
+<div style="position:sticky;bottom:0;flex:none;background:#010147;border-top:1px solid rgba(255,255,255,.10);padding:12px 20px 16px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:2px">
+<sc-for list="{{ quick }}" as="q" hint-placeholder-count="4"><button onClick="{{ q.onClick }}" style="flex:none;min-height:40px;padding:0 14px;border:1px solid rgba(47,168,192,.5);border-radius:999px;background:transparent;color:#7FD3E3;font-size:14px;cursor:pointer;white-space:nowrap">{{ q.label }}</button></sc-for>
+</div>
+<div style="display:flex;gap:8px">
+<input value="{{ chatInput }}" onChange="{{ onChatInput }}" onKeyDown="{{ onChatKey }}" placeholder="Escribí lo que quieras" style="flex:1;min-width:0;height:52px;background:#20205D;border:1px solid rgba(255,255,255,.14);border-radius:2px;color:#fff;padding:0 16px;font-size:16px;outline:none">
+<button onClick="{{ onChatSend }}" aria-label="Enviar" style="width:52px;height:52px;flex:none;border:none;border-radius:2px;background:#2FA8C0;color:#0B0B1A;cursor:pointer;display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h15M13 6l6 6-6 6"></path></svg></button>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.bienestar }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.11 Mi bienestar" style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(28px,4.4cqi,44px)">Mi bienestar</h1>
+<button onClick="{{ doDescargar }}" style="min-height:48px;padding:0 18px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:15px;font-weight:500;cursor:pointer">Descargar mis datos</button>
+</div>
+<div style="display:flex;gap:6px;flex-wrap:wrap">
+<sc-for list="{{ metricTabs }}" as="mt" hint-placeholder-count="4"><button onClick="{{ mt.onClick }}" style="min-height:44px;padding:0 16px;border:1px solid {{ mt.border }};border-radius:999px;background:{{ mt.bg }};color:{{ mt.color }};font-size:14px;font-weight:500;cursor:pointer">{{ mt.label }}</button></sc-for>
+</div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">{{ mLabel }} · ÚLTIMOS 28 DÍAS</div><div style="display:flex;gap:14px;font-size:12px;color:#B8B8CB"><span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#20205D;border:1px solid rgba(255,255,255,.2)"></span>Trabajo</span><span style="display:flex;align-items:center;gap:6px"><span style="width:12px;height:12px;background:#101052;border:1px solid rgba(255,255,255,.2)"></span>Descanso</span></div></div>
+<div style="display:flex;gap:10px">
+<div style="display:flex;flex-direction:column;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:#9999B5;padding:12px 0;white-space:nowrap">{{ mTop }}<span>{{ mBottom }}</span></div>
+<div style="position:relative;flex:1;height:240px;border-radius:4px;overflow:hidden">
+<sc-for list="{{ bandList }}" as="b" hint-placeholder-count="3"><div style="position:absolute;top:0;bottom:0;left:{{ b.left }};width:{{ b.width }};background:{{ b.bg }};border-right:1px solid rgba(255,255,255,.06)"><span style="position:absolute;top:8px;left:8px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:#9999B5">{{ b.label }}</span></div></sc-for>
+<svg viewBox="0 0 100 100" preserveAspectRatio="none" style="position:absolute;inset:0;width:100%;height:100%"><path d="{{ chartPath }}" fill="none" stroke="#2FA8C0" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"></path></svg>
+<sc-for list="{{ pts }}" as="p" hint-placeholder-count="10"><span style="position:absolute;left:{{ p.left }};top:{{ p.top }};width:9px;height:9px;margin:-4.5px 0 0 -4.5px;border-radius:50%;background:#010147;border:2px solid #7FD3E3"></span></sc-for>
+</div>
+</div>
+<div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;color:#9999B5;padding-left:52px"><span>HACE 28 DÍAS</span><span>HOY · DÍA 9</span></div>
+</div>
+<div style="background:linear-gradient(160deg,#20205D,#101052);border:1px solid rgba(47,168,192,.35);border-radius:12px;padding:20px 24px;display:flex;flex-direction:column;gap:8px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#2FA8C0">LO QUE VEMOS EN TUS DATOS</div>
+<p style="margin:0;font-size:17px;line-height:1.55">En tus últimos dos rosters, el cansancio sube a partir del día 10. Es común. Probá sumar una pausa corta desde el día 8.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">MIS CHECK-INS</div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+<sc-for list="{{ hist }}" as="h" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid rgba(255,255,255,.08)">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#B8B8CB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="{{ h.icon }}"></path></svg>
+<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px"><div style="font-size:15.5px;font-weight:500">{{ h.date }}</div><div style="font-size:13.5px;color:#B8B8CB;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ h.dev }}</div></div>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;color:#9999B5">{{ h.dn }}</span>
+<span style="font-size:13px;font-weight:500;color:{{ h.lc }};background:{{ h.lbg }};border-radius:999px;padding:4px 10px">{{ h.lvl }}</span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.recursos }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.12 Recursos" style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(28px,4.4cqi,44px)">Recursos</h1>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px">
+<div style="background:linear-gradient(160deg,#20205D,#101052);border:1px solid rgba(47,168,192,.35);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:14px">
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#2FA8C0">RESPIRACIÓN GUIADA</span>
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:22px;line-height:1.2">Un minuto para bajar un cambio</div>
+<div style="display:flex;gap:8px;flex-wrap:wrap">
+<button onClick="{{ goRespira }}" style="min-height:48px;padding:0 18px;border:1px solid #2FA8C0;border-radius:2px;background:transparent;color:#7FD3E3;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;cursor:pointer">2 MIN</button>
+<button onClick="{{ goRespira }}" style="min-height:48px;padding:0 18px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-family:'IBM Plex Mono',monospace;font-size:13px;font-weight:500;cursor:pointer">5 MIN</button>
+</div>
+</div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:10px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">SUEÑO · 4 LECTURAS · 12 MIN</span><div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:20px;line-height:1.25">Dormir mejor en turno noche</div><div style="font-size:15px;color:#B8B8CB;line-height:1.5">Oscuridad, horarios y qué comer antes de acostarte.</div></div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:10px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">FAMILIA · 6 MIN</span><div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:20px;line-height:1.25">Volver a casa después del roster</div><div style="font-size:15px;color:#B8B8CB;line-height:1.5">Desconectar del turno y reencontrarte con los tuyos.</div></div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:10px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">ESTRÉS · 5 MIN</span><div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:20px;line-height:1.25">Manejo del estrés en el turno</div><div style="font-size:15px;color:#B8B8CB;line-height:1.5">Pausas cortas que entran en cualquier momento.</div></div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:22px;display:flex;flex-direction:column;gap:10px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">INFORMACIÓN · 4 MIN</span><div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:20px;line-height:1.25">Alcohol y descanso</div><div style="font-size:15px;color:#B8B8CB;line-height:1.5">Información clara, sin juicio.</div><a href="#" style="font-size:15px">Acceso confidencial a ayuda</a></div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.privacidad }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.14 Privacidad" style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:28px">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(28px,4.4cqi,44px)">Privacidad y datos</h1>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">QUIÉN VE QUÉ</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px">
+<div style="background:#101052;border:1.5px solid #2FA8C0;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:8px"><div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:20px">Vos</div><div style="font-size:15px;color:#B8B8CB;line-height:1.5">Todo: tus resultados, tu historial y tus conversaciones.</div></div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:8px"><div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:20px">Guardia de emergencia</div><div style="font-size:15px;color:#B8B8CB;line-height:1.5">Solo cuando pedís ayuda o hay un riesgo alto.</div></div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:8px"><div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:20px">Tu empresa</div><div style="font-size:15px;color:#B8B8CB;line-height:1.5">Solo estadísticas anónimas del grupo. Nunca tu nombre.</div></div>
+</div>
+</div>
+<div style="font-size:16px;display:flex;align-items:center;gap:10px;color:#7FD3E3;background:rgba(47,168,192,.12);padding:14px 18px;border-radius:12px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 3l8 3v6c0 4.5-3.4 7.8-8 9-4.6-1.2-8-4.5-8-9V6z"></path></svg>Tu información se compartió 0 veces en los últimos 90 días.</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">PERMISOS</div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+<sc-for list="{{ consentList }}" as="c" hint-placeholder-count="5">
+<div style="display:flex;gap:16px;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08)">
+<div style="flex:1;display:flex;flex-direction:column;gap:4px;min-width:0"><div style="font-weight:600;font-size:15.5px">{{ c.label }}</div><div style="font-size:14px;color:#B8B8CB;line-height:1.5">{{ c.desc }}</div></div>
+<span style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;color:{{ c.sc }}">{{ c.state }}</span>
+<button onClick="{{ c.onToggle }}" aria-label="{{ c.label }}" style="width:48px;height:48px;flex:none;border:none;background:transparent;padding:0;cursor:pointer;display:flex;align-items:center;justify-content:center"><span style="width:48px;height:28px;border-radius:999px;background:{{ c.track }};position:relative;display:block;border:1px solid rgba(255,255,255,.16)"><span style="position:absolute;top:1px;left:{{ c.knob }};width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s"></span></span></button>
+</div>
+</sc-for>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">TUS DATOS</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<button onClick="{{ doDescargar }}" style="min-height:52px;padding:0 20px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:15px;font-weight:500;cursor:pointer">Descargar mis datos</button>
+<button onClick="{{ askBorrar }}" style="min-height:52px;padding:0 20px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:15px;font-weight:500;cursor:pointer">Borrar mi historial</button>
+<button onClick="{{ askRetirar }}" style="min-height:52px;padding:0 20px;border:1px solid rgba(243,124,194,.5);border-radius:2px;background:transparent;color:#F37CC2;font-size:15px;font-weight:500;cursor:pointer">Retirar mi consentimiento</button>
+</div>
+<sc-if value="{{ privConfirmBorrar }}" hint-placeholder-val="{{ false }}"><div style="background:#20205D;border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px"><div style="font-size:16px;line-height:1.5">¿Borrar todo tu historial? Se elimina de todos tus dispositivos y no se puede recuperar.</div><div style="display:flex;gap:10px;flex-wrap:wrap"><button onClick="{{ doBorrar }}" style="min-height:48px;padding:0 18px;border:none;border-radius:2px;background:#F37CC2;color:#0B0B1A;font-size:15px;font-weight:600;cursor:pointer">Sí, borrar</button><button onClick="{{ cancelConfirm }}" style="min-height:48px;padding:0 18px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:15px;cursor:pointer">Cancelar</button></div></div></sc-if>
+<sc-if value="{{ privConfirmRetirar }}" hint-placeholder-val="{{ false }}"><div style="background:#20205D;border-radius:12px;padding:18px 20px;display:flex;flex-direction:column;gap:12px"><div style="font-size:16px;line-height:1.5">Si retirás tu consentimiento, dejamos de procesar tus datos. El botón de emergencia sigue funcionando.</div><div style="display:flex;gap:10px;flex-wrap:wrap"><button onClick="{{ doRetirar }}" style="min-height:48px;padding:0 18px;border:none;border-radius:2px;background:#F37CC2;color:#0B0B1A;font-size:15px;font-weight:600;cursor:pointer">Sí, retirar</button><button onClick="{{ cancelConfirm }}" style="min-height:48px;padding:0 18px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:15px;cursor:pointer">Cancelar</button></div></div></sc-if>
+<sc-if value="{{ hasNotice }}" hint-placeholder-val="{{ false }}"><div role="status" style="font-size:15px;color:#7FD3E3">{{ notice }}</div></sc-if>
+</div>
+<p style="margin:0;font-size:13px;color:#9999B5;line-height:1.6;max-width:760px">Tus datos se tratan según la Ley N.º 25.326 de Protección de Datos Personales (Argentina). Podés ejercer tus derechos de acceso, rectificación y supresión en cualquier momento desde esta pantalla.</p>
+</div>
+</sc-if>
+<sc-if value="{{ is.dispositivos }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.15 Dispositivos" style="padding:clamp(20px,4cqi,48px);max-width:1120px;width:100%;margin:0 auto;display:flex;flex-direction:column;gap:24px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:clamp(28px,4.4cqi,44px)">Dispositivos</h1>
+<span style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:{{ syncChipC }};background:{{ syncChipBg }};border-radius:999px;padding:6px 12px">{{ syncChip }}</span>
+</div>
+<p style="margin:0;font-size:16px;line-height:1.6;color:#B8B8CB;max-width:720px">Todo lo que hagas en el campamento aparece en tu teléfono y en la web de tu casa. Sin señal, la app guarda todo cifrado y lo sube cuando vuelve la conexión.</p>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+<sc-for list="{{ devs }}" as="dv" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:16px;padding:18px 20px;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap">
+<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2FA8C0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="flex:none"><path d="{{ dv.icon }}"></path></svg>
+<div style="flex:1 1 200px;min-width:0;display:flex;flex-direction:column;gap:4px">
+<div style="font-weight:600;font-size:16px">{{ dv.name }}</div>
+<div style="font-size:14px;color:#B8B8CB">{{ dv.os }} · {{ dv.last }}</div>
+<sc-if value="{{ dv.ef }}" hint-placeholder-val="{{ false }}"><span style="align-self:flex-start;font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.08em;color:#9999B5;border:1px solid rgba(255,255,255,.16);border-radius:999px;padding:3px 8px">SESIÓN EFÍMERA · NO GUARDA DATOS</span></sc-if>
+</div>
+<sc-if value="{{ dv.open }}" hint-placeholder-val="{{ true }}"><button onClick="{{ dv.onClose }}" style="min-height:48px;padding:0 16px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:14px;cursor:pointer">Cerrar sesión en este dispositivo</button></sc-if>
+</div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.k_espera }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.16 Kiosco · Espera" style="flex:1;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:space-between;padding:96px 72px 72px;text-align:center;background-color:#010147;background-image:linear-gradient(rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px),linear-gradient(180deg,#5D0158 0%,#010147 60%);background-size:64px 64px,64px 64px,100% 100%">
+<img src="assets/serena-logo-white.png" alt="SERENA" style="width:640px;max-width:100%;height:auto">
+<div style="display:flex;flex-direction:column;align-items:center;gap:20px">
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:200px;letter-spacing:-.04em;line-height:1;font-variant-numeric:tabular-nums">{{ clock }}</div>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:22px;letter-spacing:.08em;color:#B8B8CB">{{ dateStr }}</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:32px;width:100%;align-items:center">
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:40px;line-height:1.25">Check-in de bienestar<br><span style="color:#B8B8CB;font-weight:600">Voluntario · Confidencial</span></div>
+<button onClick="{{ goKId }}" style="width:100%;height:160px;border:none;border-radius:4px;background:#E62E9C;color:#0B0B1A;font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:56px;cursor:pointer">Empezar</button>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:16px;letter-spacing:.08em;color:#9999B5">NADA QUEDA GUARDADO EN ESTA PANTALLA</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.k_id }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.16 Kiosco · Identificación" style="flex:1;display:flex;flex-direction:column;align-items:center;gap:40px;padding:72px">
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:56px;margin:0;text-align:center">¿Quién sos?</h1>
+<div style="display:flex;gap:8px;width:100%;max-width:760px">
+<button onClick="{{ setQr }}" style="flex:1;height:88px;border:1.5px solid {{ kQrTab.border }};border-radius:4px;background:{{ kQrTab.bg }};color:{{ kQrTab.color }};font-size:24px;font-weight:600;cursor:pointer">QR de la credencial</button>
+<button onClick="{{ setLeg }}" style="flex:1;height:88px;border:1.5px solid {{ kLegTab.border }};border-radius:4px;background:{{ kLegTab.bg }};color:{{ kLegTab.color }};font-size:24px;font-weight:600;cursor:pointer">Legajo + PIN</button>
+</div>
+<sc-if value="{{ kQr }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:32px">
+<div style="position:relative;width:560px;height:560px;border-radius:12px;background:radial-gradient(ellipse at 50% 40%,#20205D,#0b0b2e)">
+<div style="position:absolute;inset:80px;border:3px solid #2FA8C0;border-radius:12px;clip-path:polygon(0 0,22% 0,22% 3px,78% 3px,78% 0,100% 0,100% 22%,calc(100% - 3px) 22%,calc(100% - 3px) 78%,100% 78%,100% 100%,78% 100%,78% calc(100% - 3px),22% calc(100% - 3px),22% 100%,0 100%,0 78%,3px 78%,3px 22%,0 22%)"></div>
+</div>
+<div style="font-size:28px;color:#B8B8CB">Acercá tu credencial a la cámara.</div>
+<button onClick="{{ kStart }}" style="height:88px;padding:0 48px;border:1.5px solid rgba(255,255,255,.22);border-radius:4px;background:transparent;color:#fff;font-size:22px;cursor:pointer">Simular lectura del QR</button>
+</div>
+</sc-if>
+<sc-if value="{{ kLegajo }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;align-items:center;gap:32px;width:100%;max-width:560px">
+<div style="width:100%;display:flex;flex-direction:column;gap:10px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:18px;letter-spacing:.08em;color:#9999B5">LEGAJO</span><div style="height:88px;background:#20205D;border:1.5px solid rgba(255,255,255,.14);border-radius:4px;display:flex;align-items:center;padding:0 24px;font-family:'IBM Plex Mono',monospace;font-size:32px">04817</div></div>
+<div style="display:flex;gap:24px"><sc-for list="{{ pinDots }}" as="pd" hint-placeholder-count="4"><span style="width:28px;height:28px;border-radius:50%;border:2px solid #2FA8C0;background:{{ pd.bg }}"></span></sc-for></div>
+<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:100%">
+<sc-for list="{{ keys }}" as="k" hint-placeholder-count="12"><button onClick="{{ k.onClick }}" style="height:104px;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:#101052;color:#fff;font-size:34px;font-weight:500;cursor:pointer;font-family:'IBM Plex Sans',sans-serif">{{ k.label }}</button></sc-for>
+</div>
+<button onClick="{{ kStart }}" disabled="{{ kNotReady }}" style="width:100%;height:112px;border:none;border-radius:4px;background:#E62E9C;color:#0B0B1A;font-size:32px;font-weight:600;cursor:pointer;opacity:{{ kOpacity }}">Continuar</button>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ is.k_cierre }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.16 Kiosco · Cierre" style="flex:1;min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:56px;padding:72px;text-align:center">
+<div style="width:180px;height:180px;border-radius:50%;background:rgba(47,168,192,.16);display:flex;align-items:center;justify-content:center"><svg width="96" height="96" viewBox="0 0 24 24" fill="none" stroke="#7FD3E3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg></div>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:64px;line-height:1.15;margin:0;text-wrap:balance">Listo, Matías. Tu registro ya está en tu teléfono.</h1>
+<div style="display:flex;align-items:center;gap:28px">
+<div style="position:relative;width:128px;height:128px"><svg viewBox="0 0 128 128" style="width:128px;height:128px;transform:rotate(-90deg)"><circle cx="64" cy="64" r="54" fill="none" stroke="rgba(255,255,255,.12)" stroke-width="6"></circle><circle cx="64" cy="64" r="54" fill="none" stroke="#2FA8C0" stroke-width="6" stroke-dasharray="{{ kRingC }}" stroke-dashoffset="{{ kRingOffset }}" style="transition:stroke-dashoffset 1s linear"></circle></svg><span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:44px">{{ kioskT }}</span></div>
+<div style="font-size:28px;color:#B8B8CB;text-align:left;line-height:1.4">Cerramos tu sesión<br>automáticamente.</div>
+</div>
+<button onClick="{{ endKiosk }}" style="height:112px;padding:0 64px;border:1.5px solid rgba(255,255,255,.22);border-radius:4px;background:transparent;color:#fff;font-size:30px;font-weight:500;cursor:pointer">Cerrar ahora</button>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:16px;letter-spacing:.08em;color:#9999B5">NADA QUEDA EN ESTA PANTALLA</div>
+</div>
+</sc-if>
+</div>
+<sc-if value="{{ deskNote }}" hint-placeholder-val="{{ false }}">
+<div style="flex:none;padding:10px 24px;border-top:1px solid rgba(255,255,255,.10);font-size:12px;color:#9999B5;font-style:italic">Datos de ejemplo. Vista previa de diseño.</div>
+</sc-if>
+<sc-if value="{{ showBottomNav }}" hint-placeholder-val="{{ false }}">
+<div style="height:84px;flex:none;display:flex;border-top:1px solid rgba(255,255,255,.10);background:#010140;padding:0 6px 14px">
+<sc-for list="{{ bottomItems }}" as="n" hint-placeholder-count="5">
+<button onClick="{{ n.onClick }}" style="flex:1;min-width:0;border:none;background:transparent;color:{{ n.color }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:500;cursor:pointer;min-height:48px">
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{ n.icon }}"></path></svg>{{ n.label }}</button>
+</sc-for>
+</div>
+</sc-if>
+</div>
+<sc-if value="{{ emergOpen }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="6.13 Emergencia" style="position:absolute;inset:0;z-index:40;background:rgba(1,1,71,.88);display:flex;align-items:{{ sheetAlign }};justify-content:center;padding:{{ sheetPad }}px">
+<div style="width:100%;max-width:{{ sheetMax }}px;max-height:100%;overflow:auto;background:#E62E9C;color:#0B0B1A;border-radius:{{ sheetRad }}px;padding:28px 24px;display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;justify-content:space-between;align-items:center"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em">AYUDA · MINA LOS ANDES</span><button onClick="{{ closeEmerg }}" aria-label="Cerrar" style="width:48px;height:48px;border:none;background:rgba(11,11,26,.12);border-radius:50%;color:#0B0B1A;font-size:22px;cursor:pointer">×</button></div>
+<sc-if value="{{ emergChoose }}" hint-placeholder-val="{{ true }}">
+<div style="display:flex;flex-direction:column;gap:14px">
+<h2 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:34px;line-height:1.1;margin:0">¿Necesitás ayuda ahora?</h2>
+<sc-for list="{{ eOpts }}" as="eo" hint-placeholder-count="3">
+<button onClick="{{ eo.onClick }}" style="min-height:{{ eTap }}px;text-align:left;padding:16px 20px;border:2px solid {{ eo.border }};border-radius:12px;background:#0B0B1A;color:#fff;cursor:pointer;display:flex;flex-direction:column;gap:4px"><span style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:20px">{{ eo.label }}</span><span style="font-size:14px;color:#B8B8CB">{{ eo.desc }}</span></button>
+</sc-for>
+<button onClick="{{ toggleShare }}" style="display:flex;align-items:center;gap:14px;min-height:56px;padding:0 4px;border:none;background:transparent;color:#0B0B1A;font-size:16px;font-weight:600;cursor:pointer;text-align:left"><span style="width:48px;height:28px;border-radius:999px;background:{{ shareTrack }};position:relative;display:block;flex:none"><span style="position:absolute;top:2px;left:{{ shareKnob }};width:24px;height:24px;border-radius:50%;background:#fff;transition:left .2s"></span></span>Compartir mi ubicación con la guardia</button>
+<sc-if value="{{ hasType }}" hint-placeholder-val="{{ false }}">
+<div onPointerDown="{{ onSlideDown }}" onPointerMove="{{ onSlideMove }}" onPointerUp="{{ onSlideUp }}" onPointerCancel="{{ onSlideUp }}" style="position:relative;height:68px;border-radius:999px;background:#0B0B1A;touch-action:none;cursor:grab;user-select:none">
+<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:600;font-size:16px;opacity:{{ slideLabelOp }};padding-left:40px">Deslizá para enviar el aviso</span>
+<span style="position:absolute;top:4px;left:calc(4px + (100% - 68px) * {{ slideFrac }});width:60px;height:60px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0B0B1A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg></span>
+</div>
+</sc-if>
+</div>
+</sc-if>
+<sc-if value="{{ emergSent }}" hint-placeholder-val="{{ false }}">
+<div style="display:flex;flex-direction:column;gap:16px">
+<sc-if value="{{ emergOnline }}" hint-placeholder-val="{{ true }}">
+<h2 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:30px;line-height:1.15;margin:0">Aviso enviado a la guardia de Mina Los Andes. Quedate en línea.</h2>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:13px;letter-spacing:.08em">23:48 · CANAL: GUARDIA DE FAENA (PEC)</div>
+</sc-if>
+<sc-if value="{{ emergOffline }}" hint-placeholder-val="{{ false }}">
+<h2 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:30px;line-height:1.15;margin:0">Sin señal.</h2>
+<p style="margin:0;font-size:18px;line-height:1.5;font-weight:500">Guardamos el aviso y lo enviamos apenas haya conexión. Si podés, avisá por radio.</p>
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:13px;letter-spacing:.08em">23:48 · EN COLA · SE REINTENTA CADA 10 S</div>
+</sc-if>
+<button onClick="{{ closeEmerg }}" style="min-height:56px;border:none;border-radius:2px;background:#0B0B1A;color:#fff;font-size:16px;font-weight:600;cursor:pointer">Volver</button>
+</div>
+</sc-if>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ sessionOut }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;z-index:30;background:rgba(1,1,71,.94);display:flex;align-items:center;justify-content:center;padding:24px">
+<div style="max-width:440px;display:flex;flex-direction:column;gap:18px;align-items:center;text-align:center">
+<img src="assets/serena-mark.png" alt="" style="width:72px;height:72px">
+<h2 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:28px;line-height:1.15;margin:0">Cerramos tu sesión por inactividad.</h2>
+<p style="margin:0;font-size:16px;line-height:1.55;color:#B8B8CB">Pasaron {{ sessionMin }} minutos sin uso. Lo hacemos para cuidar tu privacidad. Tu registro está a salvo.</p>
+<button onClick="{{ reLogin }}" style="min-height:{{ tap }}px;padding:0 32px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;cursor:pointer">Volver a ingresar</button>
+</div>
+</div>
+</sc-if>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ isDoc }}" hint-placeholder-val="{{ false }}">
+<div style="position:absolute;inset:0;overflow:auto">
+<sc-if value="{{ is.pendientes }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Pendientes por confirmar" style="max-width:1080px;margin:0 auto;padding:48px 40px 80px;display:flex;flex-direction:column;gap:32px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#2FA8C0">ANEXO TÉCNICO · ESTRUCTURA ABIERTA</div>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:40px">Pendientes por confirmar</h1>
+<p style="margin:0;font-size:17px;line-height:1.6;color:#B8B8CB;max-width:760px">La app ya reserva el lugar de cada punto abierto. Cuando llegue la respuesta, se completa el espacio sin rediseñar el flujo. El borde punteado en las pantallas marca estos espacios.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">SDK DE ESCANEO · NEUROSENTINEL™ (SHEN.AI, MARCA BLANCA)</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px">
+<div style="background:#101052;border:1.5px dashed #2FA8C0;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#F0CF7A">PENDIENTE · SHEN.AI</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9999B5">P1</span></div>
+<div style="font-weight:600;font-size:17px">Operación 100 % offline con licencia sin internet</div>
+<div style="font-size:14.5px;line-height:1.55;color:#B8B8CB"><strong style="color:#fff">Si se confirma:</strong> el escaneo corre igual sin Starlink/LTE y el resultado entra a la cola de sincronización. <strong style="color:#fff">Si no:</strong> Luz y encuadre muestra “Escaneo no disponible sin conexión” y el check-in sigue con autorreporte y reacción.</div>
+<button onClick="{{ jumpScan }}" style="align-self:flex-start;min-height:40px;padding:0;border:none;background:none;color:#2FA8C0;font-size:14px;cursor:pointer;text-decoration:underline">Ver en Escaneo</button>
+</div>
+<div style="background:#101052;border:1.5px dashed #2FA8C0;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#F0CF7A">PENDIENTE · SHEN.AI</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9999B5">P2</span></div>
+<div style="font-weight:600;font-size:17px">Soporte en web y en kiosco</div>
+<div style="font-size:14.5px;line-height:1.55;color:#B8B8CB"><strong style="color:#fff">Si no hay soporte web:</strong> en escritorio se usa el estado “Sin cámara” (solo autorreporte). <strong style="color:#fff">Si no hay soporte en kiosco:</strong> el kiosco ofrece check-in sin escaneo.</div>
+<button onClick="{{ jumpWeb }}" style="align-self:flex-start;min-height:40px;padding:0;border:none;background:none;color:#2FA8C0;font-size:14px;cursor:pointer;text-decoration:underline">Ver estado en escritorio</button>
+</div>
+<div style="background:#101052;border:1.5px dashed #2FA8C0;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#F0CF7A">PENDIENTE · SHEN.AI + TRIAL 30 DÍAS</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9999B5">P3</span></div>
+<div style="font-weight:600;font-size:17px">Requisitos de cámara y luz en todos los tonos de piel</div>
+<div style="font-size:14.5px;line-height:1.55;color:#B8B8CB">Los umbrales insuficiente / justa / óptima quedan como parámetros. El medidor y los textos no cambian; cambian los valores de corte.</div>
+<button onClick="{{ jumpLight }}" style="align-self:flex-start;min-height:40px;padding:0;border:none;background:none;color:#2FA8C0;font-size:14px;cursor:pointer;text-decoration:underline">Ver en Luz y encuadre</button>
+</div>
+<div style="background:#101052;border:1.5px dashed #2FA8C0;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:10px">
+<div style="display:flex;justify-content:space-between;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#F0CF7A">PENDIENTE · SHEN.AI</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#9999B5">P4</span></div>
+<div style="font-weight:600;font-size:17px">No se almacenan ni transmiten imágenes</div>
+<div style="font-size:14.5px;line-height:1.55;color:#B8B8CB">Condiciona el sello “El video no se guarda · se procesa en este dispositivo” y el texto del consentimiento. No publicar sin confirmación por escrito.</div>
+<button onClick="{{ jumpConsent }}" style="align-self:flex-start;min-height:40px;padding:0;border:none;background:none;color:#2FA8C0;font-size:14px;cursor:pointer;text-decoration:underline">Ver en Consentimiento</button>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">CONTRATO DEL SLOT · LO QUE LA INTERFAZ ESPERA DEL SDK</div>
+<div style="background:#0a0a3a;border:1px solid rgba(255,255,255,.10);border-radius:12px;overflow:hidden">
+<div style="display:grid;grid-template-columns:minmax(160px,1fr) minmax(200px,1.4fr) minmax(160px,1fr);gap:0;font-size:14px">
+<div style="padding:12px 18px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#9999B5;border-bottom:1px solid rgba(255,255,255,.10)">EVENTO</div><div style="padding:12px 18px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#9999B5;border-bottom:1px solid rgba(255,255,255,.10)">DATOS</div><div style="padding:12px 18px;font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#9999B5;border-bottom:1px solid rgba(255,255,255,.10)">DÓNDE SE VE</div>
+<div style="padding:12px 18px;font-family:'IBM Plex Mono',monospace;color:#7FD3E3;border-bottom:1px solid rgba(255,255,255,.06)">calidad</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06);color:#B8B8CB">luz, rostro centrado, movimiento, contraluz</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06)">Medidor y checklist · 6.6</div>
+<div style="padding:12px 18px;font-family:'IBM Plex Mono',monospace;color:#7FD3E3;border-bottom:1px solid rgba(255,255,255,.06)">progreso</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06);color:#B8B8CB">0 a 1, duración 30–60 s</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06)">Anillo y contador · 6.7</div>
+<div style="padding:12px 18px;font-family:'IBM Plex Mono',monospace;color:#7FD3E3;border-bottom:1px solid rgba(255,255,255,.06)">metrica</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06);color:#B8B8CB">pulso, HRV, respiración, estrés + estable sí/no</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06)">Cuatro indicadores · 6.7</div>
+<div style="padding:12px 18px;font-family:'IBM Plex Mono',monospace;color:#7FD3E3;border-bottom:1px solid rgba(255,255,255,.06)">señal_perdida</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06);color:#B8B8CB">motivo (movimiento, luz, rostro)</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06)">Aviso “Retomamos en 3 s”</div>
+<div style="padding:12px 18px;font-family:'IBM Plex Mono',monospace;color:#7FD3E3;border-bottom:1px solid rgba(255,255,255,.06)">completo</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06);color:#B8B8CB">valores finales + calidad de la lectura</div><div style="padding:12px 18px;border-bottom:1px solid rgba(255,255,255,.06)">Resultado · 6.9</div>
+<div style="padding:12px 18px;font-family:'IBM Plex Mono',monospace;color:#7FD3E3">error</div><div style="padding:12px 18px;color:#B8B8CB">sin_permiso · sin_camara · no_soportado · sin_licencia</div><div style="padding:12px 18px">Estados de cámara · §7</div>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">OTROS DATOS ABIERTOS</div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px">
+<div style="display:flex;gap:16px;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap"><div style="flex:1 1 300px;display:flex;flex-direction:column;gap:4px"><div style="font-weight:600;font-size:16px">Líneas de ayuda por país y canal de la guardia (PEC)</div><div style="font-size:14px;color:#B8B8CB">Emergencia, Resultado alto y estado de cuidado del Acompañante.</div></div><button onClick="{{ jumpAlto }}" style="min-height:40px;padding:0;border:none;background:none;color:#2FA8C0;font-size:14px;cursor:pointer;text-decoration:underline">Ver Resultado alto</button></div>
+<div style="display:flex;gap:16px;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap"><div style="flex:1 1 300px;display:flex;flex-direction:column;gap:4px"><div style="font-weight:600;font-size:16px">Umbrales de luz</div><div style="font-size:14px;color:#B8B8CB">Sensor de luz ambiente (Android) + luminancia sobre el rostro (todos). Se calibran en el trial.</div></div><button onClick="{{ jumpLight }}" style="min-height:40px;padding:0;border:none;background:none;color:#2FA8C0;font-size:14px;cursor:pointer;text-decoration:underline">Ver Luz y encuadre</button></div>
+<div style="display:flex;gap:16px;align-items:center;padding:16px 20px;border-bottom:1px solid rgba(255,255,255,.08);flex-wrap:wrap"><div style="flex:1 1 300px;display:flex;flex-direction:column;gap:4px"><div style="font-weight:600;font-size:16px">Política de privacidad completa y ley de datos de Chile</div><div style="font-size:14px;color:#B8B8CB">Enlace “Leer la política completa” y texto legal de Privacidad.</div></div><button onClick="{{ jumpPriv }}" style="min-height:40px;padding:0;border:none;background:none;color:#2FA8C0;font-size:14px;cursor:pointer;text-decoration:underline">Ver Privacidad</button></div>
+<div style="display:flex;gap:16px;align-items:center;padding:16px 20px;flex-wrap:wrap"><div style="flex:1 1 300px;display:flex;flex-direction:column;gap:4px"><div style="font-weight:600;font-size:16px">Umbrales de nivel bajo / moderado / alto</div><div style="font-size:14px;color:#B8B8CB">Definen qué variante de Resultado se muestra y cuándo se activa el escalamiento.</div></div><button onClick="{{ jumpScan }}" style="min-height:40px;padding:0;border:none;background:none;color:#2FA8C0;font-size:14px;cursor:pointer;text-decoration:underline">Ver flujo de escaneo</button></div>
+</div>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{ is.componentes }}" hint-placeholder-val="{{ false }}">
+<div data-screen-label="Hoja de componentes" style="max-width:1080px;margin:0 auto;padding:48px 40px 80px;display:flex;flex-direction:column;gap:40px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#2FA8C0">SERENA COMPANION™ · SISTEMA</div>
+<h1 style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;line-height:1.1;margin:0;font-size:40px">Hoja de componentes</h1>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">TIPOGRAFÍA</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px">
+<div style="background:#101052;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:8px"><span style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;letter-spacing:-.02em;font-size:34px">Archivo 125</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#9999B5">DISPLAY · 700 · −0.02 EM</span></div>
+<div style="background:#101052;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:8px"><span style="font-size:18px;line-height:1.55">IBM Plex Sans para el texto y la interfaz.</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#9999B5">CUERPO · 16/17 PX · 1.55</span></div>
+<div style="background:#101052;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:8px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:28px;font-variant-numeric:tabular-nums">78 · 42 · 3,1</span><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#9999B5">DATOS · PLEX MONO 500</span></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">BOTONES</div>
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+<button style="min-height:52px;padding:0 24px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600">Principal</button>
+<button style="min-height:52px;padding:0 22px;border:1px solid rgba(255,255,255,.22);border-radius:2px;background:transparent;color:#fff;font-size:16px;font-weight:500">Secundario</button>
+<button style="min-height:52px;padding:0 22px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:17px;font-weight:600;opacity:.35">Desactivado</button>
+<button style="min-height:48px;padding:0 8px;border:none;background:transparent;color:#B8B8CB;font-size:15px;text-decoration:underline">Enlace</button>
+<button style="height:40px;padding:0 18px 0 14px;border:none;border-radius:999px;background:#E62E9C;color:#0B0B1A;font-weight:600;font-size:15px">● Ayuda</button>
+<button style="min-height:72px;padding:0 36px;border:none;border-radius:2px;background:#E62E9C;color:#0B0B1A;font-size:22px;font-weight:600">Kiosco 72 px</button>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">CHIPS DE ESTADO</div>
+<div style="display:flex;gap:10px;flex-wrap:wrap">
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#7FD3E3;background:rgba(47,168,192,.16);border-radius:999px;padding:6px 12px">TODO EN ORDEN</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#F0CF7A;background:rgba(233,190,80,.16);border-radius:999px;padding:6px 12px">TE CONVIENE UNA PAUSA</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#F37CC2;background:rgba(230,46,156,.18);border-radius:999px;padding:6px 12px">ACOMPAÑAMIENTO</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#0B0B1A;background:#E62E9C;border-radius:999px;padding:6px 12px">EMERGENCIA</span>
+<span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#7FD3E3;background:rgba(47,168,192,.16);border-radius:999px;padding:6px 12px">ROSTER · DÍA 9 DE 14</span>
+</div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px">
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">MEDIDOR DE LUZ</div>
+<div style="background:#101052;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:4px"><div style="flex:1;height:10px;border-radius:2px;background:#F37CC2"></div><div style="flex:1;height:10px;border-radius:2px;background:rgba(255,255,255,.12)"></div><div style="flex:1;height:10px;border-radius:2px;background:rgba(255,255,255,.12)"></div></div><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#F37CC2">LUZ INSUFICIENTE</span></div>
+<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:4px"><div style="flex:1;height:10px;border-radius:2px;background:#F0CF7A"></div><div style="flex:1;height:10px;border-radius:2px;background:#F0CF7A"></div><div style="flex:1;height:10px;border-radius:2px;background:rgba(255,255,255,.12)"></div></div><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#F0CF7A">LUZ JUSTA</span></div>
+<div style="display:flex;flex-direction:column;gap:8px"><div style="display:flex;gap:4px"><div style="flex:1;height:10px;border-radius:2px;background:#7FD3E3"></div><div style="flex:1;height:10px;border-radius:2px;background:#7FD3E3"></div><div style="flex:1;height:10px;border-radius:2px;background:#7FD3E3"></div></div><span style="font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.08em;color:#7FD3E3">LUZ ÓPTIMA</span></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">VALOR FISIOLÓGICO</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+<div style="background:#101052;border:1px solid rgba(47,168,192,.5);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;color:#B8B8CB">Pulso</div><div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:26px">78</span><span style="font-size:13px;color:#9999B5">lpm</span></div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:#7FD3E3">ESTABLE</div></div>
+<div style="background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:6px"><div style="font-size:14px;color:#B8B8CB">Estrés</div><div style="display:flex;align-items:baseline;gap:6px"><span style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:26px;color:#9999B5">—</span></div><div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:#9999B5">ESTABILIZANDO</div></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">BURBUJAS DE CHAT</div>
+<div style="display:flex;flex-direction:column;gap:10px">
+<div style="align-self:flex-start;max-width:85%;background:#101052;border:1px solid rgba(255,255,255,.10);border-radius:12px 12px 12px 2px;padding:12px 16px;font-size:15px;line-height:1.5">Te entiendo, Matías. ¿Pudiste hablar con ellos?</div>
+<div style="align-self:flex-end;max-width:85%;background:#20205D;border:1px solid #2FA8C0;border-radius:12px 12px 2px 12px;padding:12px 16px;font-size:15px;line-height:1.5">Poco, la señal es mala.</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">INDICADOR DE SINCRONIZACIÓN</div>
+<div style="background:#101052;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:14px;font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:.08em;color:#B8B8CB">
+<div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:50%;background:#2FA8C0;box-shadow:0 0 0 4px rgba(47,168,192,.18)"></span>SINCRONIZADO</div>
+<div style="display:flex;align-items:center;gap:10px">{{ spinnerDemo }}SINCRONIZANDO</div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:50%;background:#F0CF7A"></span>PENDIENTE</div>
+<div style="display:flex;align-items:center;gap:10px"><span style="width:10px;height:10px;border-radius:50%;background:#6E6E8C"></span>SIN CONEXIÓN</div>
+</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:14px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:12px;letter-spacing:.08em;color:#9999B5">NAVEGACIÓN INFERIOR · MÓVIL</div>
+<div style="width:390px;max-width:100%;height:76px;display:flex;border:1px solid rgba(255,255,255,.10);border-radius:12px;background:#010140">
+<sc-for list="{{ bottomDemo }}" as="n" hint-placeholder-count="5"><div style="flex:1;min-width:0;color:{{ n.color }};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;font-size:11px;font-weight:500"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="{{ n.icon }}"></path></svg>{{ n.label }}</div></sc-for>
+</div>
+</div>
+</div>
+</sc-if>
+</div>
+</sc-if>
+</main>
+<sc-if value="{{ showPanels }}" hint-placeholder-val="{{ true }}">
+<aside style="width:264px;flex:none;border-left:1px solid rgba(255,255,255,.10);overflow:auto;padding:20px 16px;display:flex;flex-direction:column;gap:24px;background:#03033f">
+<div style="flex:none;display:flex;flex-direction:column;gap:6px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10.5px;letter-spacing:.08em;color:#9999B5">PANTALLA · {{ screenRef }}</div>
+<div style="font-family:'Archivo',sans-serif;font-stretch:125%;font-weight:700;font-size:18px;line-height:1.2">{{ screenTitle }}</div>
+</div>
+<sc-if value="{{ hasVariants }}" hint-placeholder-val="{{ false }}">
+<div style="flex:none;display:flex;flex-direction:column;gap:4px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10.5px;letter-spacing:.08em;color:#9999B5;padding-bottom:4px">VARIANTES Y ESTADOS</div>
+<sc-for list="{{ variants }}" as="vr" hint-placeholder-count="3">
+<button onClick="{{ vr.onClick }}" style="flex:none;text-align:left;min-height:38px;line-height:1.3;padding:8px 12px;border:1px solid {{ vr.border }};border-radius:2px;background:{{ vr.bg }};color:{{ vr.color }};font-size:13.5px;cursor:pointer">{{ vr.label }}</button>
+</sc-for>
+</div>
+</sc-if>
+<div style="flex:none;display:flex;flex-direction:column;gap:8px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10.5px;letter-spacing:.08em;color:#9999B5">SINCRONIZACIÓN · §7</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+<sc-for list="{{ conexOpts }}" as="c" hint-placeholder-count="4">
+<button onClick="{{ c.onClick }}" style="min-height:36px;padding:0 8px;border:1px solid {{ c.border }};border-radius:2px;background:{{ c.bg }};color:{{ c.color }};font-size:12.5px;cursor:pointer">{{ c.label }}</button>
+</sc-for>
+</div>
+</div>
+<div style="flex:none;display:flex;flex-direction:column;gap:6px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10.5px;letter-spacing:.08em;color:#9999B5">SIEMPRE DISPONIBLE</div>
+<button onClick="{{ openEmerg }}" style="flex:none;text-align:left;min-height:38px;line-height:1.3;padding:8px 12px;border:1px solid rgba(230,46,156,.5);border-radius:2px;background:rgba(230,46,156,.12);color:#F37CC2;font-size:13.5px;cursor:pointer">Abrir botón de emergencia · §6.13</button>
+<button onClick="{{ openSession }}" style="flex:none;text-align:left;min-height:38px;line-height:1.3;padding:8px 12px;border:1px solid rgba(255,255,255,.14);border-radius:2px;background:transparent;color:#B8B8CB;font-size:13.5px;cursor:pointer">Sesión cerrada por inactividad</button>
+</div>
+<sc-if value="{{ marcadores }}" hint-placeholder-val="{{ true }}">
+<div style="flex:none;display:flex;flex-direction:column;gap:8px;padding:14px;border:1.5px dashed #2FA8C0;border-radius:8px">
+<div style="font-family:'IBM Plex Mono',monospace;font-weight:500;font-size:10.5px;letter-spacing:.08em;color:#7FD3E3">ESPACIO RESERVADO</div>
+<div style="font-size:13px;color:#B8B8CB;line-height:1.5">El borde punteado marca dónde se monta el SDK de escaneo o un dato aún por confirmar.</div>
+<button onClick="{{ goPend }}" style="text-align:left;padding:0;border:none;background:none;color:#2FA8C0;font-size:13px;cursor:pointer;text-decoration:underline">Ver pendientes por confirmar</button>
+</div>
+</sc-if>
+</aside>
+</sc-if>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;marcadores&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Estructura&quot;},&quot;presentacion&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Estructura&quot;},&quot;duracionEscaneo&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;30&quot;,&quot;45&quot;,&quot;60&quot;],&quot;default&quot;:&quot;45&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Escaneo&quot;}}">
+const KALLOW=['k_espera','k_id','k_cierre','c1','c2','c3','c4','resultado','respira'];
+const GROUPS=[
+ {name:'Acceso',items:[['splash','Splash y bienvenida','6.1'],['consent','Consentimiento','6.2'],['login','Ingreso seguro','6.3']]},
+ {name:'Principal',items:[['hoy','Hoy','6.4'],['c1','Check-in · Ánimo','6.5'],['c2','Check-in · Luz y encuadre','6.6'],['c3','Check-in · Escaneo','6.7'],['c4','Check-in · Reacción y voz','6.8'],['resultado','Resultado','6.9'],['respira','Respiración guiada','6.12']]},
+ {name:'Secciones',items:[['chat','Acompañante','6.10'],['bienestar','Mi bienestar','6.11'],['recursos','Recursos','6.12'],['privacidad','Privacidad y datos','6.14'],['dispositivos','Dispositivos','6.15']]},
+ {name:'Kiosco',items:[['k_espera','Espera','6.16'],['k_id','Identificación','6.16'],['k_cierre','Cierre','6.16']]},
+ {name:'Sistema',items:[['componentes','Hoja de componentes','§8'],['pendientes','Pendientes por confirmar','Anexo']]}
+];
+const TITLES={};GROUPS.forEach(g=>g.items.forEach(([k,l,r])=>TITLES[k]=[l,r]));
+const VARIANTS={
+ splash:[['0','Splash'],['1','Bienvenida 1 · Es tuyo'],['2','Bienvenida 2 · Voluntario'],['3','Bienvenida 3 · No estás solo']],
+ login:[['cred','Usuario y contraseña'],['2fa','Segundo factor'],['err','Código incorrecto'],['pin','PIN del teléfono']],
+ hoy:[['turno','En turno · Día 9'],['casa','En casa · Descanso día 3'],['claro','Alto contraste (sol)']],
+ c2:[['low','Luz insuficiente'],['mid','Luz justa'],['ok','Luz óptima'],['nocam','Cámara sin permiso'],['sincam','Sin cámara (escritorio)']],
+ c3:[['run','En curso'],['lost','Señal perdida']],
+ resultado:[['bajo','Nivel bajo'],['moderado','Nivel moderado'],['alto','Nivel alto']],
+ chat:[['normal','Conversación'],['cuidado','Estado de cuidado']]
+};
+const ICON={
+ hoy:'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4',
+ c1:'M2 12h4l2.5-6 4.5 12 2.5-6H22',
+ chat:'M4 4h16v12H10l-6 4z',
+ bienestar:'M4 4v16h16M8 15l3.5-4 3 2.5L20 7',
+ recursos:'M4 5c3-1 5-1 8 1 3-2 5-2 8-1v14c-3-1-5-1-8 1-3-2-5-2-8-1zM12 6v14',
+ privacidad:'M12 3l8 3v6c0 4.5-3.4 7.8-8 9-4.6-1.2-8-4.5-8-9V6z',
+ dispositivos:'M3 5h13v10H3zM1 19h17M19 8h4v12h-4z',
+ phone:'M8 2h8v20H8zM11 18h2',tablet:'M4 3h16v18H4zM11 18h2',laptop:'M5 5h14v10H5zM2 19h20'
+};
+const NAV=[['hoy','Hoy'],['c1','Check-in'],['chat','Acompañante'],['bienestar','Mi bienestar'],['recursos','Recursos']];
+const NAV_DESK=[['privacidad','Privacidad'],['dispositivos','Dispositivos']];
+const INIT=[
+ {u:true,t:'Estoy en el día 9 y ya no doy más, extraño a mis hijos.',h:'23:31'},
+ {u:false,t:'Te entiendo, Matías. Nueve días lejos pesan, y más con turno noche. Extrañar a tus hijos habla de lo mucho que te importan. ¿Pudiste hablar con ellos en estos días?',h:'23:31'},
+ {u:true,t:'Poco, la señal es mala.',h:'23:33'},
+ {u:false,t:'Qué bronca, eso lo hace más difícil. Si querés, podemos pensar juntos un momento del día para intentarlo, o podés grabarles un audio ahora para mandarlo cuando haya señal. ¿Qué te parece?',h:'23:33'}];
+const CARE=[
+ {u:true,t:'A veces pienso que no quiero seguir. Que sería más fácil hacerme daño.',h:'23:40'},
+ {u:false,t:'Gracias por contármelo, Matías. Estoy acá con vos y no me voy. Lo que sentís importa y no tenés que cargarlo solo. ¿Estás en un lugar seguro ahora?',h:'23:40'}];
+const REPLIES={'Estoy cansado':'Tiene sentido, el turno noche se siente en el cuerpo. ¿Querés que hagamos juntos una respiración de 2 minutos, o preferís contarme cómo viene el día?','Extraño a mi familia':'Es de lo más difícil del roster. ¿Hay algo que te gustaría decirles? Lo podemos dejar listo para cuando haya señal.','No puedo dormir':'Dormir de día cuesta. Tengo algunas ideas cortas para el turno noche. ¿Te las paso, o querés contarme qué te despierta?','Solo quiero charlar':'Dale, acá estoy. ¿De qué tenés ganas de hablar?'};
+const rnd=i=>{const x=Math.sin(i*12.9898+4.1)*43758.5453;return x-Math.floor(x)};
+const LAST9=[1,0,1,1,0,1,0,1,1];
+const METRICS={estres:['Estrés',1,5,'1–5'],hrv:['Variabilidad',25,75,'ms'],sueno:['Sueño declarado',3,9,'h'],animo:['Ánimo',1,5,'1–5']};
+const DAYS=(()=>{const a=[];for(let i=0;i<28;i++){const o=27-i,p=((8-o)%28+28)%28,work=p<14,dn=work?p+1:p-13,n=rnd(i+50)-.5;
+ const checked=i>=19?!!LAST9[i-19]:(work?rnd(i)>.3:rnd(i)>.72);
+ const cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+ a.push({i,work,dn,checked,estres:i===27?3.1:work?cl(1.6+.17*dn+n*.5,1,4.8):1.5+rnd(i+9)*.5,hrv:i===27?42:work?62-2.2*dn+n*6:63+n*6,sueno:work?cl(7.2-.2*dn+n,3.5,9):7.8+n*.8,animo:work?cl(4.7-.22*dn+n*.6,1,5):cl(4.5+n*.4,1,5)})}return a})();
+const LEVEL={bajo:['Bien','#7FD3E3','rgba(47,168,192,.16)'],mod:['Moderado','#F0CF7A','rgba(233,190,80,.16)']};
+const HIST=[['Hoy · 06:12','Tablet comedor — Módulo 3','tablet','mod','DÍA 9'],['Ayer · 05:48','Teléfono de Matías','phone','mod','DÍA 8'],['Día 6 · 06:05','Teléfono de Matías','phone','bajo','DÍA 6'],['Día 4 · 18:40','Tablet comedor — Módulo 3','tablet','bajo','DÍA 4'],['Día 3 · 06:20','Teléfono de Matías','phone','bajo','DÍA 3'],['Día 1 · 07:02','Tablet comedor — Módulo 3','tablet','bajo','DÍA 1'],['Descanso · 21:10','Notebook casa','laptop','bajo','DESC. 11']];
+const CONSENT=[['cam','Lectura fisiológica por cámara (NeuroSentinel™)','La cámara mide tu pulso y respiración. El video se procesa en tu dispositivo y se descarta. No se guarda tu cara.'],['mood','Autorreporte de ánimo y fatiga','Dos preguntas cortas sobre cómo llegás. Podés saltearlas.'],['react','Prueba de reacción y voz','Diez toques y una frase en voz alta para ver tu nivel de alerta.'],['chat','Conversación con el acompañante','Tus conversaciones se guardan cifradas y solo vos podés verlas.'],['geo','Geolocalización','Solo al usar el botón de emergencia, para que la guardia te encuentre.']];
+
+class Component extends DCLogic {
+ state={device:'mobile',screen:'splash',v:{splash:'0',login:'cred',hoy:'turno',c2:'ok',c3:'run',resultado:'moderado',chat:'normal'},
+  conexion:'ok',emerg:null,emergType:null,shareLoc:true,slide:0,sliding:false,sessionOut:false,
+  consent:{cam:true,mood:true,react:true,chat:true,geo:true},mood:2,sleep:1,tipsOpen:false,
+  scanT:0,lostT:3,reactN:0,rx:30,ry:40,recording:false,altoT:15,breathT:0,kioskT:20,kMode:'qr',kPin:0,pin:0,metric:'estres',
+  msgs:null,chatInput:'',bannerOpen:true,showLines:false,confirm:null,notice:null,closed:{},sw:1000,sh:800,now:Date.now(),remember:false,note:''};
+ scrollRef=React.createRef();
+ measure=()=>{const el=document.querySelector('[data-serena-stage]');if(!el)return;if(el!==this.stageEl){this.ro&&this.ro.disconnect();this.stageEl=el;this.ro=new ResizeObserver(this.measure);this.ro.observe(el)}const sw=el.clientWidth,sh=el.clientHeight;if(sw&&sh&&(sw!==this.state.sw||sh!==this.state.sh))this.setState({sw,sh})};
+ stageRef=el=>{if(el===this.stageEl)return;this.ro&&this.ro.disconnect();this.stageEl=el;if(el){this.ro=new ResizeObserver(this.measure);this.ro.observe(el);requestAnimationFrame(this.measure)}};
+ componentDidMount(){this.iv=setInterval(()=>this.tick(),1000);window.addEventListener('resize',this.measure);this.measure();}
+ componentDidUpdate(){this.measure();}
+ componentWillUnmount(){clearInterval(this.iv);this.ro&&this.ro.disconnect();window.removeEventListener('resize',this.measure);clearTimeout(this.rt);}
+ dur(){return Number(this.props.duracionEscaneo??45)}
+ tick(){const s=this.state,up={now:Date.now()};
+  if(s.screen==='c3'&&!s.emerg){if(s.v.c3==='lost'){if(s.lostT<=1){up.lostT=3;up.v={...s.v,c3:'run'}}else up.lostT=s.lostT-1}else if(s.scanT<this.dur())up.scanT=s.scanT+1}
+  if(s.screen==='resultado'&&s.v.resultado==='alto'&&s.altoT>0&&!s.emerg)up.altoT=s.altoT-1;
+  if(s.screen==='respira')up.breathT=s.breathT+1;
+  if(s.screen==='k_cierre'){if(s.kioskT<=1){up.screen='k_espera';up.kioskT=20}else up.kioskT=s.kioskT-1}
+  this.setState(up)}
+ go=(screen,vp)=>{const s=this.state;let device=s.device;
+  if(screen.startsWith('k_'))device='kiosk';else if(device==='kiosk'&&!KALLOW.includes(screen))device='mobile';
+  const up={screen,device,emerg:null,sessionOut:false,confirm:null,notice:null};if(vp)up.v={...s.v,...vp};
+  if(screen==='c3'){up.scanT=0;up.lostT=3}if(screen==='resultado'){up.altoT=15;up.showLines=false}if(screen==='respira')up.breathT=0;if(screen==='k_cierre')up.kioskT=20;
+  if(screen==='c4'){up.reactN=0;up.recording=false}if(screen==='k_id')up.kPin=0;if(screen==='login')up.pin=0;
+  this.setState(up);const sc=this.scrollRef.current;if(sc)sc.scrollTop=0}
+ setV=(k,val)=>{const up={v:{...this.state.v,[k]:val}};if(k==='resultado')up.altoT=15;if(k==='c3'){up.lostT=3}if(k==='login')up.pin=0;this.setState(up)}
+ setDevice=d=>{const s=this.state;let screen=s.screen;if(d==='kiosk'&&!KALLOW.includes(screen))screen='k_espera';if(d!=='kiosk'&&screen.startsWith('k_'))screen='hoy';this.setState({device:d,screen})}
+ next=()=>{const s=this.state,V=s.v,k=s.device==='kiosk';
+  switch(s.screen){
+   case 'splash':return V.splash<'3'?this.setV('splash',String(+V.splash+1)):this.go('consent');
+   case 'consent':return this.go('login',{login:'cred'});
+   case 'login':if(V.login==='cred')return this.setV('login','2fa');if(V.login!=='pin'&&s.device==='mobile')return this.setV('login','pin');return this.go('hoy');
+   case 'hoy':return this.go('c1');case 'c1':return this.go('c2');case 'c2':return this.go('c3');case 'c3':return this.go('c4');
+   case 'c4':return this.go('resultado',{resultado:'moderado'});
+   case 'resultado':return V.resultado==='moderado'?this.go('respira'):this.go(k?'k_cierre':'hoy');
+   case 'respira':return this.go(k?'k_cierre':'hoy');
+   case 'k_espera':return this.go('k_id');case 'k_id':return this.go('c1');case 'k_cierre':return this.go('k_espera');
+   default:return this.go('hoy')}}
+ sendMsg=t=>{t=(t||'').trim();if(!t)return;const base=this.state.msgs||INIT;this.setState({msgs:[...base,{u:true,t,h:'23:49'}],chatInput:''});
+  clearTimeout(this.rt);this.rt=setTimeout(()=>{const b=this.state.msgs||INIT;this.setState({msgs:[...b,{u:false,t:REPLIES[t]||'Te leo. Contame un poco más, sin apuro.',h:'23:49'}]})},900)}
+ slideAt(e){const r=this.trackRect;if(!r)return;const f=Math.max(0,Math.min(1,(e.clientX-r.left-30*(r.width/this.trackW))/(r.width-60*(r.width/this.trackW))));this.setState({slide:f})}
+ renderVals(){
+  const s=this.state,V=s.v,d=s.device,scr=s.screen,mark=this.props.marcadores??true,pres=this.props.presentacion??false;
+  const isMobile=d==='mobile',isTablet=d==='tablet',isKiosk=d==='kiosk',isDesk=d==='desktop'||isTablet;
+  const [fw,fh,rad]={mobile:[390,844,46],tablet:[1194,834,26],desktop:[1440,900,10],kiosk:[1080,1920,18]}[d];
+  const scale=Math.max(.1,Math.min((s.sw-56)/fw,(s.sh-56)/fh,1));
+  const isDoc=scr==='componentes'||scr==='pendientes';
+  const claro=scr==='hoy'&&V.hoy==='claro';
+  const logged=!['splash','consent','login','k_espera','k_id'].includes(scr);
+  const flow=['c1','c2','c3','c4','respira'].includes(scr);
+  const showSidebar=isDesk&&logged&&!claro;
+  const tap=isKiosk?72:52;
+  const is={};is[scr]=true;
+  const navActive=k=>k==='c1'?['c1','c2','c3','c4','resultado','respira'].includes(scr):k===scr;
+  const mkNav=([k,label])=>({label,icon:ICON[k],onClick:()=>this.go(k),color:navActive(k)?'#2FA8C0':'#B8B8CB',bg:navActive(k)?'rgba(47,168,192,.12)':'transparent',justify:isTablet?'center':'flex-start'});
+  const off=s.conexion==='off';
+  const syncCol={ok:'#2FA8C0',pend:'#F0CF7A',off:'#6E6E8C',sync:'#2FA8C0'}[s.conexion];
+  const syncLabel={ok:'SINCRONIZADO',pend:'PENDIENTE',off:'SIN CONEXIÓN',sync:'SINCRONIZANDO'}[s.conexion];
+  const syncDot=s.conexion==='sync'?React.createElement('span',{'data-anim':1,style:{width:12,height:12,borderRadius:'50%',border:'2px solid #2FA8C0',borderTopColor:'transparent',animation:'spin .9s linear infinite',display:'inline-block'}}):React.createElement('span',{style:{width:10,height:10,borderRadius:'50%',background:syncCol,display:'inline-block',boxShadow:s.conexion==='ok'?'0 0 0 4px rgba(47,168,192,.18)':'none'}});
+  const sel=(on)=>({bg:on?'rgba(47,168,192,.14)':'transparent',border:on?'#2FA8C0':'rgba(255,255,255,.14)',color:on?'#fff':'#B8B8CB'});
+  // check-in steps
+  const stepIdx={c1:0,c2:1,c3:2,c4:3}[scr]??-1;
+  const steps=['1 Ánimo','2 Luz y encuadre','3 Escaneo','4 Reacción'].map((l,i)=>({label:l,bar:i<=stepIdx?'#2FA8C0':'rgba(255,255,255,.14)',color:i===stepIdx?'#fff':'#9999B5'}));
+  // c1
+  const moods=['Muy bien','Bien','Más o menos','Cansado','Muy cansado'].map((l,i)=>({label:l,...sel(s.mood===i),onClick:()=>this.setState({mood:i})}));
+  const sleeps=['Menos de 4 h','4 a 6 h','6 a 8 h','Más de 8 h'].map((l,i)=>({label:l,...sel(s.sleep===i),onClick:()=>this.setState({sleep:i})}));
+  // c2 light
+  const L=V.c2,camMissing=L==='nocam'||L==='sincam',lv=L==='low'?1:L==='mid'?2:3;
+  const lc=lv===1?['#F37CC2','rgba(230,46,156,.18)','LUZ INSUFICIENTE','Hay poca luz para medir bien. Acercate a una lámpara o mirá hacia una ventana.']:lv===2?['#F0CF7A','rgba(233,190,80,.16)','LUZ JUSTA','Casi. Si podés, sumá un poco de luz de frente.']:['#7FD3E3','rgba(47,168,192,.16)','LUZ ÓPTIMA','Perfecto. Mantené la cara dentro del óvalo.'];
+  const lightSegs=[0,1,2].map(i=>({bg:i<lv?lc[0]:'rgba(255,255,255,.12)'}));
+  const checks=[['Luz suficiente',lv===3?'ok':lv===2?'warn':'no'],['Cara centrada','ok'],['Sin movimiento','ok'],['Sin contraluz',lv===1?'no':'ok']].map(([l,st])=>({label:l,mark:st==='ok'?'✓':st==='warn'?'!':'×',color:st==='ok'?'#7FD3E3':st==='warn'?'#F0CF7A':'#F37CC2',bg:st==='ok'?'rgba(47,168,192,.16)':st==='warn'?'rgba(233,190,80,.16)':'rgba(230,46,156,.18)'}));
+  // c3 scan
+  const dur=this.dur(),t=s.scanT,lost=V.c3==='lost',scanDone=t>=dur&&!lost;
+  const rem=Math.max(0,dur-t),scanClock=`${Math.floor(rem/60)}:${String(rem%60).padStart(2,'0')}`;
+  const C=2*Math.PI*48,ringOffset=C*(1-t/dur);
+  const on=[t>=6,t>=14,t>=20,t>=28];
+  const indicators=[['Pulso','78','lpm'],['Variabilidad','42','ms'],['Respiración','15','rpm'],['Estrés','3,1','de 5']].map(([l,v,u],i)=>({label:l,value:on[i]?v:'—',unit:on[i]?u:'',state:on[i]?'ESTABLE':'ESTABILIZANDO',border:on[i]?'rgba(47,168,192,.5)':'rgba(255,255,255,.10)',color:on[i]?'#7FD3E3':'#9999B5',vcolor:on[i]?'#fff':'#9999B5'}));
+  const halo=React.createElement('div',{'data-anim':1,style:{position:'absolute',inset:'-4%',borderRadius:'50%',background:'radial-gradient(circle, rgba(230,46,156,.55) 0%, rgba(93,1,88,.5) 38%, rgba(1,1,71,0) 70%)',animation:'halo 3.2s ease-in-out infinite'}});
+  // c4
+  const reactDone=s.reactN>=10;
+  const voiceBars=React.createElement('div',{style:{display:'flex',alignItems:'center',gap:4,height:56}},Array.from({length:32},(_,i)=>React.createElement('span',{key:i,'data-anim':1,style:{width:4,height:'100%',borderRadius:2,background:s.recording?'#2FA8C0':'rgba(255,255,255,.18)',transform:s.recording?undefined:`scaleY(${.15+rnd(i)*.25})`,animation:s.recording?`wave ${.7+(i%5)*.12}s ease-in-out ${i*.05}s infinite`:'none'}})));
+  // result
+  const R=V.resultado;
+  const resVals=[['FRECUENCIA CARDÍACA',R==='bajo'?'68':'78','lpm'],['VARIABILIDAD (HRV)',R==='bajo'?'55':'42','ms'],['RESPIRACIÓN',R==='bajo'?'13':'15','rpm'],['ÍNDICE DE ESTRÉS',R==='bajo'?'1,8':'3,1','de 5']].map(([l,v,u])=>({label:l,value:v,unit:u}));
+  // breathe
+  const bt=s.breathT,brem=Math.max(0,120-bt),breathClock=`${Math.floor(brem/60)}:${String(brem%60).padStart(2,'0')}`,phase=bt%10<4?'Inhalá':'Exhalá',phaseN=bt%10<4?4-bt%10:10-bt%10;
+  const breathEl=React.createElement('div',{'data-anim':1,style:{position:'absolute',inset:0,borderRadius:'50%',background:'radial-gradient(circle at 50% 45%, rgba(47,168,192,.55), rgba(93,1,88,.55) 60%, rgba(230,46,156,.25) 100%)',boxShadow:'0 0 80px rgba(47,168,192,.25)',animation:'breathe 10s ease-in-out infinite'}});
+  // chat
+  const care=V.chat==='cuidado';
+  const msgs=[...(s.msgs||INIT),...(care?CARE:[])].map(m=>({...m,isUser:m.u,isBot:!m.u}));
+  const quick=['Estoy cansado','Extraño a mi familia','No puedo dormir','Solo quiero charlar'].map(q=>({label:q,onClick:()=>this.sendMsg(q)}));
+  // bienestar chart
+  const [mLabel,mMin,mMax,mUnit]=METRICS[s.metric];
+  const y=v=>8+(1-(v-mMin)/(mMax-mMin))*84;
+  const pts=DAYS.filter(x=>x.checked).map(x=>({x:(x.i+.5)/28*100,y:y(x[s.metric]),left:((x.i+.5)/28*100)+'%',top:y(x[s.metric])+'%'}));
+  const chartPath=pts.map((p,i)=>(i?'L':'M')+p.x.toFixed(2)+' '+p.y.toFixed(2)).join(' ');
+  const bands=[];DAYS.forEach(x=>{const b=bands[bands.length-1];if(b&&b.work===x.work)b.n++;else bands.push({work:x.work,start:x.i,n:1})});
+  const bandList=bands.map(b=>({left:b.start/28*100+'%',width:b.n/28*100+'%',bg:b.work?'#20205D':'#101052',label:b.n>=4?(b.work?'TRABAJO':'DESCANSO'):''}));
+  const metricTabs=Object.keys(METRICS).map(k=>({label:METRICS[k][0],...sel(s.metric===k),onClick:()=>this.setState({metric:k})}));
+  const hist=HIST.map(([d1,dev,ic,lvl,dn])=>({date:d1,dev,icon:ICON[ic],lvl:LEVEL[lvl][0],lc:LEVEL[lvl][1],lbg:LEVEL[lvl][2],dn}));
+  // consent
+  const consentList=CONSENT.map(([k,label,desc])=>{const o=s.consent[k];return {label,desc,track:o?'#2FA8C0':'#20205D',knob:o?'22px':'2px',state:o?'ACTIVADO':'DESACTIVADO',sc:o?'#7FD3E3':'#9999B5',onToggle:()=>this.setState({consent:{...s.consent,[k]:!o}})}});
+  // devices
+  const devs=[['phone','Teléfono de Matías','Android 14 · App','Hace 2 min',false],['tablet','Tablet comedor — Módulo 3','Kiosco · Android 12','Hoy 06:14',true],['laptop','Notebook casa','Web · Chrome','Hace 3 días',false]].map(([ic,name,os,last,ef],i)=>{const c=!!s.closed[i];return {icon:ICON[ic],name,os,last:c?'Sesión cerrada':'Última sincronización: '+(off&&i===0?'hace 40 min':last),ef,closed:c,open:!c,onClose:()=>this.setState({closed:{...s.closed,[i]:true}})}});
+  const pend=s.conexion==='pend'||off;
+  // keypad
+  const kiosk=isKiosk;
+  const keys=['1','2','3','4','5','6','7','8','9',kiosk?'':'Huella','0','Borrar'].map(k=>({label:k,onClick:()=>{if(!k||k==='Huella'){if(k==='Huella')this.go('hoy');return}const f=scr==='k_id'?'kPin':'pin';const v=this.state[f];const nv=k==='Borrar'?Math.max(0,v-1):Math.min(4,v+1);this.setState({[f]:nv});if(f==='pin'&&nv===4)setTimeout(()=>this.go('hoy'),450)}}));
+  const pv=scr==='k_id'?s.kPin:s.pin;
+  const pinDots=[0,1,2,3].map(i=>({bg:i<pv?'#2FA8C0':'transparent'}));
+  const now=new Date(s.now),clock=now.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false}),dateStr=now.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'}).toUpperCase();
+  // emergency
+  const eOpts=[['fisica','Emergencia física','Accidente, lesión, gas, atrapamiento'],['hablar','Necesito hablar con alguien','Una persona de guardia te contacta'],['riesgo','Estoy en riesgo','Aviso prioritario a la guardia']].map(([k,l,dd])=>({label:l,desc:dd,border:s.emergType===k?'#FFFFFF':'transparent',onClick:()=>this.setState({emergType:k,slide:0})}));
+  const cur=VARIANTS[scr]||[];
+  return {
+   devices:[['mobile','Móvil','390'],['tablet','Tablet','1194'],['desktop','Escritorio','1440'],['kiosk','Kiosco','1080']].map(([k,l,sz])=>({label:l,size:sz,bg:d===k?'#2FA8C0':'transparent',color:d===k?'#0B0B1A':'#B8B8CB',onClick:()=>this.setDevice(k)})),
+   next:this.next,showPanels:!pres,
+   groups:GROUPS.map(g=>({name:g.name,items:g.items.map(([k,l,r])=>({label:l,ref:r,bg:scr===k?'rgba(47,168,192,.14)':'transparent',color:scr===k?'#fff':'#B8B8CB',onClick:()=>this.go(k)}))})),
+   stageRef:this.stageRef,scrollRef:this.scrollRef,isFrame:!isDoc,isDoc,fw,fh,scale,frameW:fw*scale,frameH:fh*scale,frameRadius:rad,
+   showSidebar,sideW:isTablet?88:252,sideFull:!isTablet,isTablet,isMobile,isDesk,isKiosk,notKiosk:!isKiosk,
+   navItems:[...NAV,...NAV_DESK].map(mkNav),bottomItems:NAV.map(mkNav),
+   statusBg:claro?'#F4F4FA':'transparent',
+   showHeader:scr!=='splash'&&!claro,headH:isKiosk?96:isMobile?60:72,logoH:isKiosk?30:isMobile?18:22,showLogoInHeader:!showSidebar,headerTitle:(TITLES[scr]||[''])[0].toUpperCase(),
+   kioskNotice:isKiosk&&logged&&scr!=='k_cierre',showAvatar:logged&&!isKiosk,pillH:isKiosk?64:40,pillFs:isKiosk?20:15,
+   syncDot,syncLabel,offline:off&&scr!=='splash',deskNote:isDesk&&logged&&!claro,showBottomNav:isMobile&&logged&&!flow&&!claro,
+   openEmerg:()=>this.setState({emerg:'choose',emergType:null,slide:0,shareLoc:true}),openSession:()=>this.setState({sessionOut:true}),goPend:()=>this.go('pendientes'),
+   screenTitle:(TITLES[scr]||[''])[0],screenRef:(TITLES[scr]||['',''])[1],hasVariants:cur.length>0,
+   variants:cur.map(([k,l])=>({label:l,...sel(V[scr]===k),onClick:()=>this.setV(scr,k)})),
+   conexOpts:[['ok','Sincronizado'],['sync','Sincronizando'],['pend','Pendiente'],['off','Sin conexión']].map(([k,l])=>({label:l,...sel(s.conexion===k),onClick:()=>this.setState({conexion:k})})),
+   marcadores:mark,is,tap,
+   // splash
+   splash0:V.splash==='0',splashSlide:V.splash!=='0',
+   ...(([n,t,dd])=>({slideN:n,slideT:t,slideD:dd}))([null,['01 / 03','Esto es tuyo.','Tus resultados son solo tuyos. Tu empresa nunca ve tus datos individuales.'],['02 / 03','Es voluntario.','Hacés el check-in cuando querés. No hacerlo no tiene ninguna consecuencia.'],['03 / 03','No estás solo.','Si algo no anda bien, te ayudamos a llegar a quien puede ayudarte.']][+V.splash]||['','','']),
+   slideDots:[1,2,3].map(i=>({bg:String(i)===V.splash?'#E62E9C':'rgba(255,255,255,.25)',w:String(i)===V.splash?'28px':'8px'})),
+   splashNext:this.next,skipWelcome:()=>this.go('consent'),
+   consentList,goLogin:()=>this.go('login',{login:'cred'}),
+   loginCred:V.login==='cred',login2fa:V.login==='2fa'||V.login==='err',loginErr:V.login==='err',loginPin:V.login==='pin',
+   codeBorder:V.login==='err'?'#F37CC2':'rgba(255,255,255,.18)',codeDigits:['4','8','2',V.login==='err'?'9':'1','0','7'],
+   toLogin2fa:()=>this.setV('login','2fa'),verify:()=>V.login==='2fa'?this.setV('login','err'):(isMobile?this.setV('login','pin'):this.go('hoy')),
+   remember:s.remember,rememberBg:s.remember?'#2FA8C0':'transparent',toggleRemember:()=>this.setState({remember:!s.remember}),
+   keys,pinDots,
+   hoyTurno:V.hoy==='turno',hoyCasa:V.hoy==='casa',hoyClaro:claro,goC1:()=>this.go('c1'),goChat:()=>this.go('chat'),goRespira:()=>this.go('respira'),goRecursos:()=>this.go('recursos'),goBienestar:()=>this.go('bienestar'),goHoy:()=>this.go('hoy'),goPriv:()=>this.go('privacidad'),goDev:()=>this.go('dispositivos'),
+   steps,moods,sleeps,goC2:()=>this.go('c2'),skipScan:()=>this.go('resultado',{resultado:'moderado'}),
+   camMissing,camOk:!camMissing,camNoPerm:L==='nocam',camNone:L==='sincam',lightSegs,lightColor:lc[0],lightBg:lc[1],lightLabel:lc[2],lightMsg:lc[3],checks,
+   startDisabled:lv===1||camMissing,startOpacity:lv===1||camMissing?.35:1,lightWarn:lv===2,camDim:lv===1?.62:lv===2?.3:0,ovalColor:lc[0],
+   tipsOpen:s.tipsOpen,tipsLabel:s.tipsOpen?'Ocultar consejos':'Ver consejos para medir mejor',toggleTips:()=>this.setState({tipsOpen:!s.tipsOpen}),goC3:()=>this.go('c3'),
+   halo,scanClock,ringC:C,ringOffset,indicators,scanLost:lost,lostT:s.lostT,scanDone,scanRunning:!scanDone,goC4:()=>this.go('c4'),scanMsg:lost?'Quedate quieto un momento.':'Respirá normal. Quedate quieto.',
+   reactN:s.reactN,reactDone,reactPending:!reactDone,rx:s.rx+'%',ry:s.ry+'%',onReact:()=>this.setState({reactN:s.reactN+1,rx:12+rnd(s.reactN*3+1)*76,ry:14+rnd(s.reactN*7+2)*72}),skipReact:()=>this.setState({reactN:10}),
+   recording:s.recording,notRecording:!s.recording,recLabel:s.recording?'Detener':'Grabar la frase',toggleRec:()=>this.setState({recording:!s.recording}),voiceBars,goRes:()=>this.go('resultado',{resultado:'moderado'}),
+   resBajo:R==='bajo',resMod:R==='moderado',resAlto:R==='alto',resVals,note:s.note,onNote:e=>this.setState({note:e.target.value}),
+   altoT:s.altoT,altoCounting:s.altoT>0,altoConnected:s.altoT===0,altoRingOffset:2*Math.PI*22*(1-s.altoT/15),altoRingC:2*Math.PI*22,
+   declineAlto:()=>this.setState({altoT:-1}),altoDeclined:s.altoT<0,connectNow:()=>this.setState({altoT:0}),
+   showLines:s.showLines,toggleLines:()=>this.setState({showLines:!s.showLines}),
+   resDone:()=>this.go(isKiosk?'k_cierre':'hoy'),
+   breathEl,breathClock,phase,phaseN,endBreath:()=>this.go(isKiosk?'k_cierre':'hoy'),
+   bannerOpen:s.bannerOpen,bannerClosed:!s.bannerOpen,toggleBanner:()=>this.setState({bannerOpen:!s.bannerOpen}),chatCare:care,msgs,quick,chatInput:s.chatInput,onChatInput:e=>this.setState({chatInput:e.target.value}),onChatKey:e=>{if(e.key==='Enter')this.sendMsg(s.chatInput)},onChatSend:()=>this.sendMsg(s.chatInput),
+   metricTabs,mLabel,mTop:mMax+' '+mUnit,mBottom:mMin+' '+mUnit,chartPath,pts,bandList,hist,
+   privConfirmBorrar:s.confirm==='borrar',privConfirmRetirar:s.confirm==='retirar',askBorrar:()=>this.setState({confirm:'borrar',notice:null}),askRetirar:()=>this.setState({confirm:'retirar',notice:null}),cancelConfirm:()=>this.setState({confirm:null}),
+   doBorrar:()=>this.setState({confirm:null,notice:'Borramos tu historial de este y de todos tus dispositivos.'}),doRetirar:()=>this.setState({confirm:null,notice:'Retiraste tu consentimiento. Podés volver a darlo cuando quieras.'}),doDescargar:()=>this.setState({confirm:null,notice:'Tu archivo está listo. Lo encontrás en Descargas.'}),notice:s.notice,hasNotice:!!s.notice,
+   devs,syncChip:s.conexion==='sync'?'SINCRONIZANDO…':pend?'3 REGISTROS ESPERANDO CONEXIÓN':'SINCRONIZADO · HACE 2 MIN',syncChipC:pend?'#F0CF7A':'#7FD3E3',syncChipBg:pend?'rgba(233,190,80,.16)':'rgba(47,168,192,.16)',
+   clock,dateStr,goKId:()=>this.go('k_id'),kQr:s.kMode==='qr',kLegajo:s.kMode==='legajo',kQrTab:sel(s.kMode==='qr'),kLegTab:sel(s.kMode==='legajo'),setQr:()=>this.setState({kMode:'qr'}),setLeg:()=>this.setState({kMode:'legajo'}),kReady:s.kPin>=4,kStart:()=>this.go('c1'),
+   kioskT:s.kioskT,kRingOffset:2*Math.PI*54*(1-s.kioskT/20),kRingC:2*Math.PI*54,endKiosk:()=>this.go('k_espera'),
+   emergOpen:!!s.emerg,emergChoose:s.emerg==='choose',emergSent:s.emerg==='sent',emergOnline:!off,emergOffline:off,eOpts,hasType:!!s.emergType,
+   shareLoc:s.shareLoc,shareTrack:s.shareLoc?'#0B0B1A':'rgba(11,11,26,.25)',shareKnob:s.shareLoc?'22px':'2px',toggleShare:()=>this.setState({shareLoc:!s.shareLoc}),
+   slideFrac:s.slide,slideLabelOp:1-s.slide,closeEmerg:()=>this.setState({emerg:null}),
+   onSlideDown:e=>{this.trackRect=e.currentTarget.getBoundingClientRect();this.trackW=e.currentTarget.offsetWidth;e.currentTarget.setPointerCapture&&e.currentTarget.setPointerCapture(e.pointerId);this.setState({sliding:true});this.slideAt(e)},
+   onSlideMove:e=>{if(this.state.sliding)this.slideAt(e)},
+   onSlideUp:()=>{if(this.state.slide>.86)this.setState({sliding:false,slide:1,emerg:'sent'});else this.setState({sliding:false,slide:0})},
+   notAltoRes:R!=='alto',
+   jumpScan:()=>this.setState({device:'mobile'},()=>this.go('c3',{c3:'run'})),jumpLight:()=>this.setState({device:'mobile'},()=>this.go('c2',{c2:'low'})),
+   jumpWeb:()=>this.setState({device:'desktop'},()=>this.go('c2',{c2:'sincam'})),jumpConsent:()=>this.setState({device:'mobile'},()=>this.go('consent')),
+   jumpAlto:()=>this.setState({device:'mobile'},()=>this.go('resultado',{resultado:'alto'})),jumpPriv:()=>this.setState({device:'desktop'},()=>this.go('privacidad')),
+   spinnerDemo:React.createElement('span',{'data-anim':1,style:{width:12,height:12,borderRadius:'50%',border:'2px solid #2FA8C0',borderTopColor:'transparent',animation:'spin .9s linear infinite',display:'inline-block'}}),
+   bottomDemo:NAV.map(([k,l],i)=>({label:l,icon:ICON[k],color:i===0?'#2FA8C0':'#B8B8CB'})),kNotReady:s.kPin<4,kOpacity:s.kPin>=4?1:.35,
+   sheetAlign:isMobile?'stretch':'center',sheetPad:isMobile?0:32,sheetMax:isKiosk?860:isMobile?390:560,sheetRad:isMobile?0:16,eTap:isKiosk?96:72,
+   sessionOut:s.sessionOut,reLogin:()=>this.go('login',{login:'cred'}),sessionMin:isKiosk||isTablet?'5':'15'
+  };
+ }
+}
+</script>
+</body>
+</html>

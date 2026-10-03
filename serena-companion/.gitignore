@@ -1,0 +1,15 @@
+node_modules/
+dist/
+coverage/
+*.log
+data/
+.env
+.env.*
+!.env.example
+dist-demo/
+dist-preview/
+e2e/results/
+e2e/report/
+# Terceros servidos desde el propio origen, generados al compilar: SDK de escaneo (licencia comercial, `scan:vendor`)
+# y detector de rostro de MediaPipe (`ocular:vendor`). Nunca se versionan.
+apps/web/public/vendor/

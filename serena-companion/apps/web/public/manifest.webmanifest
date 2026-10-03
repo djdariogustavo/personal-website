@@ -1,0 +1,15 @@
+{
+  "name": "SERENA Companion",
+  "short_name": "SERENA",
+  "description": "Un minuto para vos, en medio del turno.",
+  "lang": "es-AR",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#010147",
+  "theme_color": "#010147",
+  "icons": [
+    { "src": "/assets/serena-mark.png", "sizes": "540x540", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
