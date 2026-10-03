@@ -102,7 +102,7 @@ de un rostro real da 478 puntos y EAR ≈ 0,21 en ambos ojos (abiertos). El cál
 - Integración con la guardia: webhook firmado `SERENA_GUARD_WEBHOOK_URL`
   (HMAC-SHA256 en `X-Serena-Signature`). Definir el sistema receptor del PEC.
 
-## 4. Envío del segundo factor (SMS con Twilio) — CÓDIGOS VERIFICADOS CON UN ENVÍO REAL; FALTA EL REMITENTE DE LOS AVISOS
+## 4. Envío del segundo factor (SMS con Twilio) — PROBADO CON ENVÍOS REALES (CÓDIGOS Y AVISOS)
 
 Implementado con Twilio Verify (`apps/server/src/sms/verify.ts`) y Programmable Messaging (`sms/twilio.ts`), con
 rechazos detallados y avisos por email a operaciones (README, sección SMS).
@@ -114,12 +114,14 @@ rechazos detallados y avisos por email a operaciones (README, sección SMS).
 | Trust Hub: Primary Customer Profile (Business, Velasco Group SRL) | **Aprobado** (captura del panel de Twilio). Debería eliminar el rechazo 21608 a números no verificados: confirmarlo con el envío real |
 | Credenciales en el entorno (`TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`, `TWILIO_VERIFY_SERVICE_SID`) | Definidas y con formato válido. Consulta de solo lectura al servicio Verify: **HTTP 200**, servicio "SERENA", códigos de 6 dígitos |
 | Permisos de la API key | Restringida: no lee los datos de la cuenta (70004). No hace falta para enviar ni validar códigos |
-| Avisos de seguridad sin código | **No salen**: Verify solo envía códigos. Falta `TWILIO_FROM_NUMBER` o `TWILIO_MESSAGING_SERVICE_SID` |
+| Avisos de seguridad sin código | **Probado (2026-10-03)** con el Messaging Service "SERENA APP - Avisos de seguridad" (`TWILIO_MESSAGING_SERVICE_SID`): SMS de prueba a tres celulares argentinos (+54 9 351…, +54 9 380…), los tres `delivered` según Twilio y recibidos. Remitente: número de EE. UU. (+1 443…) |
 | **Prueba real (2026-10-03)** | Código de Verify enviado a un celular argentino (+54 9 351…), **recibido por SMS y aprobado por Twilio** (`npm run sms:prueba`). Sin rechazo 21608: el perfil de Trust Hub habilita números no verificados |
 | Alertas por email (Resend) | **Probado (2026-10-03)**: `npm run alertas:prueba` envió el aviso de prueba y llegó a la bandeja principal de Gmail (no a spam) |
 
-**Próximo paso:** definir el remitente de los avisos de seguridad sin código (`TWILIO_FROM_NUMBER` o, mejor,
-`TWILIO_MESSAGING_SERVICE_SID`) y probarlo con `npm run sms:prueba` sin `TWILIO_VERIFY_SERVICE_SID`.
+**Antes de producción:** el remitente es un número de EE. UU.: la persona ve un número extranjero desconocido, lo que
+resta confianza a un aviso de seguridad. Evaluar con Twilio un remitente alfanumérico ("SERENA") o un número local para
+Argentina, según lo que admitan los operadores. La API key es restringida: puede enviar y leer el estado de los
+mensajes, pero no leer la cuenta ni el Messaging Service.
 
 ## 5. Legal y contenido
 - Texto completo de la política de privacidad (Ley 25.326 AR y ley vigente en Chile):
