@@ -102,7 +102,7 @@ de un rostro real da 478 puntos y EAR ≈ 0,21 en ambos ojos (abiertos). El cál
 - Integración con la guardia: webhook firmado `SERENA_GUARD_WEBHOOK_URL`
   (HMAC-SHA256 en `X-Serena-Signature`). Definir el sistema receptor del PEC.
 
-## 4. Envío del segundo factor (SMS con Twilio) — IMPLEMENTADO, FALTA LA PRUEBA REAL DE ENVÍO
+## 4. Envío del segundo factor (SMS con Twilio) — CÓDIGOS VERIFICADOS CON UN ENVÍO REAL; FALTA EL REMITENTE DE LOS AVISOS
 
 Implementado con Twilio Verify (`apps/server/src/sms/verify.ts`) y Programmable Messaging (`sms/twilio.ts`), con
 rechazos detallados y avisos por email a operaciones (README, sección SMS).
@@ -115,12 +115,12 @@ rechazos detallados y avisos por email a operaciones (README, sección SMS).
 | Credenciales en el entorno (`TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET`, `TWILIO_VERIFY_SERVICE_SID`) | Definidas y con formato válido. Consulta de solo lectura al servicio Verify: **HTTP 200**, servicio "SERENA", códigos de 6 dígitos |
 | Permisos de la API key | Restringida: no lee los datos de la cuenta (70004). No hace falta para enviar ni validar códigos |
 | Avisos de seguridad sin código | **No salen**: Verify solo envía códigos. Falta `TWILIO_FROM_NUMBER` o `TWILIO_MESSAGING_SERVICE_SID` |
+| **Prueba real (2026-10-03)** | Código de Verify enviado a un celular argentino (+54 9 351…), **recibido por SMS y aprobado por Twilio** (`npm run sms:prueba`). Sin rechazo 21608: el perfil de Trust Hub habilita números no verificados |
 | Alertas por email (Resend) | Variables definidas en el entorno; probar con `npm run alertas:prueba -w @serena/server` |
 
-**Próximo paso:** prueba real con un teléfono de destino:
-1. `npm run sms:prueba -w @serena/server -- +549…` (envía un código de Verify).
-2. `npm run sms:prueba -w @serena/server -- +549… <código recibido>` (lo valida contra Twilio).
-3. Registrar acá el resultado (entregado, 21608 u otro código) y decidir número o Messaging Service para los avisos.
+**Próximo paso:** definir el remitente de los avisos de seguridad sin código (`TWILIO_FROM_NUMBER` o, mejor,
+`TWILIO_MESSAGING_SERVICE_SID`) y probarlo con `npm run sms:prueba` sin `TWILIO_VERIFY_SERVICE_SID`. Probar también
+`npm run alertas:prueba -w @serena/server` (email a operaciones).
 
 ## 5. Legal y contenido
 - Texto completo de la política de privacidad (Ley 25.326 AR y ley vigente en Chile):
