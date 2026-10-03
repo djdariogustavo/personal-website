@@ -116,11 +116,10 @@ rechazos detallados y avisos por email a operaciones (README, sección SMS).
 | Permisos de la API key | Restringida: no lee los datos de la cuenta (70004). No hace falta para enviar ni validar códigos |
 | Avisos de seguridad sin código | **No salen**: Verify solo envía códigos. Falta `TWILIO_FROM_NUMBER` o `TWILIO_MESSAGING_SERVICE_SID` |
 | **Prueba real (2026-10-03)** | Código de Verify enviado a un celular argentino (+54 9 351…), **recibido por SMS y aprobado por Twilio** (`npm run sms:prueba`). Sin rechazo 21608: el perfil de Trust Hub habilita números no verificados |
-| Alertas por email (Resend) | Variables definidas en el entorno; probar con `npm run alertas:prueba -w @serena/server` |
+| Alertas por email (Resend) | **Probado (2026-10-03)**: `npm run alertas:prueba` envió el aviso de prueba y llegó a la bandeja principal de Gmail (no a spam) |
 
 **Próximo paso:** definir el remitente de los avisos de seguridad sin código (`TWILIO_FROM_NUMBER` o, mejor,
-`TWILIO_MESSAGING_SERVICE_SID`) y probarlo con `npm run sms:prueba` sin `TWILIO_VERIFY_SERVICE_SID`. Probar también
-`npm run alertas:prueba -w @serena/server` (email a operaciones).
+`TWILIO_MESSAGING_SERVICE_SID`) y probarlo con `npm run sms:prueba` sin `TWILIO_VERIFY_SERVICE_SID`.
 
 ## 5. Legal y contenido
 - Texto completo de la política de privacidad (Ley 25.326 AR y ley vigente en Chile):
