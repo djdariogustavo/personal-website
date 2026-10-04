@@ -28,9 +28,10 @@ Costo de referencia de Render (verificar en su sitio): plan Starter más el disc
    | `TWILIO_VERIFY_SERVICE_SID` | Servicio Verify "SERENA" (códigos) |
    | `TWILIO_MESSAGING_SERVICE_SID` | "SERENA APP - Avisos de seguridad" (avisos sin código) |
    | `RESEND_API_KEY`, `SERENA_ALERTAS_FROM`, `SERENA_ALERTAS_EMAIL` | Avisos por email a operaciones |
-   | `SERENA_GUARD_WEBHOOK_URL` | URL **https** que recibe los pedidos de ayuda (ver abajo) |
+   | `SERENA_GUARDIA_TELEFONOS` | Celulares de la guardia, separados por comas (`+549…,+549…`) |
+   | `SERENA_GUARDIA_EMAILS` | Casillas de la guardia, separadas por comas |
 
-   `SERENA_MASTER_KEY`, `SERENA_JWT_SECRET` y `SERENA_GUARD_WEBHOOK_SECRET` las genera Render.
+   `SERENA_MASTER_KEY` y `SERENA_JWT_SECRET` las genera Render.
    **Copiar `SERENA_MASTER_KEY` a un lugar seguro**: sin ella, los datos cifrados de la base no se pueden leer.
 3. **Apply.** La primera compilación tarda unos minutos. Al terminar, `https://<servicio>.onrender.com/api/health`
    responde `{"ok":true}`. Si el servidor no arranca, los registros (Logs) dicen qué variable falta.
@@ -48,11 +49,18 @@ Costo de referencia de Render (verificar en su sitio): plan Starter más el disc
 
 ## Canal hacia la guardia
 
-En producción el servidor no arranca sin `SERENA_GUARD_WEBHOOK_URL` (https). Cada pedido de ayuda o resultado alto
-envía allí un POST con JSON firmado (HMAC-SHA256 en la cabecera `X-Serena-Signature`, con
-`SERENA_GUARD_WEBHOOK_SECRET`). El aviso incluye nombre, teléfono y ubicación: la URL debe pertenecer a SERENA o a la
-empresa (por ejemplo, un flujo propio de n8n, Make o Zapier que reenvíe a la guardia). No usar servicios públicos de
-prueba de webhooks, que exponen esos datos a terceros.
+En producción el servidor no arranca sin un canal hacia la guardia. Por defecto, SERENA avisa **directamente por SMS
+y email** (`SERENA_GUARDIA_TELEFONOS`, `SERENA_GUARDIA_EMAILS`) con los mismos proveedores que ya usa (Twilio y
+Resend): el aviso incluye qué pasó, nombre, legajo, teléfono, ubicación en el mapa y hora, y no pasa por terceros
+nuevos. El SMS a la guardia necesita `TWILIO_MESSAGING_SERVICE_SID` (Verify no envía texto libre). Se envía a todos
+los destinos a la vez; si ninguno lo acepta, la app se lo dice a la persona y le sugiere la radio.
+
+Para probarlo después de publicar, desde la Shell: `npm run guardia:prueba -w @serena/server` (aviso ficticio
+marcado como prueba).
+
+Si la faena tiene un sistema propio, se puede sumar un webhook (`SERENA_GUARD_WEBHOOK_URL` https y
+`SERENA_GUARD_WEBHOOK_SECRET`): POST con JSON firmado con HMAC-SHA256 en `X-Serena-Signature`. No usar servicios
+públicos de prueba de webhooks, que exponen nombre, teléfono y ubicación a terceros.
 
 ## Después de publicar
 

@@ -63,8 +63,10 @@ services:
       - key: SERENA_ALERTAS_EMAIL
         sync: false
 
-      # Canal hacia la guardia: obligatorio en producción (https y firma HMAC).
-      - key: SERENA_GUARD_WEBHOOK_URL
+      # Canal hacia la guardia (obligatorio en producción): aviso directo por SMS y email con Twilio y Resend.
+      # Listas separadas por comas, p. ej. +5493511111111,+5493512222222. Alternativa o complemento:
+      # SERENA_GUARD_WEBHOOK_URL + SERENA_GUARD_WEBHOOK_SECRET hacia un sistema propio de la guardia.
+      - key: SERENA_GUARDIA_TELEFONOS
         sync: false
-      - key: SERENA_GUARD_WEBHOOK_SECRET
-        generateValue: true
+      - key: SERENA_GUARDIA_EMAILS
+        sync: false

@@ -117,6 +117,7 @@ rechazos detallados y avisos por email a operaciones (README, sección SMS).
 | Avisos de seguridad sin código | **Probado (2026-10-03)** con el Messaging Service "SERENA APP - Avisos de seguridad" (`TWILIO_MESSAGING_SERVICE_SID`): SMS de prueba a tres celulares argentinos (+54 9 351…, +54 9 380…), los tres `delivered` según Twilio y recibidos. Remitente: número de EE. UU. (+1 443…) |
 | **Prueba real (2026-10-03)** | Código de Verify enviado a un celular argentino (+54 9 351…), **recibido por SMS y aprobado por Twilio** (`npm run sms:prueba`). Sin rechazo 21608: el perfil de Trust Hub habilita números no verificados |
 | Alertas por email (Resend) | **Probado (2026-10-03)**: `npm run alertas:prueba` envió el aviso de prueba y llegó a la bandeja principal de Gmail (no a spam) |
+| **Guardia por SMS y email** | **Probado (2026-10-04)**: `npm run guardia:prueba` envió un aviso ficticio; SMS `delivered` y email aceptado por Resend. Configuración: `SERENA_GUARDIA_TELEFONOS`, `SERENA_GUARDIA_EMAILS` |
 
 **Antes de producción:** el remitente es un número de EE. UU.: la persona ve un número extranjero desconocido, lo que
 resta confianza a un aviso de seguridad. Evaluar con Twilio un remitente alfanumérico ("SERENA") o un número local para

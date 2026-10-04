@@ -3,8 +3,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { TwilioMessenger } from './sms/twilio.ts';
 import { TwilioVerifyMessenger } from './sms/verify.ts';
-import type { Messenger } from './notify.ts';
-import type { AvisoOperaciones } from './avisoOperaciones.ts';
+import { ConsoleGuardNotifier, WebhookGuardNotifier, type GuardNotifier, type Messenger } from './notify.ts';
+import { ResendAvisoOperaciones, type AvisoOperaciones } from './avisoOperaciones.ts';
+import { GuardiaDirectaNotifier, GuardiasCombinadas } from './guardiaDirecta.ts';
 
 /**
  * Configuración por variables de entorno. Ver .env.example en la raíz.
@@ -12,6 +13,11 @@ import type { AvisoOperaciones } from './avisoOperaciones.ts';
  */
 
 const isProd = process.env.NODE_ENV === 'production';
+const lista = (v: string | undefined) =>
+  (v ?? '')
+    .split(',')
+    .map((x) => x.trim())
+    .filter(Boolean);
 
 function required(name: string, devFallback: () => string): string {
   const v = process.env[name];
@@ -100,6 +106,15 @@ export const env = {
 
   guardWebhookUrl: process.env.SERENA_GUARD_WEBHOOK_URL ?? null,
   guardWebhookSecret: process.env.SERENA_GUARD_WEBHOOK_SECRET ?? null,
+  /**
+   * Aviso directo a la guardia por SMS y email (guardiaDirecta.ts), sin sistema intermedio. Se puede usar solo
+   * o junto con el webhook. Listas separadas por comas.
+   */
+  guardiaDirecta: {
+    telefonos: lista(process.env.SERENA_GUARDIA_TELEFONOS),
+    emails: lista(process.env.SERENA_GUARDIA_EMAILS),
+    zonaHoraria: process.env.SERENA_GUARDIA_ZONA_HORARIA ?? 'America/Argentina/Buenos_Aires',
+  },
 
   payments: {
     stripe: {
@@ -123,11 +138,22 @@ export const env = {
  * no cumple: avisos a la guardia que no llegan a nadie o códigos de ingreso escritos en los registros.
  * En producción el servidor no arranca si falta alguno (ver index.ts).
  */
-export function problemasDeProduccion(e: Pick<typeof env, 'guardWebhookUrl' | 'guardWebhookSecret'> & { smsConfigurado: boolean }): string[] {
+export function problemasDeProduccion(
+  e: Pick<typeof env, 'guardWebhookUrl' | 'guardWebhookSecret'> & {
+    smsConfigurado: boolean;
+    /** Aviso directo a la guardia: cantidad de destinos y si hay proveedor para cada canal. */
+    guardiaDirecta?: { telefonos: number; emails: number; smsConRemitente: boolean; emailConfigurado: boolean };
+  },
+): string[] {
   const p: string[] = [];
-  if (!e.guardWebhookUrl) p.push('SERENA_GUARD_WEBHOOK_URL: sin canal hacia la guardia, los pedidos de ayuda no llegarían a nadie.');
-  else if (!e.guardWebhookUrl.startsWith('https://')) p.push('SERENA_GUARD_WEBHOOK_URL debe usar https:// (el aviso incluye nombre, teléfono y ubicación).');
+  const d = e.guardiaDirecta ?? { telefonos: 0, emails: 0, smsConRemitente: false, emailConfigurado: false };
+  if (!e.guardWebhookUrl && !d.telefonos && !d.emails)
+    p.push('Canal hacia la guardia (SERENA_GUARD_WEBHOOK_URL, o SERENA_GUARDIA_TELEFONOS / SERENA_GUARDIA_EMAILS): sin él, los pedidos de ayuda no llegarían a nadie.');
+  if (e.guardWebhookUrl && !e.guardWebhookUrl.startsWith('https://')) p.push('SERENA_GUARD_WEBHOOK_URL debe usar https:// (el aviso incluye nombre, teléfono y ubicación).');
   if (e.guardWebhookUrl && !e.guardWebhookSecret) p.push('SERENA_GUARD_WEBHOOK_SECRET: sin firma, la guardia no puede verificar que el aviso viene de SERENA.');
+  if (d.telefonos && !d.smsConRemitente)
+    p.push('SERENA_GUARDIA_TELEFONOS requiere TWILIO_MESSAGING_SERVICE_SID o TWILIO_FROM_NUMBER (Twilio Verify no envía texto libre).');
+  if (d.emails && !d.emailConfigurado) p.push('SERENA_GUARDIA_EMAILS requiere RESEND_API_KEY y SERENA_ALERTAS_FROM.');
   if (!e.smsConfigurado)
     p.push('Twilio (TWILIO_ACCOUNT_SID, TWILIO_API_KEY_SID, TWILIO_API_KEY_SECRET y TWILIO_VERIFY_SERVICE_SID, TWILIO_FROM_NUMBER o TWILIO_MESSAGING_SERVICE_SID): sin SMS no se puede entregar el segundo factor.');
   return p;
@@ -150,4 +176,33 @@ export function twilioMessenger(t: (typeof env)['twilio'], aviso: AvisoOperacion
     avisoOperaciones: aviso,
   };
   return t.verifyServiceSid ? new TwilioVerifyMessenger({ ...base, verifyServiceSid: t.verifyServiceSid }) : new TwilioMessenger(base);
+}
+
+/** Proveedores disponibles para el aviso directo a la guardia. */
+export function canalesDirectos() {
+  const t = env.twilio;
+  return {
+    /** SMS de texto libre: requiere número o Messaging Service (Verify solo envía su plantilla de código). */
+    smsConRemitente: Boolean(t.accountSid && t.apiKeySid && t.apiKeySecret && (t.from || t.messagingServiceSid)),
+    emailConfigurado: Boolean(env.alertas.resendApiKey && env.alertas.from),
+  };
+}
+
+/** Canal hacia la guardia: webhook, aviso directo por SMS y email, ambos o (solo en desarrollo) la consola. */
+export function notificadorGuardia(aviso: AvisoOperaciones | null): GuardNotifier {
+  const t = env.twilio;
+  const gd = env.guardiaDirecta;
+  const { smsConRemitente, emailConfigurado } = canalesDirectos();
+  const canales: GuardNotifier[] = [];
+  if (env.guardWebhookUrl) canales.push(new WebhookGuardNotifier(env.guardWebhookUrl, env.guardWebhookSecret));
+  if (gd.telefonos.length || gd.emails.length) {
+    const sms =
+      gd.telefonos.length && smsConRemitente
+        ? new TwilioMessenger({ accountSid: t.accountSid!, apiKeySid: t.apiKeySid!, apiKeySecret: t.apiKeySecret!, from: t.from, messagingServiceSid: t.messagingServiceSid, avisoOperaciones: aviso })
+        : null;
+    const email = gd.emails.length && emailConfigurado ? new ResendAvisoOperaciones({ apiKey: env.alertas.resendApiKey!, from: env.alertas.from!, to: gd.emails }) : null;
+    canales.push(new GuardiaDirectaNotifier(gd, sms, email));
+  }
+  if (!canales.length) return new ConsoleGuardNotifier();
+  return canales.length === 1 ? canales[0]! : new GuardiasCombinadas(canales);
 }
