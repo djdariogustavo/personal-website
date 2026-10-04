@@ -145,6 +145,9 @@ ejemplo** y se reemplazan con `SERENA_PLANS_JSON`.
 
 ## Configuración
 
+**Publicación:** en Render con el Blueprint `render.yaml` de la raíz del repositorio; pasos, alta inicial de la
+organización y canal de la guardia en [`docs/DESPLIEGUE-RENDER.md`](docs/DESPLIEGUE-RENDER.md).
+
 Todas las variables están documentadas en [`.env.example`](.env.example). En producción son obligatorias
 `SERENA_MASTER_KEY` (32 bytes en base64) y `SERENA_JWT_SECRET`. En desarrollo, si faltan, se generan una
 vez y se guardan en `data/.dev-keys.json` (ignorado por git).
