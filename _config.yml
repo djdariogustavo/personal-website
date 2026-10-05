@@ -58,6 +58,7 @@ topics:
 # La app SERENA Companion vive en su propia carpeta y no forma parte del sitio Jekyll.
 exclude:
   - serena-companion
+  - render.yaml
   - Gemfile
   - Gemfile.lock
   - node_modules
