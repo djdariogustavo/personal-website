@@ -1,0 +1,28 @@
+{
+  "name": "@serena/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "node scripts/vendor-mediapipe.mjs && node scripts/vendor-shenai.mjs --si-activo && tsc -p . && vite build",
+    "ocular:vendor": "node scripts/vendor-mediapipe.mjs",
+    "preview": "vite preview",
+    "build:demo": "tsc -p . && VITE_DEMO=true vite build && node scripts/pack-demo.mjs",
+    "scan:vendor": "node scripts/vendor-shenai.mjs"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.0.1",
+    "@serena/domain": "*",
+    "@shenai/sdk": "3.1.15",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-router": "^7.9.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "vite": "^7.1.0"
+  }
+}

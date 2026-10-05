@@ -1,0 +1,72 @@
+# Blueprint de Render para SERENA Companion (serena-companion/). Guía: serena-companion/docs/DESPLIEGUE-RENDER.md
+# Las variables con `sync: false` las pide Render al crear el Blueprint y nunca se versionan.
+services:
+  - type: web
+    name: serena-app
+    runtime: node
+    # Starter: el plan gratuito no admite disco persistente (la base SQLite se perdería en cada reinicio)
+    # ni la consola Shell, que se usa para el alta inicial.
+    plan: starter
+    region: virginia
+    branch: claude/app-payment-service-l1dlmn
+    rootDir: serena-companion
+    # --include=dev: TypeScript, Vite y esbuild son dependencias de desarrollo y hacen falta para compilar.
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    disk:
+      name: serena-datos
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: SERENA_DB_PATH
+        value: /var/data/serena.db
+      # URL pública con https:// (p. ej. https://serena-app.onrender.com): enlaces y redirecciones de pago.
+      - key: SERENA_PUBLIC_URL
+        sync: false
+      # Claves del servidor: Render genera valores aleatorios de 256 bits en base64. Guardar una copia de
+      # SERENA_MASTER_KEY fuera de Render: sin ella, los datos cifrados de la base no se pueden leer.
+      - key: SERENA_MASTER_KEY
+        generateValue: true
+      - key: SERENA_JWT_SECRET
+        generateValue: true
+
+      # Escaneo con el SDK Shen.AI (la clave se incrusta al compilar la web: restringirla al dominio en el panel del proveedor).
+      - key: SERENA_AISLAMIENTO_ORIGEN
+        value: "true"
+      - key: VITE_SCAN_PROVIDER
+        value: sdk
+      - key: VITE_SCAN_SDK_KEY
+        sync: false
+
+      # SMS (Twilio): obligatorio en producción.
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_API_KEY_SID
+        sync: false
+      - key: TWILIO_API_KEY_SECRET
+        sync: false
+      - key: TWILIO_VERIFY_SERVICE_SID
+        sync: false
+      - key: TWILIO_MESSAGING_SERVICE_SID
+        sync: false
+
+      # Avisos por email a operaciones (Resend).
+      - key: RESEND_API_KEY
+        sync: false
+      - key: SERENA_ALERTAS_FROM
+        sync: false
+      - key: SERENA_ALERTAS_EMAIL
+        sync: false
+
+      # Canal hacia la guardia (obligatorio en producción): aviso directo por SMS y email con Twilio y Resend.
+      # Listas separadas por comas, p. ej. +5493511111111,+5493512222222. Alternativa o complemento:
+      # SERENA_GUARD_WEBHOOK_URL + SERENA_GUARD_WEBHOOK_SECRET hacia un sistema propio de la guardia.
+      - key: SERENA_GUARDIA_TELEFONOS
+        sync: false
+      - key: SERENA_GUARDIA_EMAILS
+        sync: false

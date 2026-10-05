@@ -1,0 +1,75 @@
+# Verificación automática de SERENA Companion en cada cambio de serena-companion/.
+# Pasos, en orden de costo: tipos → pruebas unitarias → compilaciones → pruebas de punta a punta.
+name: SERENA Companion
+
+on:
+  push:
+    paths: ['serena-companion/**', '.github/workflows/serena-companion.yml']
+  pull_request:
+    paths: ['serena-companion/**', '.github/workflows/serena-companion.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: serena-companion-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: serena-companion
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x' # node:sqlite estable desde 22.13
+          cache: npm
+          cache-dependency-path: serena-companion/package-lock.json
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      # Dependencias de la app publicada: ninguna vulnerabilidad conocida (moderada o más).
+      - name: Auditoría de dependencias de producción
+        run: npm audit --omit=dev --audit-level=moderate
+
+      # Herramientas de desarrollo y pruebas: solo frenan si son altas o críticas.
+      - name: Auditoría de dependencias de desarrollo
+        run: npm audit --audit-level=high
+
+      - name: Tipos (dominio, servidor, web y e2e)
+        run: npm run typecheck
+
+      - name: Pruebas unitarias e integración (Vitest)
+        run: npm test
+
+      - name: Compilar web y servidor
+        run: npm run build
+
+      - name: Compilar la vista previa
+        run: npm run build:demo
+
+      - name: Instalar Chromium para Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Pruebas de punta a punta (Playwright)
+        run: npm run e2e:only
+        env:
+          CI: 'true'
+
+      - name: Guardar el informe de Playwright
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-informe
+          path: |
+            serena-companion/e2e/report/
+            serena-companion/e2e/results/
+          retention-days: 14
