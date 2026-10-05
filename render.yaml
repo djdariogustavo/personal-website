@@ -8,7 +8,7 @@ services:
     # ni la consola Shell, que se usa para el alta inicial.
     plan: starter
     region: virginia
-    branch: claude/app-payment-service-l1dlmn
+    branch: master
     rootDir: serena-companion
     # --include=dev: TypeScript, Vite y esbuild son dependencias de desarrollo y hacen falta para compilar.
     buildCommand: npm ci --include=dev && npm run build
