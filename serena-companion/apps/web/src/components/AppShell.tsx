@@ -90,7 +90,7 @@ export function AppShell({ children, hideNav = false, kiosk = false }: { childre
   const showSidebar = !isMobile && !kiosk && !!session && !baja && !temporal;
   const collapsed = layout === 'tablet';
 
-  useEffect(() => scrollRef.current?.scrollTo(0, 0), [loc.pathname]);
+  useEffect(() => void scrollRef.current?.scrollTo(0, 0), [loc.pathname]);
 
   // Cierre por inactividad: 5 min en tablet y kiosco, 15 min en escritorio; en el teléfono se bloquea con el PIN.
   // Un minuto antes se avisa y se puede seguir (WCAG 2.2.1); cualquier actividad cancela el aviso.
