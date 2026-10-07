@@ -137,3 +137,35 @@ describe('firma de Mercado Pago', () => {
     expect(verifyMercadoPagoSignature({ xSignature: `ts=${ts},v1=${v1}`, xRequestId: 'r', dataId: '1', secret, toleranceS: 600 })).toBe(false);
   });
 });
+
+describe('email de la cuenta que paga', () => {
+  function proveedorReal(ctx: Awaited<ReturnType<typeof adminSession>>['ctx']) {
+    const emails: string[] = [];
+    const real = ctx.payments.get('sandbox')!;
+    ctx.payments.register(
+      Object.assign(Object.create(Object.getPrototypeOf(real)), real, {
+        id: 'mercadopago',
+        nombre: 'Mercado Pago',
+        monedas: ['ARS'],
+        createCheckout: async (i: { payerEmail: string }) => (emails.push(i.payerEmail), { url: 'https://mp.example/checkout', externoId: 'pre-1' }),
+      }),
+    );
+    return emails;
+  }
+
+  it('con un proveedor real exige el email del pagador y lo envía tal cual', async () => {
+    const { app, ctx, token } = await adminSession();
+    const emails = proveedorReal(ctx);
+    // Como en el alta inicial en producción: la cuenta de administración no tiene email.
+    ctx.db.prepare("UPDATE users SET email = NULL WHERE role = 'admin'").run();
+    const base = { proveedor: 'mercadopago', planId: 'faena-mensual', puestos: 40, moneda: 'ARS' };
+    const sin = await request(app).post('/api/admin/billing/checkout').set(bearer(token)).send(base);
+    expect(sin.status).toBe(400);
+    expect(sin.body.error).toBe('email_pago');
+    const mal = await request(app).post('/api/admin/billing/checkout').set(bearer(token)).send({ ...base, emailPago: 'no-es-email' });
+    expect(mal.status).toBe(400);
+    const ok = await request(app).post('/api/admin/billing/checkout').set(bearer(token)).send({ ...base, emailPago: 'test_user_123@testuser.com' });
+    expect(ok.status).toBe(200);
+    expect(emails).toEqual(['test_user_123@testuser.com']);
+  });
+});

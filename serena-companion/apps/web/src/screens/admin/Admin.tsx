@@ -179,6 +179,7 @@ export function AdminBilling() {
   const [planId, setPlanId] = useState('');
   const [seats, setSeats] = useState(0);
   const [currency, setCurrency] = useState('');
+  const [emailPago, setEmailPago] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -211,7 +212,7 @@ export function AdminBilling() {
     setError(null);
     setBusy(true);
     try {
-      const r = await api<{ url: string }>('/admin/billing/checkout', { body: { proveedor: provider, planId, puestos: seats, moneda: currency } });
+      const r = await api<{ url: string }>('/admin/billing/checkout', { body: { proveedor: provider, planId, puestos: seats, moneda: currency, ...(emailPago.trim() ? { emailPago: emailPago.trim() } : {}) } });
       // Stripe y Mercado Pago muestran su propia página de pago; la pasarela de prueba vive dentro de la app.
       if (r.url.startsWith('/')) nav(r.url);
       else window.location.assign(r.url);
@@ -337,6 +338,15 @@ export function AdminBilling() {
                   <input className="input num" type="number" min={plan?.minimoPuestos ?? 1} value={seats} onChange={(e) => setSeats(Math.max(0, Number(e.target.value) || 0))} />
                 </label>
               </div>
+              {provider !== 'sandbox' && (
+                <label className="field">
+                  <span className="label">EMAIL DE LA CUENTA QUE PAGA</span>
+                  <input className="input" type="email" autoComplete="email" required value={emailPago} onChange={(e) => setEmailPago(e.target.value)} />
+                  <span className="meta" style={{ fontSize: 13 }}>
+                    El de la cuenta de {prov?.nombre ?? 'pago'} con la que la empresa va a pagar: el proveedor lo exige igual.
+                  </span>
+                </label>
+              )}
               {total !== null && (
                 <div style={{ fontSize: 17 }}>
                   Total por {plan?.intervalo === 'anual' ? 'año' : 'mes'}: <strong className="num">{formatMoney(total, currency)}</strong>
