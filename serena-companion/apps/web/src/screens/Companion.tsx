@@ -39,7 +39,7 @@ export function Companion() {
     void engine?.db.all<Msg>('chatQueue').then((q) => q.length && setMsgs((m) => [...m, ...q]));
   }, [chatAllowed, engine]);
 
-  useEffect(() => end.current?.scrollIntoView({ block: 'end' }), [msgs, typing]);
+  useEffect(() => void end.current?.scrollIntoView({ block: 'end' }), [msgs, typing]);
 
   async function send(text: string, retryId?: string) {
     text = text.trim();
