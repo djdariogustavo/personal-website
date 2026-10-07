@@ -188,7 +188,14 @@ export function adminRoutes(ctx: AppContext) {
   r.post('/admin/billing/checkout', async (req, res) => {
     const a = auth(req);
     const b = z
-      .object({ proveedor: z.string(), planId: z.string(), puestos: z.number().int().min(1).max(100_000), moneda: z.string().length(3) })
+      .object({
+        proveedor: z.string(),
+        planId: z.string(),
+        puestos: z.number().int().min(1).max(100_000),
+        moneda: z.string().length(3),
+        /** Email de la cuenta del proveedor que paga (Mercado Pago exige que pague la cuenta con ese email). */
+        emailPago: z.string().trim().email().max(254).optional(),
+      })
       .parse(req.body);
     const provider = ctx.payments.get(b.proveedor);
     if (!provider) throw new HttpError(400, 'proveedor_no_disponible');
@@ -201,6 +208,10 @@ export function adminRoutes(ctx: AppContext) {
       throw new HttpError(409, 'ya_suscripta', 'La organización ya tiene una suscripción activa. Gestionala desde el portal del proveedor.');
     const admin = getUser(db, a.userId);
     const org = getOrg(db, a.orgId);
+    const payerEmail = b.emailPago ?? admin.email;
+    // Con un proveedor real, un email inventado hace fallar el pago (Mercado Pago lo exige igual al de la cuenta que paga).
+    if (!payerEmail && provider.id !== 'sandbox')
+      throw new HttpError(400, 'email_pago', `Indicá el email de la cuenta de ${provider.nombre} con la que se va a pagar.`);
     const checkoutId = newId();
     const out = await provider.createCheckout({
       checkoutId,
@@ -208,7 +219,7 @@ export function adminRoutes(ctx: AppContext) {
       plan,
       puestos: b.puestos,
       moneda: b.moneda,
-      payerEmail: admin.email ?? `${admin.usuario ?? admin.id}@example.invalid`,
+      payerEmail: payerEmail ?? `${admin.usuario ?? admin.id}@example.invalid`,
       successUrl: `${ctx.publicUrl}/admin/facturacion?resultado=ok`,
       cancelUrl: `${ctx.publicUrl}/admin/facturacion?resultado=cancelado`,
     });

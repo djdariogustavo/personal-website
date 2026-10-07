@@ -137,6 +137,17 @@ mensajes, pero no leer la cuenta ni el Messaging Service.
   precios en Stripe (`STRIPE_PRICE_IDS`).
 - Configurar los webhooks en cada proveedor apuntando a
   `https://<dominio>/api/billing/webhooks/stripe` y `.../mercadopago`.
+- **Mercado Pago (2026-10-07), modo prueba configurado en Render:** webhook en el panel (evento "Planes y
+  suscripciones"), `MERCADOPAGO_WEBHOOK_SECRET` y token `TEST-…`. Verificado en vivo: un POST sin firma responde
+  400 `firma_invalida`. **Falta el pago de prueba**, que confirma que la clave secreta de Render es la del panel:
+  1. Crear en Mercado Pago (Tus integraciones → Cuentas de prueba) un **vendedor** y un **comprador** de prueba; el
+     token `TEST-…` debe ser del vendedor de prueba o de la app en modo prueba.
+  2. En SERENA → Facturación, elegir Mercado Pago y poner en **Email de la cuenta que paga** el email del comprador
+     de prueba (Mercado Pago exige que pague la cuenta con ese email; antes se enviaba un email inventado).
+  3. Pagar en la página de Mercado Pago con el comprador de prueba (tarjeta de prueba).
+  4. Esperado: en el panel (Webhooks → historial) la notificación con **200** y en SERENA la suscripción `activa`.
+     400 `firma_invalida` = la clave de Render no coincide con la del panel; 500 = revisar Logs (`GET /preapproval`).
+  5. Producción: misma URL y evento en "Modo productivo"; cambiar token y clave secreta en Render.
 - Facturación fiscal (AFIP / SII) no está incluida: la emite el proveedor o el ERP.
 
 ## 7. Operación
