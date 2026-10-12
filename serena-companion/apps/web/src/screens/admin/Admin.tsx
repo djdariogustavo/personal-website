@@ -1,5 +1,5 @@
 import { DEMO } from '../../demo/flags.ts';
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { formatMoney, isEntitled, STATUS_COPY, type CeldaPublicable, type Plan, type SubscriptionSummary } from '@serena/domain';
 import { api, ApiError, isOffline } from '../../lib/api.ts';
@@ -180,6 +180,12 @@ export function AdminBilling() {
   const [seats, setSeats] = useState(0);
   const [currency, setCurrency] = useState('');
   const [emailPago, setEmailPago] = useState('');
+  /** Error al iniciar el pago: va junto al botón, donde la persona está mirando. */
+  const [errorPago, setErrorPago] = useState<string | null>(null);
+  const errorPagoRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (errorPago) errorPagoRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, [errorPago]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -209,7 +215,8 @@ export function AdminBilling() {
 
   async function checkout(e: FormEvent) {
     e.preventDefault();
-    setError(null);
+    if (busy) return;
+    setErrorPago(null);
     setBusy(true);
     try {
       const r = await api<{ url: string }>('/admin/billing/checkout', { body: { proveedor: provider, planId, puestos: seats, moneda: currency, ...(emailPago.trim() ? { emailPago: emailPago.trim() } : {}) } });
@@ -217,7 +224,7 @@ export function AdminBilling() {
       if (r.url.startsWith('/')) nav(r.url);
       else window.location.assign(r.url);
     } catch (err) {
-      setError(errMsg(err));
+      setErrorPago(errMsg(err));
       setBusy(false);
     }
   }
@@ -354,9 +361,12 @@ export function AdminBilling() {
                 </div>
               )}
               <div className="actions">
-                <button type="submit" className="btn btn-primary" disabled={busy || !plan || seats < (plan?.minimoPuestos ?? 1)}>
-                  Continuar al pago
+                <button type="submit" className="btn btn-primary" disabled={busy || !plan || seats < (plan?.minimoPuestos ?? 1)} aria-busy={busy}>
+                  {busy ? 'Conectando con el proveedor…' : 'Continuar al pago'}
                 </button>
+              </div>
+              <div ref={errorPagoRef} aria-live="polite">
+                {errorPago && <div className="alert">{errorPago}</div>}
               </div>
             </>
           )}

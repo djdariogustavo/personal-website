@@ -1,8 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createHmac } from 'node:crypto';
 import { addUser, login, makeCtx } from './helpers.ts';
-import { verifyMercadoPagoSignature } from '../src/payments/mercadopago.ts';
+import { MercadoPagoProvider, MOTIVO_MAX, motivoPreapproval, verifyMercadoPagoSignature } from '../src/payments/mercadopago.ts';
 import { ventanaReporte } from '@serena/domain';
 
 const bearer = (t: string) => ({ authorization: `Bearer ${t}` });
@@ -167,5 +167,58 @@ describe('email de la cuenta que paga', () => {
     const ok = await request(app).post('/api/admin/billing/checkout').set(bearer(token)).send({ ...base, emailPago: 'test_user_123@testuser.com' });
     expect(ok.status).toBe(200);
     expect(emails).toEqual(['test_user_123@testuser.com']);
+  });
+});
+
+describe('Mercado Pago: inicio del pago', () => {
+  it('la descripción de la suscripción nunca supera los 60 caracteres que admite Mercado Pago', async () => {
+    const enviados: Array<{ reason: string; external_reference: string }> = [];
+    const fetchFalso = (async (_url: string, init: RequestInit) => {
+      enviados.push(JSON.parse(String(init.body)));
+      return new Response(JSON.stringify({ id: 'pre-1', init_point: 'https://mp.example/pay', status: 'pending' }), { status: 201 });
+    }) as typeof fetch;
+    const mp = new MercadoPagoProvider('TEST-x', 'secreto', 'ARS', fetchFalso);
+    const largo = 'Plan corporativo con nombre larguísimo para una faena minera muy extensa';
+    for (const [nombre, puestos] of [['Faena · mensual', 20], [largo, 1], [largo, 100_000]] as const) {
+      await mp.createCheckout({
+        checkoutId: 'c1',
+        org: { id: 'org-1', nombre: 'Organización con una razón social extremadamente larga S.A.U.' },
+        plan: { id: 'p', nombre, descripcion: '', intervalo: 'mensual', precioPorPuesto: { USD: 1, ARS: 100, CLP: 1 }, minimoPuestos: 1 },
+        puestos,
+        moneda: 'ARS',
+        payerEmail: 'test_user@testuser.com',
+        successUrl: 'https://serena.example/ok',
+        cancelUrl: 'https://serena.example/no',
+      });
+    }
+    for (const b of enviados) expect(b.reason.length).toBeLessThanOrEqual(MOTIVO_MAX);
+    expect(enviados[0]!.reason).toBe('SERENA · Faena · mensual · 20 puestos');
+    // La organización sigue identificada por external_reference.
+    expect(enviados[0]!.external_reference.startsWith('org-1:')).toBe(true);
+    expect(motivoPreapproval('X', 1)).toBe('SERENA · X · 1 puesto');
+  });
+
+  it('si el proveedor falla, responde 502 con un mensaje claro y deja el detalle en los registros', async () => {
+    const { app, ctx, token } = await adminSession();
+    const real = ctx.payments.get('sandbox')!;
+    ctx.payments.register(
+      Object.assign(Object.create(Object.getPrototypeOf(real)), real, {
+        id: 'mercadopago',
+        nombre: 'Mercado Pago',
+        monedas: ['ARS'],
+        createCheckout: async () => {
+          throw new Error('Mercado Pago 400: reason has more than 60 characters');
+        },
+      }),
+    );
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const r = await request(app)
+      .post('/api/admin/billing/checkout')
+      .set(bearer(token))
+      .send({ proveedor: 'mercadopago', planId: 'faena-mensual', puestos: 40, moneda: 'ARS', emailPago: 'test_user@testuser.com' });
+    expect(r.status).toBe(502);
+    expect(r.body).toMatchObject({ error: 'proveedor_pago', mensaje: 'No pudimos iniciar el pago con Mercado Pago. Probá de nuevo o contactanos.' });
+    expect(err.mock.calls.flat().join(' ')).toMatch(/reason has more than 60 characters/);
+    err.mockRestore();
   });
 });

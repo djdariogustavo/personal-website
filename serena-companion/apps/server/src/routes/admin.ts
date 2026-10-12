@@ -213,16 +213,23 @@ export function adminRoutes(ctx: AppContext) {
     if (!payerEmail && provider.id !== 'sandbox')
       throw new HttpError(400, 'email_pago', `Indicá el email de la cuenta de ${provider.nombre} con la que se va a pagar.`);
     const checkoutId = newId();
-    const out = await provider.createCheckout({
-      checkoutId,
-      org: { id: org.id, nombre: org.nombre },
-      plan,
-      puestos: b.puestos,
-      moneda: b.moneda,
-      payerEmail: payerEmail ?? `${admin.usuario ?? admin.id}@example.invalid`,
-      successUrl: `${ctx.publicUrl}/admin/facturacion?resultado=ok`,
-      cancelUrl: `${ctx.publicUrl}/admin/facturacion?resultado=cancelado`,
-    });
+    let out: Awaited<ReturnType<typeof provider.createCheckout>>;
+    try {
+      out = await provider.createCheckout({
+        checkoutId,
+        org: { id: org.id, nombre: org.nombre },
+        plan,
+        puestos: b.puestos,
+        moneda: b.moneda,
+        payerEmail: payerEmail ?? `${admin.usuario ?? admin.id}@example.invalid`,
+        successUrl: `${ctx.publicUrl}/admin/facturacion?resultado=ok`,
+        cancelUrl: `${ctx.publicUrl}/admin/facturacion?resultado=cancelado`,
+      });
+    } catch (e) {
+      // El detalle del proveedor (p. ej. "Mercado Pago 400: …") va a los registros; a la persona, un mensaje claro.
+      console.error(`[serena][pagos] ${provider.nombre} no pudo iniciar el pago (org ${a.orgId}):`, (e as Error).message);
+      throw new HttpError(502, 'proveedor_pago', `No pudimos iniciar el pago con ${provider.nombre}. Probá de nuevo o contactanos.`);
+    }
     db.prepare(
       "INSERT INTO checkout_sessions (id, org_id, proveedor, plan_id, puestos, moneda, externo_id, estado, creado_en) VALUES (?, ?, ?, ?, ?, ?, ?, 'abierto', ?)",
     ).run(checkoutId, a.orgId, provider.id, plan.id, b.puestos, b.moneda, out.externoId, nowIso());
