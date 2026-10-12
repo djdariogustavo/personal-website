@@ -5,27 +5,47 @@ import type { NormalizedPaymentEvent, PaymentProvider } from './types.ts';
 import { StripeProvider } from './stripe.ts';
 import { MercadoPagoProvider } from './mercadopago.ts';
 import { SandboxProvider } from './sandbox.ts';
+import { OrdenCompraProvider, type ConfigOrdenCompra } from './ordenCompra.ts';
 
 /**
  * Catálogo de planes. PRECIOS DE EJEMPLO: los define el área comercial y se
  * reemplazan por configuración (SERENA_PLANS_JSON) antes de publicar.
+ *
+ * - Individual: una persona, cobro mensual con suscripción de Mercado Pago.
+ * - Empresa (mensual o anual): desde 10 puestos, por orden de compra y transferencia.
+ *   Los ids faena-* se conservan por compatibilidad con las suscripciones existentes.
  */
 export const DEFAULT_PLANS: Plan[] = [
   {
+    id: 'individual-mensual',
+    nombre: 'Individual · mensual',
+    descripcion: 'Companion para una persona. Se paga cada mes con Mercado Pago.',
+    tipo: 'individual',
+    intervalo: 'mensual',
+    precioPorPuesto: { ARS: 1_500_000 },
+    minimoPuestos: 1,
+    maximoPuestos: 1,
+    proveedores: ['mercadopago', 'sandbox'],
+  },
+  {
     id: 'faena-mensual',
-    nombre: 'Faena · mensual',
+    nombre: 'Empresa · mensual',
     descripcion: 'Companion para cada trabajador de la faena, kiosco incluido. Se cobra por puesto activo.',
+    tipo: 'empresa',
     intervalo: 'mensual',
     precioPorPuesto: { USD: 900, ARS: 900_000, CLP: 8_500 },
-    minimoPuestos: 20,
+    minimoPuestos: 10,
+    proveedores: ['orden_compra', 'stripe', 'sandbox'],
   },
   {
     id: 'faena-anual',
-    nombre: 'Faena · anual',
+    nombre: 'Empresa · anual',
     descripcion: 'Igual al mensual, con un pago por año.',
+    tipo: 'empresa',
     intervalo: 'anual',
     precioPorPuesto: { USD: 9_000, ARS: 9_000_000, CLP: 85_000 },
-    minimoPuestos: 20,
+    minimoPuestos: 10,
+    proveedores: ['orden_compra', 'stripe', 'sandbox'],
   },
 ];
 
@@ -59,11 +79,14 @@ export function buildRegistry(opts: {
   sandbox: boolean;
   sandboxSecret: string;
   publicUrl: string;
+  /** Plan Empresa por orden de compra: necesita la base y los datos para la transferencia. */
+  ordenCompra?: { db: DB; cfg: ConfigOrdenCompra } | null;
 }): PaymentRegistry {
   const reg = new PaymentRegistry(loadPlans());
   if (opts.stripe.secretKey) reg.register(new StripeProvider(opts.stripe.secretKey, opts.stripe.webhookSecret, opts.stripe.priceIds));
   if (opts.mercadopago.accessToken)
     reg.register(new MercadoPagoProvider(opts.mercadopago.accessToken, opts.mercadopago.webhookSecret, opts.mercadopago.currency));
+  if (opts.ordenCompra) reg.register(new OrdenCompraProvider(opts.ordenCompra.db, opts.ordenCompra.cfg));
   if (opts.sandbox) reg.register(new SandboxProvider(opts.sandboxSecret));
   return reg;
 }

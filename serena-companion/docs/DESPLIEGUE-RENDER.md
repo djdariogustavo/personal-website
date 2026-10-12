@@ -62,6 +62,14 @@ Si la faena tiene un sistema propio, se puede sumar un webhook (`SERENA_GUARD_WE
 `SERENA_GUARD_WEBHOOK_SECRET`): POST con JSON firmado con HMAC-SHA256 en `X-Serena-Signature`. No usar servicios
 públicos de prueba de webhooks, que exponen nombre, teléfono y ubicación a terceros.
 
+## Facturación
+
+- **Individual (Mercado Pago):** `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET` y el webhook configurado en el
+  panel de Mercado Pago (ver `docs/PENDIENTES.md`, sección 6).
+- **Empresa (orden de compra):** `SERENA_TRANSFERENCIA_JSON` con los datos bancarios. Las órdenes se gestionan desde la
+  Shell: `npm run ordenes -w @serena/server -- listar`, `pagada OC-000001 --fecha … --referencia …`, `vencida …`,
+  `factura …` (ver README, sección Servicio de pago).
+
 ## Después de publicar
 
 - Cada push a la rama configurada vuelve a desplegar (con disco no hay despliegue sin corte: unos segundos fuera de línea).

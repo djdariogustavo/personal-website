@@ -23,6 +23,11 @@ export interface ConfigResend {
   to: string[];
 }
 
+export interface AdjuntoEmail {
+  nombre: string;
+  contenido: Buffer;
+}
+
 export class ResendAvisoOperaciones implements AvisoOperaciones {
   private readonly ultimos = new Map<string, number>();
 
@@ -46,14 +51,25 @@ export class ResendAvisoOperaciones implements AvisoOperaciones {
     );
   }
 
-  /** Envía el email; devuelve si Resend lo aceptó. Nunca lanza. */
+  /** Envía el email a los destinatarios configurados; devuelve si Resend lo aceptó. Nunca lanza. */
   async enviar(asunto: string, texto: string): Promise<boolean> {
+    return this.enviarA(this.cfg.to, asunto, texto);
+  }
+
+  /** Envía a otros destinatarios, con adjuntos opcionales; devuelve si Resend lo aceptó. Nunca lanza. */
+  async enviarA(to: string[], asunto: string, texto: string, adjuntos: AdjuntoEmail[] = []): Promise<boolean> {
     try {
       const r = await this.fetchImpl('https://api.resend.com/emails', {
         method: 'POST',
         headers: { authorization: `Bearer ${this.cfg.apiKey}`, 'content-type': 'application/json' },
-        body: JSON.stringify({ from: this.cfg.from, to: this.cfg.to, subject: `[SERENA] ${asunto}`, text: texto }),
-        signal: AbortSignal.timeout(10_000),
+        body: JSON.stringify({
+          from: this.cfg.from,
+          to,
+          subject: `[SERENA] ${asunto}`,
+          text: texto,
+          ...(adjuntos.length ? { attachments: adjuntos.map((a) => ({ filename: a.nombre, content: a.contenido.toString('base64') })) } : {}),
+        }),
+        signal: AbortSignal.timeout(15_000),
       });
       if (r.ok) return true;
       const err = (await r.json().catch(() => null)) as { name?: string; message?: string } | null;

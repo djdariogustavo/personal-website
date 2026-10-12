@@ -133,8 +133,14 @@ mensajes, pero no leer la cuenta ni el Messaging Service.
   (`apps/server/src/companion.ts`, `packages/domain/src/risk.ts`) por profesionales.
 
 ## 6. Servicio de pago
-- Precios de los planes: **de ejemplo**. Definirlos (`SERENA_PLANS_JSON`) y crear los
-  precios en Stripe (`STRIPE_PRICE_IDS`).
+- **Modelo de cobro (2026-10-12):** Individual (1 puesto, Mercado Pago) y Empresa (desde 10 puestos, orden de compra
+  y transferencia; ver README, "Servicio de pago"). Pendiente:
+  - Precios definitivos de ambos planes (hoy **de ejemplo**: $15.000/mes Individual; $9.000 por puesto por mes
+    Empresa) en `SERENA_PLANS_JSON`, y los precios de Stripe (`STRIPE_PRICE_IDS`) si se usa.
+  - Cargar `SERENA_TRANSFERENCIA_JSON` en Render con los datos bancarios reales (sin eso, el plan Empresa no se ofrece).
+  - Renovación del plan Empresa: hoy cada período pagado se registra con `npm run ordenes -- pagada`; emitir la orden
+    del período siguiente es manual (nueva orden desde Facturación). Evaluar emisión automática.
+  - Definir si la proforma muestra IVA discriminado (hoy indica que la factura se emite por separado).
 - Configurar los webhooks en cada proveedor apuntando a
   `https://<dominio>/api/billing/webhooks/stripe` y `.../mercadopago`.
 - **Mercado Pago (2026-10-07), modo prueba configurado en Render:** webhook en el panel (evento "Planes y

@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import type { DatosTransferencia } from '@serena/domain';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { TwilioMessenger } from './sms/twilio.ts';
@@ -128,6 +129,14 @@ export const env = {
       webhookSecret: process.env.MERCADOPAGO_WEBHOOK_SECRET ?? null,
       currency: (process.env.MERCADOPAGO_CURRENCY ?? 'ARS') as 'ARS' | 'CLP',
     },
+    /**
+     * Plan Empresa por orden de compra. SERENA_TRANSFERENCIA_JSON: {"titular","cuit","banco","cbu","alias"}.
+     * En producción, sin esos datos el plan Empresa no se ofrece; en desarrollo se usan datos de ejemplo marcados.
+     */
+    ordenCompra: {
+      transferencia: process.env.SERENA_TRANSFERENCIA_JSON ? (JSON.parse(process.env.SERENA_TRANSFERENCIA_JSON) as DatosTransferencia) : null,
+      diasPago: Number(process.env.SERENA_ORDEN_DIAS_PAGO ?? 10),
+    },
     /** Proveedor simulado para desarrollo y demos. Desactivado en producción salvo que se pida. */
     sandbox: !isProd || process.env.SERENA_PAYMENTS_SANDBOX === 'true',
   },
@@ -205,4 +214,11 @@ export function notificadorGuardia(aviso: AvisoOperaciones | null): GuardNotifie
   }
   if (!canales.length) return new ConsoleGuardNotifier();
   return canales.length === 1 ? canales[0]! : new GuardiasCombinadas(canales);
+}
+
+/** Datos para la transferencia del plan Empresa: los configurados o, solo en desarrollo, unos de ejemplo marcados. */
+export function datosTransferencia(): DatosTransferencia | null {
+  if (env.payments.ordenCompra.transferencia) return env.payments.ordenCompra.transferencia;
+  if (env.isProd) return null;
+  return { titular: 'SERENA (ejemplo)', cuit: '30-00000000-0', banco: 'Banco de ejemplo', cbu: '0000000000000000000000', alias: 'SERENA.EJEMPLO', ejemplo: true };
 }

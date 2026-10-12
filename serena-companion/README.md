@@ -124,24 +124,53 @@ puntos a validar en `docs/PENDIENTES.md`, sección 1 bis.
 
 ## Servicio de pago
 
-SERENA se contrata **por organización/faena y por puesto activo**. Paga la empresa, nunca el trabajador,
-y el módulo de pagos está aislado de los datos individuales (solo conoce organización, plan, puestos y
-estado). **El estado del pago nunca bloquea** el botón de emergencia, el escalamiento ni el acceso de cada
-persona a sus datos; solo condiciona los reportes agregados y el alta de puestos por encima de lo contratado.
+SERENA se contrata **de forma individual o por empresa, por puesto activo**. El módulo de pagos está aislado de
+los datos individuales (solo conoce organización, plan, puestos y estado). **El estado del pago nunca bloquea** el
+botón de emergencia, el escalamiento ni el acceso de cada persona a sus datos; solo condiciona los reportes
+agregados y el alta de puestos por encima de lo contratado.
 
-Flujo: el administrador elige plan, proveedor, moneda y puestos → la API crea el checkout en el proveedor →
-el proveedor notifica por **webhook firmado** → la suscripción se actualiza de forma **idempotente**
-(tabla `payment_events`).
+Facturación ofrece dos caminos:
 
-| Proveedor | Moneda | Alta | Webhook |
+| Camino | Plan | Cómo se paga | Estado |
 |---|---|---|---|
-| Stripe | USD | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_IDS` | `POST /api/billing/webhooks/stripe` (checkout.session.completed, customer.subscription.*, invoice.payment_failed) |
-| Mercado Pago | ARS o CLP | `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET`, `MERCADOPAGO_CURRENCY` | `POST /api/billing/webhooks/mercadopago` (subscription_preapproval; firma `x-signature` verificada y estado consultado a la API) |
-| Pasarela de prueba | USD/ARS/CLP | automática en desarrollo (`SERENA_PAYMENTS_SANDBOX=true` en producción) | `POST /api/billing/webhooks/sandbox` |
+| **Individual** | `individual-mensual`: 1 puesto, sin mínimo | Suscripción mensual de **Mercado Pago** (preapproval). Se indica el email de la cuenta que paga | Checkout → webhook firmado → **Activa** |
+| **Empresa** | `faena-mensual` o `faena-anual`: desde **10 puestos** | **Orden de compra y transferencia**. Datos de facturación: razón social, CUIT (con dígito verificador), condición frente al IVA, domicilio fiscal, contacto y email de compras, OC interna opcional | **Pendiente de pago** con los puestos ya habilitados → un operador de SERENA la marca **Pagada** (→ **Activa**, próximo vencimiento a 1 o 12 meses) o **Vencida** (→ pago vencido) |
+
+**Orden de compra / proforma (plan Empresa).** Al confirmar se emite con número correlativo (`OC-000001`…), detalle
+de puestos, precio unitario, total y los datos para transferir (`SERENA_TRANSFERENCIA_JSON`). Se ve en la app
+(`/admin/facturacion/orden/:id`), se descarga en PDF y se envía por email, con el PDF adjunto, al contacto de compras
+y a `SERENA_ALERTAS_EMAIL`. Vence a los `SERENA_ORDEN_DIAS_PAGO` días (10 por defecto). Mientras está pendiente, la
+empresa puede anularla. **La factura se emite fuera de la app** (sin integración con AFIP); su número se registra en
+la orden. Los cambios de estado los hace un operador de SERENA, no la administración de la empresa, desde la consola
+del servidor (p. ej. la Shell de Render):
+
+```bash
+npm run ordenes -w @serena/server -- listar [--estado pendiente]
+npm run ordenes -w @serena/server -- ver OC-000001
+npm run ordenes -w @serena/server -- pagada OC-000001 --fecha 2026-10-12 --referencia "TRF 123456" [--factura "A-0001-00000012"]
+npm run ordenes -w @serena/server -- vencida OC-000001
+npm run ordenes -w @serena/server -- factura OC-000001 --numero "A-0001-00000012"
+```
+
+En producción, sin `SERENA_TRANSFERENCIA_JSON` el plan Empresa no se ofrece; en desarrollo se usan datos de ejemplo
+marcados como tales ("no transferir").
+
+Flujo con pasarela: el administrador elige plan, medio de pago y puestos → la API crea el checkout en el proveedor →
+el proveedor notifica por **webhook firmado** → la suscripción se actualiza de forma **idempotente**
+(tabla `payment_events`). Si el proveedor rechaza el inicio del pago, el detalle queda en los registros y la persona
+ve un mensaje claro debajo del botón (502 `proveedor_pago`).
+
+| Proveedor | Planes | Moneda | Alta | Webhook |
+|---|---|---|---|---|
+| Mercado Pago | Individual | ARS o CLP | `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET`, `MERCADOPAGO_CURRENCY` | `POST /api/billing/webhooks/mercadopago` (subscription_preapproval; firma `x-signature` verificada y estado consultado a la API) |
+| Orden de compra | Empresa | ARS | `SERENA_TRANSFERENCIA_JSON` (y Resend para el email) | — (lo confirma un operador con `npm run ordenes`) |
+| Stripe | Empresa | USD | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_IDS` | `POST /api/billing/webhooks/stripe` (checkout.session.completed, customer.subscription.*, invoice.payment_failed) |
+| Pasarela de prueba | Todos | USD/ARS/CLP | automática en desarrollo (`SERENA_PAYMENTS_SANDBOX=true` en producción) | `POST /api/billing/webhooks/sandbox` |
 
 Para sumar otro proveedor (dLocal, PayPal, Transbank, …) se implementa `PaymentProvider`
 (`apps/server/src/payments/types.ts`) y se registra en `payments/index.ts`. Los **precios de los planes son de
-ejemplo** y se reemplazan con `SERENA_PLANS_JSON`.
+ejemplo** (Individual: $15.000/mes; Empresa: $9.000 por puesto por mes) y se reemplazan con `SERENA_PLANS_JSON`,
+donde cada plan indica `tipo`, `minimoPuestos`, `maximoPuestos` y los `proveedores` admitidos.
 
 ## Configuración
 

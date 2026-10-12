@@ -130,11 +130,36 @@ test('baja: la persona solo puede ver o eliminar sus datos', async ({ browser })
   await expect(admin.locator('.list-row', { hasText: PERSONA.nombre })).toHaveCount(0);
 });
 
+test('plan Empresa: orden de compra con proforma, puestos habilitados y anulación', async ({ browser }) => {
+  const page = await comoAdmin(browser);
+  const errors = recordErrors(page);
+  await page.getByRole('link', { name: 'Facturación' }).click();
+  await page.getByRole('radio', { name: /Empresa/ }).click();
+  await page.getByLabel('RAZÓN SOCIAL').fill('Minera de Prueba S.A.');
+  await page.getByLabel('CUIT').fill('30-71234567-1');
+  await page.getByLabel('DOMICILIO FISCAL').fill('Av. Libertador 1000, San Juan');
+  await page.getByLabel('CONTACTO DE COMPRAS').fill('Compras Prueba');
+  await page.getByLabel('EMAIL DE COMPRAS').fill('compras@minera.example');
+  await page.getByRole('button', { name: 'Emitir orden de compra' }).click();
+  await expect(page.getByRole('heading', { name: 'OC-000001' })).toBeVisible();
+  await expect(page.getByText('DATOS PARA LA TRANSFERENCIA')).toBeVisible();
+  await expect(page.getByText(/Datos de ejemplo: no transferir/)).toBeVisible();
+  await page.getByRole('button', { name: 'Volver a Facturación' }).click();
+  await expect(page.getByText('PENDIENTE DE PAGO (ORDEN DE COMPRA)')).toBeVisible();
+  await expect(page.getByText(/Los puestos ya están habilitados/)).toBeVisible();
+  await page.getByRole('button', { name: 'Anular la orden' }).click();
+  await page.getByRole('button', { name: 'Sí, anular' }).click();
+  await expect(page.getByText('CANCELADA', { exact: true })).toBeVisible();
+  await expect(page.getByText('ANULADA')).toBeVisible();
+  expect(errors).toEqual([]);
+});
+
 test('contratación de prueba y reportes anónimos', async ({ browser }) => {
   const page = await comoAdmin(browser);
   const errors = recordErrors(page);
   await expect(page.getByText('Los reportes requieren una suscripción activa.')).toBeVisible();
   await page.getByRole('button', { name: 'Ir a Facturación' }).click();
+  await page.getByLabel('MEDIO DE PAGO').selectOption({ label: 'Pasarela de prueba' });
   await page.getByRole('button', { name: 'Continuar al pago' }).click();
   await page.getByRole('button', { name: 'Aprobar pago de prueba' }).click();
   await expect(page.getByText('ACTIVA', { exact: true })).toBeVisible();

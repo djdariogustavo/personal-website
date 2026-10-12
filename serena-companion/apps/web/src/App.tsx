@@ -18,7 +18,7 @@ import { ResourceDetail, Resources } from './screens/Resources.tsx';
 import { PolicyPage, Privacy } from './screens/Privacy.tsx';
 import { Devices } from './screens/Devices.tsx';
 import { KioskClose, KioskId, KioskWait } from './screens/kiosk/Kiosk.tsx';
-import { AdminBilling, AdminStats, AdminTeam, SandboxCheckout } from './screens/admin/Admin.tsx';
+import { AdminBilling, AdminStats, AdminTeam, SandboxCheckout, OrdenCompraView } from './screens/admin/Admin.tsx';
 import { BajaScreen } from './screens/Baja.tsx';
 import { ChangePassword, Recover } from './screens/Password.tsx';
 
@@ -131,6 +131,7 @@ export function App() {
           <Route path="/admin/contrasena" element={<ChangePassword />} />
           <Route path="/admin/facturacion" element={<AdminBilling />} />
           <Route path="/admin/facturacion/sandbox" element={<SandboxCheckout />} />
+          <Route path="/admin/facturacion/orden/:id" element={<OrdenCompraView />} />
         </Route>
         <Route path="/kiosco" element={<KioskLayout />}>
           <Route index element={<KioskWait />} />

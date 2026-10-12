@@ -121,6 +121,7 @@ for (const t of ['noche', 'sol'] as const) {
       await page.getByRole('link', { name: 'Facturación' }).click();
       await expect(page.getByRole('heading', { name: 'Facturación' })).toBeVisible();
       await auditar(page, 'Empresa: facturación', h);
+      await page.getByLabel('MEDIO DE PAGO').selectOption({ label: 'Pasarela de prueba' });
       await page.getByRole('button', { name: 'Continuar al pago' }).click();
       await auditar(page, 'Empresa: pago de prueba', h);
 

@@ -158,7 +158,7 @@ describe('email de la cuenta que paga', () => {
     const emails = proveedorReal(ctx);
     // Como en el alta inicial en producción: la cuenta de administración no tiene email.
     ctx.db.prepare("UPDATE users SET email = NULL WHERE role = 'admin'").run();
-    const base = { proveedor: 'mercadopago', planId: 'faena-mensual', puestos: 40, moneda: 'ARS' };
+    const base = { proveedor: 'mercadopago', planId: 'individual-mensual', puestos: 1, moneda: 'ARS' };
     const sin = await request(app).post('/api/admin/billing/checkout').set(bearer(token)).send(base);
     expect(sin.status).toBe(400);
     expect(sin.body.error).toBe('email_pago');
@@ -215,7 +215,7 @@ describe('Mercado Pago: inicio del pago', () => {
     const r = await request(app)
       .post('/api/admin/billing/checkout')
       .set(bearer(token))
-      .send({ proveedor: 'mercadopago', planId: 'faena-mensual', puestos: 40, moneda: 'ARS', emailPago: 'test_user@testuser.com' });
+      .send({ proveedor: 'mercadopago', planId: 'individual-mensual', puestos: 1, moneda: 'ARS', emailPago: 'test_user@testuser.com' });
     expect(r.status).toBe(502);
     expect(r.body).toMatchObject({ error: 'proveedor_pago', mensaje: 'No pudimos iniciar el pago con Mercado Pago. Probá de nuevo o contactanos.' });
     expect(err.mock.calls.flat().join(' ')).toMatch(/reason has more than 60 characters/);
