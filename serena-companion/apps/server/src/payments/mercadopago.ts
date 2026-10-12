@@ -84,6 +84,12 @@ export function verifyMercadoPagoSignature(opts: {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/** Mercado Pago rechaza `reason` de más de 60 caracteres (400). La organización ya viaja en external_reference. */
+export const MOTIVO_MAX = 60;
+export function motivoPreapproval(plan: string, puestos: number): string {
+  return `SERENA · ${plan} · ${puestos} ${puestos === 1 ? 'puesto' : 'puestos'}`.slice(0, MOTIVO_MAX);
+}
+
 export class MercadoPagoProvider implements PaymentProvider {
   readonly id = 'mercadopago' as const;
   readonly nombre = 'Mercado Pago';
@@ -93,12 +99,13 @@ export class MercadoPagoProvider implements PaymentProvider {
     private accessToken: string,
     private webhookSecret: string | null,
     private currency: 'ARS' | 'CLP',
+    private readonly fetchImpl: typeof fetch = fetch,
   ) {
     this.monedas = [currency];
   }
 
   private async api<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const r = await fetch(`${API}${path}`, {
+    const r = await this.fetchImpl(`${API}${path}`, {
       ...init,
       headers: {
         authorization: `Bearer ${this.accessToken}`,
@@ -120,7 +127,7 @@ export class MercadoPagoProvider implements PaymentProvider {
       method: 'POST',
       headers: { 'x-idempotency-key': input.checkoutId },
       body: JSON.stringify({
-        reason: `SERENA Companion · ${input.plan.nombre} · ${input.puestos} puestos · ${input.org.nombre}`,
+        reason: motivoPreapproval(input.plan.nombre, input.puestos),
         external_reference: `${input.org.id}:${input.checkoutId}:${input.puestos}`,
         payer_email: input.payerEmail,
         back_url: input.successUrl,
