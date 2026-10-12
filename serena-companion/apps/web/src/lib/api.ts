@@ -6,7 +6,11 @@ import { DEMO } from '../demo/flags.ts';
  */
 
 export class OfflineError extends Error {
-  constructor() {
+  /**
+   * red: el pedido no llegó (sin señal o sin red). servidor: un proxy o la red satelital respondió 502–504 sin
+   * una respuesta de SERENA (el servidor no respondió). Ambos se reintentan igual (cola offline).
+   */
+  constructor(readonly motivo: 'red' | 'servidor' = 'red') {
     super('sin_conexion');
   }
 }
@@ -72,8 +76,9 @@ export async function api<T>(path: string, init: { method?: string; body?: unkno
     const d = (data ?? {}) as { error?: string; mensaje?: string };
     const code = d.error ?? `http_${res.status}`;
     if (res.status === 401 && token && code.startsWith('sesion')) onSessionEnded?.(code);
-    // 502/503/504 del proxy o de la red satelital: se trata como sin conexión.
-    if (res.status >= 502 && res.status <= 504) throw new OfflineError();
+    // 502/503/504 sin respuesta de SERENA (proxy o red satelital): se reintenta como sin conexión. Si el servidor sí
+    // respondió con su error (p. ej. 502 proveedor_pago o sms_no_enviado), se muestra su mensaje.
+    if (res.status >= 502 && res.status <= 504 && !d.error) throw new OfflineError('servidor');
     throw new ApiError(res.status, code, d.mensaje ?? '');
   }
   return data as T;

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { createHmac } from 'node:crypto';
 import { addUser, login, makeCtx } from './helpers.ts';
-import { MercadoPagoProvider, MOTIVO_MAX, motivoPreapproval, verifyMercadoPagoSignature } from '../src/payments/mercadopago.ts';
+import { MercadoPagoProvider, MOTIVO_MAX, motivoPreapproval, rechazoTraducido, verifyMercadoPagoSignature } from '../src/payments/mercadopago.ts';
 import { ventanaReporte } from '@serena/domain';
 
 const bearer = (t: string) => ({ authorization: `Bearer ${t}` });
@@ -220,5 +220,34 @@ describe('Mercado Pago: inicio del pago', () => {
     expect(r.body).toMatchObject({ error: 'proveedor_pago', mensaje: 'No pudimos iniciar el pago con Mercado Pago. Probá de nuevo o contactanos.' });
     expect(err.mock.calls.flat().join(' ')).toMatch(/reason has more than 60 characters/);
     err.mockRestore();
+  });
+});
+
+describe('Mercado Pago: rechazos que la persona puede resolver', () => {
+  it('"Payer and collector cannot be the same user" se traduce y responde 400 con qué hacer', async () => {
+    const { app, ctx, token } = await adminSession();
+    const fetchFalso = (async () =>
+      new Response(JSON.stringify({ message: 'Payer and collector cannot be the same user', error: 'bad_request', status: 400, cause: [] }), {
+        status: 400,
+      })) as typeof fetch;
+    ctx.payments.register(new MercadoPagoProvider('TEST-x', 'secreto', 'ARS', fetchFalso));
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const r = await request(app)
+      .post('/api/admin/billing/checkout')
+      .set(bearer(token))
+      .send({ proveedor: 'mercadopago', planId: 'faena-mensual', puestos: 20, moneda: 'ARS', emailPago: 'vendedor@testuser.com' });
+    expect(r.status).toBe(400);
+    expect(r.body).toEqual({
+      error: 'pagador_igual_cobrador',
+      mensaje: 'El email de la cuenta que paga no puede ser el de la cuenta que cobra. Usá el email de otra cuenta de Mercado Pago.',
+    });
+    // El detalle original del proveedor queda en los registros.
+    expect(err.mock.calls.flat().join(' ')).toMatch(/Payer and collector cannot be the same user/);
+    err.mockRestore();
+  });
+
+  it('los demás rechazos siguen como 502 con el mensaje genérico', () => {
+    expect(rechazoTraducido('Mercado Pago 400: reason has more than 60 characters')).toBeNull();
+    expect(rechazoTraducido('Mercado Pago 400: {"message":"payer and collector cannot be the same user"}')?.codigo).toBe('pagador_igual_cobrador');
   });
 });
