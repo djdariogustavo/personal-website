@@ -143,17 +143,18 @@ mensajes, pero no leer la cuenta ni el Messaging Service.
   - Definir si la proforma muestra IVA discriminado (hoy indica que la factura se emite por separado).
 - Configurar los webhooks en cada proveedor apuntando a
   `https://<dominio>/api/billing/webhooks/stripe` y `.../mercadopago`.
-- **Mercado Pago (2026-10-07), modo prueba configurado en Render:** webhook en el panel (evento "Planes y
-  suscripciones"), `MERCADOPAGO_WEBHOOK_SECRET` y token `TEST-…`. Verificado en vivo: un POST sin firma responde
-  400 `firma_invalida`. **Falta el pago de prueba**, que confirma que la clave secreta de Render es la del panel:
-  1. Crear en Mercado Pago (Tus integraciones → Cuentas de prueba) un **vendedor** y un **comprador** de prueba; el
-     token `TEST-…` debe ser del vendedor de prueba o de la app en modo prueba.
-  2. En SERENA → Facturación, elegir Mercado Pago y poner en **Email de la cuenta que paga** el email del comprador
-     de prueba (Mercado Pago exige que pague la cuenta con ese email; antes se enviaba un email inventado).
-  3. Pagar en la página de Mercado Pago con el comprador de prueba (tarjeta de prueba).
-  4. Esperado: en el panel (Webhooks → historial) la notificación con **200** y en SERENA la suscripción `activa`.
-     400 `firma_invalida` = la clave de Render no coincide con la del panel; 500 = revisar Logs (`GET /preapproval`).
-  5. Producción: misma URL y evento en "Modo productivo"; cambiar token y clave secreta en Render.
+- **Mercado Pago: pago de prueba verificado en producción (2026-10-12).** Suscripción "SERENA · Faena · mensual ·
+  10 puestos" ($100.000/mes) pagada con el comprador de prueba; webhook `subscription_preapproval` recibido y
+  firmado correctamente (sin 400/500 en los registros); en la base: `payment_events` con el evento `…:authorized`,
+  `subscriptions` en `activa` con próximo cobro 2026-11-12 y `checkout_sessions` completado. Facturación muestra
+  ACTIVA. Arreglos que hicieron falta: descripción de la suscripción ≤ 60 caracteres (#4) y errores del pago
+  visibles (#4, #6).
+  - Precios de **prueba** cargados en Render con `SERENA_PLANS_JSON` (faena-mensual $10.000 por puesto, faena-anual
+    $100.000 por puesto por año, mínimo 10). Los definitivos los fija el área comercial. Con el modelo Individual /
+    Empresa, ese JSON tiene que sumar el plan `individual-mensual` y los campos `tipo` y `proveedores` de cada plan
+    (ver `DEFAULT_PLANS` en `apps/server/src/payments/index.ts`).
+  - Producción: misma URL y evento en "Modo productivo" del panel; cambiar `MERCADOPAGO_ACCESS_TOKEN` y
+    `MERCADOPAGO_WEBHOOK_SECRET` en Render por los productivos.
 - Facturación fiscal (AFIP / SII) no está incluida: la emite el proveedor o el ERP.
 
 ## 7. Operación

@@ -72,3 +72,17 @@ export class WebhookSignatureError extends Error {
     super(msg);
   }
 }
+
+/**
+ * Rechazo del proveedor que la persona puede resolver (p. ej. un email de pagador inválido). Lleva un mensaje en
+ * español para mostrarle; el detalle original del proveedor va en `message`, para los registros.
+ */
+export class ErrorProveedorPago extends Error {
+  constructor(
+    detalle: string,
+    readonly codigo: string,
+    readonly mensajePersona: string,
+  ) {
+    super(detalle);
+  }
+}

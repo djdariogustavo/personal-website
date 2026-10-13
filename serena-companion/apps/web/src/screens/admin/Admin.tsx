@@ -24,7 +24,7 @@ import { api, ApiError, getToken, isOffline } from '../../lib/api.ts';
  */
 
 function errMsg(e: unknown) {
-  if (isOffline(e)) return 'Sin conexión.';
+  if (isOffline(e)) return e.motivo === 'servidor' ? 'El servidor no respondió. Probá de nuevo en unos minutos.' : 'Sin conexión.';
   if (e instanceof ApiError) return e.mensaje || e.code;
   return 'Algo salió mal.';
 }

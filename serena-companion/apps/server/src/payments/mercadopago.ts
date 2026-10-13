@@ -7,7 +7,7 @@ import type {
   PaymentProvider,
   WebhookRequest,
 } from './types.ts';
-import { WebhookSignatureError } from './types.ts';
+import { ErrorProveedorPago, WebhookSignatureError } from './types.ts';
 
 /**
  * Mercado Pago (Argentina / Chile): suscripciones sin plan asociado
@@ -84,6 +84,20 @@ export function verifyMercadoPagoSignature(opts: {
   return a.length === b.length && timingSafeEqual(a, b);
 }
 
+/** Rechazos de Mercado Pago que la persona puede resolver, con el mensaje para mostrarle. */
+const RECHAZOS: Array<{ patron: RegExp; codigo: string; mensaje: string }> = [
+  {
+    patron: /payer and collector cannot be the same user/i,
+    codigo: 'pagador_igual_cobrador',
+    mensaje: 'El email de la cuenta que paga no puede ser el de la cuenta que cobra. Usá el email de otra cuenta de Mercado Pago.',
+  },
+];
+
+export function rechazoTraducido(detalle: string): { codigo: string; mensaje: string } | null {
+  const r = RECHAZOS.find((x) => x.patron.test(detalle));
+  return r ? { codigo: r.codigo, mensaje: r.mensaje } : null;
+}
+
 /** Mercado Pago rechaza `reason` de más de 60 caracteres (400). La organización ya viaja en external_reference. */
 export const MOTIVO_MAX = 60;
 export function motivoPreapproval(plan: string, puestos: number): string {
@@ -114,7 +128,11 @@ export class MercadoPagoProvider implements PaymentProvider {
       },
       signal: AbortSignal.timeout(15000),
     });
-    if (!r.ok) throw new Error(`Mercado Pago ${r.status}: ${await r.text()}`);
+    if (!r.ok) {
+      const detalle = `Mercado Pago ${r.status}: ${await r.text()}`;
+      const traducido = rechazoTraducido(detalle);
+      throw traducido ? new ErrorProveedorPago(detalle, traducido.codigo, traducido.mensaje) : new Error(detalle);
+    }
     return (await r.json()) as T;
   }
 
