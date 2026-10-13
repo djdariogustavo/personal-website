@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { isEntitled, K_CELDA, K_GRUPO, publicarDistribucion, publicarTotal, ultimoPorPersona, ventanaReporte, type Level } from '@serena/domain';
+import { cuitValido, isEntitled, K_CELDA, K_GRUPO, publicarDistribucion, publicarTotal, ultimoPorPersona, ventanaReporte, type Level } from '@serena/domain';
 import type { AppContext } from '../context.ts';
 import { HttpError, auth } from '../auth.ts';
 import { hashSecret, newId, newPin, newToken, sha256 } from '../crypto.ts';
@@ -8,6 +8,7 @@ import { nowIso } from '../db.ts';
 import { getOrg, getUser } from '../users.ts';
 import { getSubscriptionRow, subscriptionSummary } from '../payments/index.ts';
 import { SandboxProvider } from '../payments/sandbox.ts';
+import { listarOrdenes, obtenerOrden, OrdenCompraProvider, pdfOrden } from '../payments/ordenCompra.ts';
 import { ErrorProveedorPago } from '../payments/types.ts';
 import { darDeBaja, reactivar } from '../baja.ts';
 
@@ -182,7 +183,7 @@ export function adminRoutes(ctx: AppContext) {
     res.json({
       suscripcion: subscriptionSummary(db, a.orgId),
       planes: ctx.payments.plans,
-      proveedores: ctx.payments.list().map((p) => ({ id: p.id, nombre: p.nombre, monedas: p.monedas })),
+      proveedores: ctx.payments.list().map((p) => ({ id: p.id, nombre: p.nombre, monedas: p.monedas, requiereFacturacion: Boolean(p.requiereFacturacion) })),
     });
   });
 
@@ -196,6 +197,22 @@ export function adminRoutes(ctx: AppContext) {
         moneda: z.string().length(3),
         /** Email de la cuenta del proveedor que paga (Mercado Pago exige que pague la cuenta con ese email). */
         emailPago: z.string().trim().email().max(254).optional(),
+        /** Datos de facturación de la empresa (orden de compra). */
+        facturacion: z
+          .object({
+            razonSocial: z.string().trim().min(2).max(160),
+            cuit: z
+              .string()
+              .transform((c) => c.replace(/\D/g, ''))
+              .refine(cuitValido, 'CUIT inválido'),
+            condicionIva: z.enum(['responsable_inscripto', 'monotributo', 'exento', 'consumidor_final']),
+            domicilioFiscal: z.string().trim().min(5).max(240),
+            contactoNombre: z.string().trim().min(2).max(120),
+            contactoEmail: z.string().trim().email().max(254),
+            contactoTelefono: z.string().trim().max(40).optional().nullable(),
+            ordenInterna: z.string().trim().max(60).optional().nullable(),
+          })
+          .optional(),
       })
       .parse(req.body);
     const provider = ctx.payments.get(b.proveedor);
@@ -203,13 +220,25 @@ export function adminRoutes(ctx: AppContext) {
     const plan = ctx.payments.plan(b.planId);
     if (!plan) throw new HttpError(400, 'plan_inexistente');
     if (!provider.monedas.includes(b.moneda)) throw new HttpError(400, 'moneda_no_soportada');
+    if (plan.proveedores && !plan.proveedores.includes(provider.id))
+      throw new HttpError(400, 'proveedor_no_admitido', `El plan ${plan.nombre} no se contrata con ${provider.nombre}.`);
     if (b.puestos < plan.minimoPuestos) throw new HttpError(400, 'minimo_puestos', `El plan requiere al menos ${plan.minimoPuestos} puestos.`);
+    if (plan.maximoPuestos !== undefined && b.puestos > plan.maximoPuestos)
+      throw new HttpError(400, 'maximo_puestos', `El plan ${plan.nombre} es de hasta ${plan.maximoPuestos} ${plan.maximoPuestos === 1 ? 'puesto' : 'puestos'}.`);
     const current = getSubscriptionRow(db, a.orgId);
-    if (current && (current.estado === 'activa' || current.estado === 'en_prueba') && current.externo_suscripcion)
-      throw new HttpError(409, 'ya_suscripta', 'La organización ya tiene una suscripción activa. Gestionala desde el portal del proveedor.');
+    if (current && isEntitled(current.estado) && current.externo_suscripcion)
+      throw new HttpError(
+        409,
+        'ya_suscripta',
+        current.estado === 'orden_pendiente'
+          ? 'La organización ya tiene una orden de compra pendiente de pago.'
+          : 'La organización ya tiene una suscripción activa. Gestionala desde el portal del proveedor.',
+      );
+    if (provider.requiereFacturacion && !b.facturacion)
+      throw new HttpError(400, 'facturacion', 'Completá los datos de facturación de la empresa para emitir la orden de compra.');
     const admin = getUser(db, a.userId);
     const org = getOrg(db, a.orgId);
-    const payerEmail = b.emailPago ?? admin.email;
+    const payerEmail = b.facturacion?.contactoEmail ?? b.emailPago ?? admin.email;
     // Con un proveedor real, un email inventado hace fallar el pago (Mercado Pago lo exige igual al de la cuenta que paga).
     if (!payerEmail && provider.id !== 'sandbox')
       throw new HttpError(400, 'email_pago', `Indicá el email de la cuenta de ${provider.nombre} con la que se va a pagar.`);
@@ -225,6 +254,7 @@ export function adminRoutes(ctx: AppContext) {
         payerEmail: payerEmail ?? `${admin.usuario ?? admin.id}@example.invalid`,
         successUrl: `${ctx.publicUrl}/admin/facturacion?resultado=ok`,
         cancelUrl: `${ctx.publicUrl}/admin/facturacion?resultado=cancelado`,
+        facturacion: b.facturacion,
       });
     } catch (e) {
       // El detalle del proveedor (p. ej. "Mercado Pago 400: …") va a los registros; a la persona, un mensaje claro.
@@ -236,7 +266,17 @@ export function adminRoutes(ctx: AppContext) {
     db.prepare(
       "INSERT INTO checkout_sessions (id, org_id, proveedor, plan_id, puestos, moneda, externo_id, estado, creado_en) VALUES (?, ?, ?, ?, ?, ?, ?, 'abierto', ?)",
     ).run(checkoutId, a.orgId, provider.id, plan.id, b.puestos, b.moneda, out.externoId, nowIso());
-    if (!current) db.prepare("INSERT INTO subscriptions (org_id, proveedor, plan_id, estado, puestos, moneda, actualizada_en) VALUES (?, ?, ?, 'pendiente', ?, ?, ?)").run(a.orgId, provider.id, plan.id, b.puestos, b.moneda, nowIso());
+    if (out.estadoInicial)
+      // El proveedor ya fija el estado (p. ej. orden de compra emitida, con los puestos habilitados).
+      db.prepare(
+        `INSERT INTO subscriptions (org_id, proveedor, plan_id, estado, puestos, moneda, externo_suscripcion, proximo_cobro, cancelada_al_final, actualizada_en)
+         VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 0, ?)
+         ON CONFLICT(org_id) DO UPDATE SET proveedor = excluded.proveedor, plan_id = excluded.plan_id, estado = excluded.estado, puestos = excluded.puestos,
+           moneda = excluded.moneda, externo_suscripcion = excluded.externo_suscripcion, proximo_cobro = NULL, cancelada_al_final = 0,
+           actualizada_en = excluded.actualizada_en`,
+      ).run(a.orgId, provider.id, plan.id, out.estadoInicial, b.puestos, b.moneda, out.externoId, nowIso());
+    else if (!current)
+      db.prepare("INSERT INTO subscriptions (org_id, proveedor, plan_id, estado, puestos, moneda, actualizada_en) VALUES (?, ?, ?, 'pendiente', ?, ?, ?)").run(a.orgId, provider.id, plan.id, b.puestos, b.moneda, nowIso());
     db.prepare("INSERT INTO audit_log (id, org_id, user_id, actor, accion, detalle, creado_en) VALUES (?, ?, ?, 'admin', 'checkout_iniciado', ?, ?)").run(
       newId(),
       a.orgId,
@@ -253,12 +293,10 @@ export function adminRoutes(ctx: AppContext) {
     if (!s?.externo_suscripcion || !s.proveedor) throw new HttpError(404, 'sin_suscripcion');
     const p = ctx.payments.get(s.proveedor);
     if (!p) throw new HttpError(400, 'proveedor_no_disponible');
-    await p.cancel(s.externo_suscripcion);
+    const r = await p.cancel(s.externo_suscripcion, s.estado);
     db.prepare('UPDATE subscriptions SET cancelada_al_final = 1, actualizada_en = ? WHERE org_id = ?').run(nowIso(), a.orgId);
-    if (p.id === 'sandbox' || p.id === 'mercadopago') {
-      // Mercado Pago cancela en el acto; la pasarela de prueba lo imita.
-      db.prepare("UPDATE subscriptions SET estado = 'cancelada', actualizada_en = ? WHERE org_id = ?").run(nowIso(), a.orgId);
-    }
+    // Algunos proveedores cancelan en el acto (Mercado Pago, una orden de compra sin pagar); el resto, al final del período.
+    if (r?.inmediata) db.prepare("UPDATE subscriptions SET estado = 'cancelada', actualizada_en = ? WHERE org_id = ?").run(nowIso(), a.orgId);
     res.json({ suscripcion: subscriptionSummary(db, a.orgId) });
   });
 
@@ -268,6 +306,35 @@ export function adminRoutes(ctx: AppContext) {
     const p = s?.proveedor ? ctx.payments.get(s.proveedor) : undefined;
     if (!s?.externo_cliente || !p?.portalUrl) throw new HttpError(404, 'portal_no_disponible');
     res.json({ url: await p.portalUrl(s.externo_cliente, `${ctx.publicUrl}/admin/facturacion`) });
+  });
+
+  // ---------- Órdenes de compra (plan Empresa) ----------
+
+  const ordenCompra = () => {
+    const p = ctx.payments.get('orden_compra');
+    return p instanceof OrdenCompraProvider ? p : null;
+  };
+
+  r.get('/admin/billing/ordenes', (req, res) => {
+    const a = auth(req);
+    res.json({ ordenes: listarOrdenes(db, a.orgId).map(({ orgId: _o, ...o }) => o) });
+  });
+
+  r.get('/admin/billing/ordenes/:id', (req, res) => {
+    const a = auth(req);
+    const o = obtenerOrden(db, String(req.params.id), a.orgId);
+    if (!o) throw new HttpError(404, 'orden_inexistente');
+    res.json({ orden: o, transferencia: ordenCompra()?.cfg.transferencia ?? null, organizacion: getOrg(db, a.orgId).nombre });
+  });
+
+  r.get('/admin/billing/ordenes/:id/pdf', (req, res) => {
+    const a = auth(req);
+    const o = obtenerOrden(db, String(req.params.id), a.orgId);
+    const p = ordenCompra();
+    if (!o || !p) throw new HttpError(404, 'orden_inexistente');
+    res.setHeader('content-type', 'application/pdf');
+    res.setHeader('content-disposition', `attachment; filename="SERENA-${o.numero}.pdf"`);
+    res.send(pdfOrden(o, p.cfg.transferencia, getOrg(db, a.orgId).nombre));
   });
 
   /**

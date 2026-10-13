@@ -29,8 +29,11 @@ export function makeCtx() {
     this.sent.push(alert);
     return { entregado: true };
   };
+  const db = openDb(':memory:');
+  /** Órdenes de compra notificadas por email (con el PDF), para las pruebas. */
+  const ordenesNotificadas: Array<{ numero: string; pdf: Buffer; organizacion: string }> = [];
   const ctx: AppContext = {
-    db: openDb(':memory:'),
+    db,
     vault: new Vault(randomBytes(32).toString('base64')),
     jwtKey: new TextEncoder().encode('test-secret-test-secret-test-sec'),
     publicUrl: 'http://localhost:5173',
@@ -42,6 +45,14 @@ export function makeCtx() {
       sandbox: true,
       sandboxSecret: 'sandbox-secret',
       publicUrl: 'http://localhost:5173',
+      ordenCompra: {
+        db,
+        cfg: {
+          transferencia: { titular: 'SERENA Prueba SRL', cuit: '30712345671', banco: 'Banco de Prueba', cbu: '0000003100000000000001', alias: 'SERENA.PRUEBA' },
+          diasPago: 10,
+          notificar: async (o, pdf, organizacion) => void ordenesNotificadas.push({ numero: o.numero, pdf, organizacion }),
+        },
+      },
     }),
     companion: new BasicCompanion(),
     messenger,
@@ -50,7 +61,7 @@ export function makeCtx() {
   const orgId = newId();
   ctx.db.prepare("INSERT INTO orgs (id, nombre, faena, pais, creado_en) VALUES (?, 'Org', 'Mina Test', 'AR', ?)").run(orgId, new Date().toISOString());
   const app = createApp(ctx);
-  return { ctx, app, orgId, messenger, guard };
+  return { ctx, app, orgId, messenger, guard, ordenesNotificadas };
 }
 
 export function addUser(ctx: AppContext, orgId: string, o: { role?: 'worker' | 'admin'; dni: string; usuario?: string; legajo: string; password: string; pin?: string; qr?: string }) {

@@ -196,10 +196,12 @@ export class MercadoPagoProvider implements PaymentProvider {
     };
   }
 
-  async cancel(externoSuscripcion: string): Promise<void> {
+  /** Mercado Pago cancela la suscripción en el acto. */
+  async cancel(externoSuscripcion: string): Promise<{ inmediata: boolean }> {
     await this.api(`/preapproval/${encodeURIComponent(externoSuscripcion)}`, {
       method: 'PUT',
       body: JSON.stringify({ status: 'cancelled' }),
     });
+    return { inmediata: true };
   }
 }

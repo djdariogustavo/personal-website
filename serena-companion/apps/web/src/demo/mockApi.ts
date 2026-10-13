@@ -21,6 +21,9 @@ import {
   type DeviceInfo,
   type MoodIndex,
   type SleepIndex,
+  type DatosTransferencia,
+  type OrdenCompra,
+  type Plan,
   type SubscriptionSummary,
   type SyncMutation,
 } from '@serena/domain';
@@ -188,22 +191,47 @@ function freshState(): State {
 
 let S = freshState();
 
-const PLANS = [
+const PLANS: Plan[] = [
+  {
+    id: 'individual-mensual',
+    nombre: 'Individual · mensual',
+    descripcion: 'Companion para una persona. Se paga cada mes con Mercado Pago.',
+    tipo: 'individual',
+    intervalo: 'mensual',
+    precioPorPuesto: { ARS: 1_500_000 },
+    minimoPuestos: 1,
+    maximoPuestos: 1,
+    proveedores: ['mercadopago', 'sandbox'],
+  },
   {
     id: 'faena-mensual',
-    nombre: 'Faena · mensual',
+    nombre: 'Empresa · mensual',
     descripcion: 'Companion para cada trabajador de la faena, kiosco incluido. Se cobra por puesto activo.',
+    tipo: 'empresa',
     intervalo: 'mensual',
     precioPorPuesto: { USD: 900, ARS: 900_000, CLP: 8_500 },
-    minimoPuestos: 20,
+    minimoPuestos: 10,
+    proveedores: ['orden_compra', 'stripe', 'sandbox'],
   },
-  { id: 'faena-anual', nombre: 'Faena · anual', descripcion: 'Igual al mensual, con un pago por año.', intervalo: 'anual', precioPorPuesto: { USD: 9_000, ARS: 9_000_000, CLP: 85_000 }, minimoPuestos: 20 },
+  {
+    id: 'faena-anual',
+    nombre: 'Empresa · anual',
+    descripcion: 'Igual al mensual, con un pago por año.',
+    tipo: 'empresa',
+    intervalo: 'anual',
+    precioPorPuesto: { USD: 9_000, ARS: 9_000_000, CLP: 85_000 },
+    minimoPuestos: 10,
+    proveedores: ['orden_compra', 'stripe', 'sandbox'],
+  },
 ];
 const PROVIDERS = [
   { id: 'sandbox', nombre: 'Pasarela de prueba', monedas: ['USD', 'ARS', 'CLP'] },
+  { id: 'orden_compra', nombre: 'Orden de compra (simulada en la demo)', monedas: ['ARS'], requiereFacturacion: true },
   { id: 'stripe', nombre: 'Stripe (simulado en la demo)', monedas: ['USD'] },
   { id: 'mercadopago', nombre: 'Mercado Pago (simulado en la demo)', monedas: ['ARS'] },
 ];
+const TRANSFERENCIA_DEMO: DatosTransferencia = { titular: 'SERENA (ejemplo)', cuit: '30000000000', banco: 'Banco de ejemplo', cbu: '0000000000000000000000', alias: 'SERENA.EJEMPLO', ejemplo: true };
+const ORDENES: OrdenCompra[] = [];
 
 // ---------- Sesiones ----------
 // Token = "demo:<rol>:<deviceId>:<kind>"
@@ -499,11 +527,38 @@ export async function mockApi(path: string, method: string, body: unknown, token
     }
     case 'GET /admin/billing':
       return { suscripcion: S.sub, planes: PLANS, proveedores: PROVIDERS };
+    case 'GET /admin/billing/ordenes':
+      return { ordenes: ORDENES };
     case 'POST /admin/billing/checkout': {
       const plan = PLANS.find((p) => p.id === b.planId);
       if (!plan) throw new MockError(400, 'plan_inexistente');
       if (b.puestos < plan.minimoPuestos) throw new MockError(400, 'minimo_puestos', `El plan requiere al menos ${plan.minimoPuestos} puestos.`);
       const id = uid();
+      if (b.proveedor === 'orden_compra') {
+        if (!b.facturacion) throw new MockError(400, 'facturacion', 'Completá los datos de facturación de la empresa para emitir la orden de compra.');
+        const unit = plan.precioPorPuesto.ARS ?? 0;
+        const emitida = now();
+        ORDENES.unshift({
+          id,
+          numero: `OC-${String(ORDENES.length + 1).padStart(6, '0')}`,
+          estado: 'pendiente',
+          planId: plan.id,
+          planNombre: plan.nombre,
+          intervalo: plan.intervalo,
+          puestos: b.puestos,
+          moneda: 'ARS',
+          precioUnitario: unit,
+          total: unit * b.puestos,
+          facturacion: { ...b.facturacion, cuit: String(b.facturacion.cuit).replace(/\D/g, '') },
+          emitidaEn: iso(emitida),
+          venceEn: iso(new Date(emitida.getTime() + 10 * 86_400_000)),
+          pagadaEn: null,
+          referenciaPago: null,
+          numeroFactura: null,
+        });
+        S.sub = { ...S.sub, estado: 'orden_pendiente', proveedor: 'orden_compra', planId: plan.id, puestos: b.puestos, moneda: 'ARS' };
+        return { url: `/admin/facturacion/orden/${id}`, checkoutId: id };
+      }
       S.sub = { ...S.sub, estado: 'pendiente', proveedor: b.proveedor, planId: plan.id, puestos: b.puestos, moneda: b.moneda, checkout: { id, planId: plan.id, puestos: b.puestos, moneda: b.moneda } };
       const qp = new URLSearchParams({ checkout: id, plan: plan.nombre, puestos: String(b.puestos), moneda: b.moneda });
       return { url: `/admin/facturacion/sandbox?${qp}`, checkoutId: id };
@@ -517,11 +572,22 @@ export async function mockApi(path: string, method: string, body: unknown, token
       } else S.sub = { ...S.sub, estado: 'pendiente' };
       return { ok: true };
     }
-    case 'POST /admin/billing/cancel':
-      S.sub = { ...S.sub, canceladaAlFinal: true };
+    case 'POST /admin/billing/cancel': {
+      const pendiente = ORDENES.find((o) => o.estado === 'pendiente');
+      if (S.sub.estado === 'orden_pendiente' && pendiente) {
+        pendiente.estado = 'anulada';
+        S.sub = { ...S.sub, estado: 'cancelada', canceladaAlFinal: true };
+      } else S.sub = { ...S.sub, canceladaAlFinal: true };
       return { suscripcion: S.sub };
+    }
     case 'POST /admin/billing/portal':
       throw new MockError(404, 'portal_no_disponible', 'El portal del proveedor no está disponible en la vista previa.');
+  }
+
+  if (route?.startsWith('/admin/billing/ordenes/') && method === 'GET') {
+    const o = ORDENES.find((x) => x.id === route.slice('/admin/billing/ordenes/'.length));
+    if (!o) throw new MockError(404, 'orden_inexistente');
+    return { orden: o, transferencia: TRANSFERENCIA_DEMO, organizacion: 'Minera Los Andes S.A. (ficticia)' };
   }
 
   if (route?.startsWith('/admin/kiosks/') && method === 'DELETE') {

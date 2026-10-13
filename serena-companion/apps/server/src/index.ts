@@ -1,9 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { DEFAULT_CONFIG } from '@serena/domain';
-import { canalesDirectos, env, notificadorGuardia, problemasDeProduccion, twilioConfigurado, twilioMessenger } from './env.ts';
+import { canalesDirectos, datosTransferencia, env, notificadorGuardia, problemasDeProduccion, twilioConfigurado, twilioMessenger } from './env.ts';
 import { TwilioVerifyMessenger } from './sms/verify.ts';
-import { avisoOperaciones } from './avisoOperaciones.ts';
+import { avisoOperaciones, ResendAvisoOperaciones } from './avisoOperaciones.ts';
+import { textoProforma } from './payments/ordenCompra.ts';
 import { openDb } from './db.ts';
 import { Vault } from './crypto.ts';
 import { createApp } from './app.ts';
@@ -35,14 +36,46 @@ if (env.isProd) {
 const aviso = avisoOperaciones(env.alertas);
 
 
+const db = openDb(env.dbPath);
+const transferencia = datosTransferencia();
+const emailOrdenes = env.alertas.resendApiKey && env.alertas.from ? new ResendAvisoOperaciones({ apiKey: env.alertas.resendApiKey, from: env.alertas.from, to: [] }) : null;
+const operaciones = (env.alertas.to ?? '')
+  .split(',')
+  .map((x) => x.trim())
+  .filter(Boolean);
+
 const ctx: AppContext = {
-  db: openDb(env.dbPath),
+  db,
   vault: new Vault(env.masterKey),
   jwtKey: new TextEncoder().encode(env.jwtSecret),
   publicUrl: env.publicUrl,
   exposeDevOtp: env.exposeDevOtp,
   config: process.env.SERENA_CONFIG_JSON ? { ...DEFAULT_CONFIG, ...JSON.parse(process.env.SERENA_CONFIG_JSON) } : DEFAULT_CONFIG,
-  payments: buildRegistry({ ...env.payments, sandboxSecret: env.jwtSecret, publicUrl: env.publicUrl }),
+  payments: buildRegistry({
+    ...env.payments,
+    sandboxSecret: env.jwtSecret,
+    publicUrl: env.publicUrl,
+    ordenCompra: transferencia
+      ? {
+          db,
+          cfg: {
+            transferencia,
+            diasPago: env.payments.ordenCompra.diasPago,
+            // La orden va al contacto de compras de la empresa y a operaciones de SERENA, con el PDF adjunto.
+            notificar: async (orden, pdf, nombreOrg) => {
+              if (!emailOrdenes) return console.warn(`[serena][pagos] Orden ${orden.numero} emitida sin email (falta RESEND_API_KEY o SERENA_ALERTAS_FROM).`);
+              const ok = await emailOrdenes.enviarA(
+                [orden.facturacion.contactoEmail, ...operaciones],
+                `Orden de compra ${orden.numero} · ${orden.facturacion.razonSocial}`,
+                textoProforma(orden, transferencia, nombreOrg),
+                [{ nombre: `SERENA-${orden.numero}.pdf`, contenido: pdf }],
+              );
+              if (!ok) console.error(`[serena][pagos] No se pudo enviar por email la orden ${orden.numero}.`);
+            },
+          },
+        }
+      : null,
+  }),
   companion: env.anthropic.enabled ? new ClaudeCompanion(env.anthropic.model) : new BasicCompanion(),
   messenger: (env.smsReal ? twilioMessenger(env.twilio, aviso) : null) ?? new ConsoleMessenger(),
   guard: notificadorGuardia(aviso),

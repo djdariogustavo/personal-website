@@ -63,6 +63,11 @@ services:
       - key: SERENA_ALERTAS_EMAIL
         sync: false
 
+      # Plan Empresa por orden de compra: datos para la transferencia, en JSON
+      # ({"titular","cuit","banco","cbu","alias"}). Sin esto, el plan Empresa no se ofrece.
+      - key: SERENA_TRANSFERENCIA_JSON
+        sync: false
+
       # Canal hacia la guardia (obligatorio en producción): aviso directo por SMS y email con Twilio y Resend.
       # Listas separadas por comas, p. ej. +5493511111111,+5493512222222. Alternativa o complemento:
       # SERENA_GUARD_WEBHOOK_URL + SERENA_GUARD_WEBHOOK_SECRET hacia un sistema propio de la guardia.

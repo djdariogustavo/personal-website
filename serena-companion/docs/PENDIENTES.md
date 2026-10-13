@@ -133,8 +133,14 @@ mensajes, pero no leer la cuenta ni el Messaging Service.
   (`apps/server/src/companion.ts`, `packages/domain/src/risk.ts`) por profesionales.
 
 ## 6. Servicio de pago
-- Precios de los planes: **de ejemplo**. Definirlos (`SERENA_PLANS_JSON`) y crear los
-  precios en Stripe (`STRIPE_PRICE_IDS`).
+- **Modelo de cobro (2026-10-12):** Individual (1 puesto, Mercado Pago) y Empresa (desde 10 puestos, orden de compra
+  y transferencia; ver README, "Servicio de pago"). Pendiente:
+  - Precios definitivos de ambos planes (hoy **de ejemplo**: $15.000/mes Individual; $9.000 por puesto por mes
+    Empresa) en `SERENA_PLANS_JSON`, y los precios de Stripe (`STRIPE_PRICE_IDS`) si se usa.
+  - Cargar `SERENA_TRANSFERENCIA_JSON` en Render con los datos bancarios reales (sin eso, el plan Empresa no se ofrece).
+  - Renovación del plan Empresa: hoy cada período pagado se registra con `npm run ordenes -- pagada`; emitir la orden
+    del período siguiente es manual (nueva orden desde Facturación). Evaluar emisión automática.
+  - Definir si la proforma muestra IVA discriminado (hoy indica que la factura se emite por separado).
 - Configurar los webhooks en cada proveedor apuntando a
   `https://<dominio>/api/billing/webhooks/stripe` y `.../mercadopago`.
 - **Mercado Pago: pago de prueba verificado en producción (2026-10-12).** Suscripción "SERENA · Faena · mensual ·
@@ -144,7 +150,9 @@ mensajes, pero no leer la cuenta ni el Messaging Service.
   ACTIVA. Arreglos que hicieron falta: descripción de la suscripción ≤ 60 caracteres (#4) y errores del pago
   visibles (#4, #6).
   - Precios de **prueba** cargados en Render con `SERENA_PLANS_JSON` (faena-mensual $10.000 por puesto, faena-anual
-    $100.000 por puesto por año, mínimo 10). Los definitivos los fija el área comercial.
+    $100.000 por puesto por año, mínimo 10). Los definitivos los fija el área comercial. Con el modelo Individual /
+    Empresa, ese JSON tiene que sumar el plan `individual-mensual` y los campos `tipo` y `proveedores` de cada plan
+    (ver `DEFAULT_PLANS` en `apps/server/src/payments/index.ts`).
   - Producción: misma URL y evento en "Modo productivo" del panel; cambiar `MERCADOPAGO_ACCESS_TOKEN` y
     `MERCADOPAGO_WEBHOOK_SECRET` en Render por los productivos.
 - Facturación fiscal (AFIP / SII) no está incluida: la emite el proveedor o el ERP.

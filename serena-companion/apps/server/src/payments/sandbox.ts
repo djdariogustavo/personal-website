@@ -83,7 +83,8 @@ export class SandboxProvider implements PaymentProvider {
     };
   }
 
-  async cancel(): Promise<void> {
-    /* sin efecto externo */
+  async cancel(): Promise<{ inmediata: boolean }> {
+    // Sin efecto externo; imita a Mercado Pago, que cancela en el acto.
+    return { inmediata: true };
   }
 }

@@ -227,6 +227,32 @@ export const MIGRATIONS: string[] = [
     creado_en TEXT NOT NULL
   );
   `,
+  // 5: plan Empresa por orden de compra y transferencia. Solo agrega una tabla: compatible con los datos actuales.
+  // numero es correlativo (OC-000001…); facturacion guarda los datos de la empresa en JSON.
+  `
+  CREATE TABLE ordenes_compra (
+    id TEXT PRIMARY KEY,
+    numero INTEGER NOT NULL UNIQUE,
+    org_id TEXT NOT NULL REFERENCES orgs(id),
+    checkout_id TEXT,
+    plan_id TEXT NOT NULL,
+    plan_nombre TEXT NOT NULL,
+    intervalo TEXT NOT NULL,
+    puestos INTEGER NOT NULL,
+    moneda TEXT NOT NULL,
+    precio_unitario INTEGER NOT NULL,
+    total INTEGER NOT NULL,
+    facturacion TEXT NOT NULL,
+    estado TEXT NOT NULL DEFAULT 'pendiente' CHECK (estado IN ('pendiente','pagada','vencida','anulada')),
+    emitida_en TEXT NOT NULL,
+    vence_en TEXT NOT NULL,
+    pagada_en TEXT,
+    referencia_pago TEXT,
+    numero_factura TEXT,
+    actualizada_en TEXT NOT NULL
+  );
+  CREATE INDEX ordenes_compra_org ON ordenes_compra (org_id, numero);
+  `,
 ];
 
 export type DB = DatabaseSync;
