@@ -8,6 +8,7 @@ import { nowIso } from '../db.ts';
 import { getOrg, getUser } from '../users.ts';
 import { getSubscriptionRow, subscriptionSummary } from '../payments/index.ts';
 import { SandboxProvider } from '../payments/sandbox.ts';
+import { ErrorProveedorPago } from '../payments/types.ts';
 import { darDeBaja, reactivar } from '../baja.ts';
 
 /**
@@ -228,6 +229,8 @@ export function adminRoutes(ctx: AppContext) {
     } catch (e) {
       // El detalle del proveedor (p. ej. "Mercado Pago 400: …") va a los registros; a la persona, un mensaje claro.
       console.error(`[serena][pagos] ${provider.nombre} no pudo iniciar el pago (org ${a.orgId}):`, (e as Error).message);
+      // Si es algo que la persona puede corregir (p. ej. el email del pagador), se le dice qué hacer.
+      if (e instanceof ErrorProveedorPago) throw new HttpError(400, e.codigo, e.mensajePersona);
       throw new HttpError(502, 'proveedor_pago', `No pudimos iniciar el pago con ${provider.nombre}. Probá de nuevo o contactanos.`);
     }
     db.prepare(
