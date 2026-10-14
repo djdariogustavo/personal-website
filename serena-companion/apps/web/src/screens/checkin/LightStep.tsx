@@ -22,6 +22,9 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
   const [cam, setCam] = useState<CamState>({ kind: 'cargando' });
   const [light, setLight] = useState<LightAssessment | null>(null);
   const [rostro, setRostro] = useState<boolean | null>(null);
+  /** Estado del SDK de escaneo: se inicializa en paralelo con la medición de luz (valida la licencia en línea). */
+  const [sdk, setSdk] = useState<{ kind: 'preparando' } | { kind: 'listo' } | { kind: 'error'; codigo: ScanErrorCode }>({ kind: 'preparando' });
+  const preview = useRef<(() => void) | null>(null);
   const [tips, setTips] = useState(false);
   const video = useRef<HTMLVideoElement>(null);
   const slot = useRef<HTMLDivElement>(null);
@@ -58,11 +61,24 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
       await v.play().catch(() => undefined);
       monitor = new LightMonitor(v, config.luz, setLight);
       monitor.start();
-      await provider
-        .mountPreview(slot.current!, stream, (e) => {
-          if (e.type === 'calidad') setRostro(e.rostroCentrado);
-        })
-        .catch(() => undefined);
+      // Si el SDK no arranca (licencia, conexión), la persona lo ve y puede reintentar o seguir sin escaneo:
+      // antes el error se ignoraba y "Empezar escaneo" lanzaba una medición que nunca avanzaba.
+      const montar = () => {
+        if (cancelled) return;
+        setSdk({ kind: 'preparando' });
+        setRostro(null);
+        void provider
+          .mountPreview(slot.current!, stream, (e) => {
+            if (cancelled) return;
+            if (e.type === 'calidad') {
+              setSdk({ kind: 'listo' });
+              setRostro(e.rostroCentrado);
+            } else if (e.type === 'error') setSdk({ kind: 'error', codigo: e.codigo });
+          })
+          .catch(() => !cancelled && setSdk({ kind: 'error', codigo: 'no_soportado' }));
+      };
+      preview.current = montar;
+      montar();
     })();
     return () => {
       cancelled = true;
@@ -89,7 +105,9 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
   ];
   const mark = { ok: '✓', warn: '!', no: '×', na: '·' };
   const col = { ok: '#7FD3E3', warn: '#F0CF7A', no: '#F37CC2', na: '#9999B5' };
-  const canStart = live && !!light && luz !== 'insuficiente';
+  // En la vista previa (demo) no hay SDK: se puede empezar con la luz.
+  const sdkListo = cam.kind === 'demo' || sdk.kind === 'listo';
+  const canStart = live && !!light && luz !== 'insuficiente' && sdkListo;
 
   return (
     <div className="row" style={{ gap: 24, alignItems: 'flex-start' }}>
@@ -163,6 +181,19 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
               </span>
             </div>
             <p style={{ fontSize: 18, lineHeight: 1.5 }}>{measuring ? 'Mirá a la cámara un momento.' : copy.mensaje}</p>
+            {cam.kind === 'ok' && sdk.kind === 'preparando' && (
+              <div className="muted" role="status" style={{ fontSize: 15 }}>
+                Preparando el escaneo… puede tardar hasta 30 segundos la primera vez.
+              </div>
+            )}
+            {cam.kind === 'ok' && sdk.kind === 'error' && (
+              <div className="stack" role="alert" style={{ gap: 10 }}>
+                <div className="warn-text">{sdkMessage(sdk.codigo)}</div>
+                <button type="button" className="btn" onClick={() => preview.current?.()}>
+                  Reintentar
+                </button>
+              </div>
+            )}
           </>
         )}
         <div style={{ border: '1px solid var(--c-line)', borderRadius: 12, overflow: 'hidden' }}>
@@ -205,6 +236,13 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
       </div>
     </div>
   );
+}
+
+/** Falla al preparar el SDK de escaneo (la cámara sí anda). */
+function sdkMessage(c: ScanErrorCode): string {
+  if (c === 'sin_conexion') return 'No pudimos conectar con el servicio de escaneo. Reintentá o seguí sin escaneo.';
+  if (c === 'sin_licencia') return 'El servicio de escaneo no está habilitado en este momento. Seguí sin escaneo y avisá a salud ocupacional.';
+  return camMessage(c);
 }
 
 function camMessage(c: ScanErrorCode): string {

@@ -1,4 +1,4 @@
-import type { ScanAvailability, ScanListener, ScanProvider, ScanResult } from '@serena/domain';
+import type { ScanAvailability, ScanErrorCode, ScanListener, ScanProvider, ScanResult } from '@serena/domain';
 import {
   calidadDesdeSdk,
   calidadGlobal,
@@ -100,10 +100,23 @@ function idSeudonimo(): string {
   }
 }
 
+/** Resultado de una inicialización del SDK: código (OK, CONNECTION_ERROR, SIN_RESPUESTA, …) y duración. */
+export interface DiagnosticoInicio {
+  resultado: string;
+  ms: number;
+}
+
 export class SdkScanProvider implements ScanProvider {
   readonly id = 'sdk';
+  /** El SDK, solo cuando initialize respondió OK. */
   private sdk: ShenaiSdk | null = null;
   private cargando: Promise<ShenaiSdk> | null = null;
+  /**
+   * Inicialización en curso, compartida: la vista previa la empieza y el escaneo la espera. Antes, si la persona
+   * tocaba "Empezar" mientras el SDK todavía validaba la licencia (o si había fallado), la medición se lanzaba
+   * sobre un SDK sin inicializar y la pantalla quedaba en 1:00 sin aviso.
+   */
+  private iniciando: Promise<ShenaiSdk | ScanErrorCode> | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private stream: MediaStream | null = null;
 
@@ -116,6 +129,8 @@ export class SdkScanProvider implements ScanProvider {
     private readonly crear: () => Promise<CrearSdk> = async () =>
       ((await import(/* @vite-ignore */ SDK_URL)) as { default: CrearSdk }).default,
     private readonly apiKey: string = SDK_KEY,
+    /** Informa el resultado de cada inicialización (sin datos de la persona) para diagnosticar fallas en el campo. */
+    private readonly diagnostico: (d: DiagnosticoInicio) => void = () => undefined,
   ) {}
 
   async availability(ctx: { online: boolean }): Promise<ScanAvailability> {
@@ -135,11 +150,12 @@ export class SdkScanProvider implements ScanProvider {
     this.stream = stream;
     const sdk = await this.inicializar(listener);
     if (!sdk) return;
+    listener(this.calidad(sdk));
     this.cada(() => listener(this.calidad(sdk)));
   }
 
   async start(opts: { duracionS: number }, listener: ScanListener): Promise<void> {
-    const sdk = this.sdk ?? (await this.inicializar(listener));
+    const sdk = await this.inicializar(listener);
     if (!sdk) return;
     const { validado } = presetParaDuracion(opts.duracionS);
     if (!validado) console.warn(`[serena][escaneo] Medición de ${opts.duracionS} s: el SDK la marca como no validada; usar 60 s.`);
@@ -159,6 +175,8 @@ export class SdkScanProvider implements ScanProvider {
         return this.terminar(() => listener({ type: 'completo', resultado }));
       }
       listener({ type: 'progreso', valor: Math.min(1, sdk.getMeasurementProgressPercentage() / 100) });
+      // Para que la pantalla diga qué corregir mientras el SDK espera el rostro (antes de que avance el reloj).
+      listener(this.calidad(sdk));
       const perdida = senalPerdida(estado, nombre(sdk.MeasurementEnvironmentCondition, sdk.getCurrentViolatedMeasurementEnvironmentCondition()));
       // La UI muestra una cuenta de 3 s: no se repite el aviso mientras dura.
       if (perdida && Date.now() - ultimaSenal > 3000) {
@@ -180,11 +198,32 @@ export class SdkScanProvider implements ScanProvider {
       sdk.stopMeasurement();
       sdk.deinitialize();
     }
+    this.sdk = null;
+    this.iniciando = null;
     document.getElementById(CANVAS_ID)?.remove();
     this.stream = null;
   }
 
+  /**
+   * El SDK listo o null (y emite el error). Una sola inicialización a la vez: si ya hay una en curso, la espera.
+   * Si falló, la próxima llamada vuelve a intentar (p. ej. "Reintentar" en la pantalla de luz).
+   */
   private async inicializar(listener: ScanListener): Promise<ShenaiSdk | null> {
+    if (this.sdk) return this.sdk;
+    this.iniciando ??= this.iniciar();
+    const r = await this.iniciando;
+    if (typeof r === 'string') {
+      this.iniciando = null;
+      listener({ type: 'error', codigo: r });
+      return null;
+    }
+    this.sdk = r;
+    return r;
+  }
+
+  private async iniciar(): Promise<ShenaiSdk | ScanErrorCode> {
+    const t0 = performance.now();
+    const informar = (resultado: string) => this.diagnostico({ resultado, ms: Math.round(performance.now() - t0) });
     let sdk: ShenaiSdk;
     try {
       this.cargando ??= this.crear().then((crear) =>
@@ -197,10 +236,9 @@ export class SdkScanProvider implements ScanProvider {
     } catch (e) {
       this.cargando = null;
       console.error('[serena][escaneo] No se pudo cargar el SDK:', (e as Error).message);
-      listener({ type: 'error', codigo: 'no_soportado' });
-      return null;
+      informar('CARGA_FALLIDA');
+      return 'no_soportado';
     }
-    this.sdk = sdk;
     if (sdk.isInitialized()) return sdk;
 
     let canvas = document.getElementById(CANVAS_ID) as HTMLCanvasElement | null;
@@ -244,26 +282,28 @@ export class SdkScanProvider implements ScanProvider {
     if (resultado === null) {
       // El motor puede haber quedado inutilizable: la próxima vez se vuelve a crear desde cero.
       console.error(`[serena][escaneo] El SDK no respondió a la inicialización en ${INIT_TOPE_MS / 1000} s.`);
-      this.sdk = null;
       this.cargando = null;
       document.getElementById(CANVAS_ID)?.remove();
-      listener({ type: 'error', codigo: 'sin_conexion' });
-      return null;
+      informar('SIN_RESPUESTA');
+      return 'sin_conexion';
     }
     const r = nombre(sdk.InitializationResult, resultado);
     if (r !== 'OK') {
       console.error(`[serena][escaneo] El SDK no se inicializó: ${r ?? 'desconocido'}`);
-      listener({ type: 'error', codigo: r === 'CONNECTION_ERROR' ? 'sin_conexion' : 'sin_licencia' });
-      return null;
+      informar(r ?? 'DESCONOCIDO');
+      document.getElementById(CANVAS_ID)?.remove();
+      return r === 'CONNECTION_ERROR' ? 'sin_conexion' : 'sin_licencia';
     }
     sdk.setRecordingEnabled(false);
     if (this.stream) sdk.setMediaStream(this.stream, true);
     sdk.attachToCanvas(`#${CANVAS_ID}`);
     const errorCamara = nombre(sdk.CameraError, sdk.getLastCameraError());
     if (errorCamara) {
-      listener({ type: 'error', codigo: errorCamara === 'PERMISSION_NOT_GRANTED' ? 'sin_permiso' : 'sin_camara' });
-      return null;
+      informar(`CAMARA_${errorCamara}`);
+      sdk.deinitialize();
+      return errorCamara === 'PERMISSION_NOT_GRANTED' ? 'sin_permiso' : 'sin_camara';
     }
+    informar('OK');
     return sdk;
   }
 

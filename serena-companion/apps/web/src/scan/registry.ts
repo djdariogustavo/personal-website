@@ -26,7 +26,11 @@ export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promis
   if (scanMode === 'simulado') instance = new SimulatedScanProvider();
   else if (scanMode === 'sdk') {
     const { SdkScanProvider } = await import('./sdk-adapter.ts');
-    instance = new SdkScanProvider(escaneo?.escalaEstresSdk ?? null);
+    const { api } = await import('../lib/api.ts');
+    instance = new SdkScanProvider(escaneo?.escalaEstresSdk ?? null, undefined, undefined, (d) => {
+      // Diagnóstico de campo: solo el código y la duración (el servidor agrega el navegador). Si falla, se ignora.
+      void api('/escaneo/diagnostico', { method: 'POST', body: d, timeoutMs: 10_000 }).catch(() => undefined);
+    });
   } else instance = new UnavailableScanProvider();
   return instance;
 }

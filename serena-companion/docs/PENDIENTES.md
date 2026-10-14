@@ -9,6 +9,14 @@ Acceso al SDK concedido (contrato con el proveedor). El paquete se instala como 
 versionan: se copian al compilar. El adaptador está escrito
 contra la API real del paquete web 3.x (`@shenai/sdk`) y probado con un SDK simulado.
 
+**Primera prueba en un teléfono (2026-10-14, Android, Chrome):** la cámara y la verificación de luz anduvieron, pero
+el SDK no terminó de inicializarse ("Cara centrada" quedó en "·") y el escaneo quedó en 1:00 sin aviso. La causa de
+la falla del SDK no se pudo ver desde el teléfono. Arreglado: la pantalla de luz espera al SDK ("Preparando el
+escaneo…"), muestra el error con "Reintentar" y el escaneo ya no se lanza sobre un SDK sin inicializar. Cada
+inicialización se informa al servidor (`POST /api/escaneo/diagnostico`: código, duración y navegador) y queda en
+los registros como `[serena][escaneo] Inicialización del SDK: …`. **Siguiente paso:** repetir la prueba y leer ese
+código en los registros de Render.
+
 **Para activarlo, con el contrato vigente:**
 1. El SDK ya es dependencia del proyecto (`@shenai/sdk` 3.1.15, fijada: es la versión probada). Con
    `VITE_SCAN_PROVIDER=sdk`, `npm run build -w @serena/web` lo copia solo a `apps/web/public/vendor/` (ignorado por git).

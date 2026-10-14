@@ -8,6 +8,7 @@ import { HttpError, authenticate, bajaScope, kioskScope, passwordScope, requireR
 import { authRoutes } from './routes/auth.ts';
 import { meRoutes } from './routes/me.ts';
 import { checkinRoutes } from './routes/checkins.ts';
+import { escaneoRoutes } from './routes/escaneo.ts';
 import { companionRoutes } from './routes/companion.ts';
 import { safetyRoutes } from './routes/safety.ts';
 import { privacyRoutes } from './routes/privacy.ts';
@@ -77,6 +78,7 @@ export function createApp(ctx: AppContext, opts: OpcionesApp = {}) {
   authed.use(passwordScope());
   authed.use(meRoutes(ctx));
   authed.use(checkinRoutes(ctx));
+  authed.use(escaneoRoutes(ctx));
   authed.use(companionRoutes(ctx));
   authed.use(safetyRoutes(ctx));
   authed.use(privacyRoutes(ctx));

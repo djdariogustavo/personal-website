@@ -190,8 +190,51 @@ describe('adaptador del SDK de escaneo', () => {
     const montaje = new SdkScanProvider(ESCALA, f.crear, 'k').mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
     await vi.advanceTimersByTimeAsync(20_100);
     await montaje;
-    expect(eventos).toEqual([]);
+    expect(eventos.some((e) => e.type === 'error')).toBe(false);
+    expect(eventos[0]).toMatchObject({ type: 'calidad', rostroCentrado: true });
     expect(f.llamadas).toContain('attachToCanvas');
+  });
+
+  it('si se empieza el escaneo mientras el SDK todavía se inicializa, espera esa misma inicialización', async () => {
+    const f = sdkFalso({ initDemoraMs: 15_000 });
+    const p = new SdkScanProvider(ESCALA, f.crear, 'k');
+    const montaje = p.mountPreview({} as HTMLElement, null, () => undefined);
+    await vi.advanceTimersByTimeAsync(1_000);
+    const eventos: ScanEvent[] = [];
+    const inicio = p.start({ duracionS: 60 }, (e) => eventos.push(e));
+    await vi.advanceTimersByTimeAsync(1_000);
+    // Todavía no hay SDK listo: no se lanza la medición sobre un SDK sin inicializar.
+    expect(f.llamadas).not.toContain('startMeasurement');
+    await vi.advanceTimersByTimeAsync(14_000);
+    await Promise.all([montaje, inicio]);
+    expect(f.settings).toHaveLength(1);
+    expect(f.llamadas).toContain('startMeasurement');
+    f.avanzar(50);
+    await vi.advanceTimersByTimeAsync(300);
+    expect(eventos).toContainEqual({ type: 'progreso', valor: 0.5 });
+  });
+
+  it('si la inicialización falló, el escaneo informa el error en lugar de quedar en 1:00, y reintentar vuelve a probar', async () => {
+    const f = sdkFalso({ init: 'CONNECTION_ERROR' });
+    const p = new SdkScanProvider(ESCALA, f.crear, 'k');
+    const previa: ScanEvent[] = [];
+    await p.mountPreview({} as HTMLElement, null, (e) => previa.push(e));
+    expect(previa).toEqual([{ type: 'error', codigo: 'sin_conexion' }]);
+    const eventos: ScanEvent[] = [];
+    await p.start({ duracionS: 60 }, (e) => eventos.push(e));
+    expect(eventos).toEqual([{ type: 'error', codigo: 'sin_conexion' }]);
+    expect(f.llamadas).not.toContain('startMeasurement');
+    expect(f.settings).toHaveLength(2);
+  });
+
+  it('informa cada inicialización para el diagnóstico: código y duración, sin datos de la persona', async () => {
+    const diag: Array<{ resultado: string; ms: number }> = [];
+    await new SdkScanProvider(ESCALA, sdkFalso({ init: 'CONNECTION_ERROR' }).crear, 'k', (d) => diag.push(d)).mountPreview({} as HTMLElement, null, () => undefined);
+    const lento = new SdkScanProvider(ESCALA, sdkFalso({ initDemoraMs: 12_000 }).crear, 'k', (d) => diag.push(d)).mountPreview({} as HTMLElement, null, () => undefined);
+    await vi.advanceTimersByTimeAsync(12_100);
+    await lento;
+    expect(diag.map((d) => d.resultado)).toEqual(['CONNECTION_ERROR', 'OK']);
+    expect(Object.keys(diag[1]!).sort()).toEqual(['ms', 'resultado']);
   });
 
   it('una API key inválida o sin conexión al validar la licencia se informan como tales', async () => {
