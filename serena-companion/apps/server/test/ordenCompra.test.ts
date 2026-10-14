@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { addUser, login, makeCtx } from './helpers.ts';
 import { MercadoPagoProvider } from '../src/payments/mercadopago.ts';
-import { OrdenCompraProvider, textoProforma } from '../src/payments/ordenCompra.ts';
+import { cerrarCanceladasVencidas, OrdenCompraProvider, textoProforma } from '../src/payments/ordenCompra.ts';
 import { leerTransferencia } from '../src/env.ts';
 import { generarPdf } from '../src/pdf.ts';
 
@@ -117,6 +117,28 @@ describe('plan Empresa: orden de compra', () => {
     expect(c.body.suscripcion.estado).toBe('cancelada');
     const det = await request(app).get(`/api/admin/billing/ordenes/${r.body.url.split('/').pop()}`).set(bearer(token));
     expect(det.body.orden.estado).toBe('anulada');
+  });
+
+  it('cancelar con la orden pagada mantiene la suscripción activa hasta el fin del período y después la cierra', async () => {
+    const { app, token, oc, ctx } = await sesionAdmin();
+    await request(app).post('/api/admin/billing/checkout').set(bearer(token)).send(empresa(10));
+    oc.marcarPagada('OC-000001', { fecha: '2026-10-14', referencia: 'TRF 1' });
+    const c = await request(app).post('/api/admin/billing/cancel').set(bearer(token)).send({});
+    expect(c.body.suscripcion).toMatchObject({ estado: 'activa', canceladaAlFinal: true });
+
+    // Antes del fin del período pagado no cambia nada; después, pasa a cancelada.
+    expect(cerrarCanceladasVencidas(ctx.db, new Date('2026-11-13T12:00:00Z'))).toBe(0);
+    expect(cerrarCanceladasVencidas(ctx.db, new Date('2026-11-14T16:00:00Z'))).toBe(1);
+    expect((await request(app).get('/api/admin/billing').set(bearer(token))).body.suscripcion.estado).toBe('cancelada');
+    expect(cerrarCanceladasVencidas(ctx.db, new Date('2026-12-01T00:00:00Z'))).toBe(0);
+  });
+
+  it('un período vencido sin cancelar no se cierra solo: lo decide el operador', async () => {
+    const { app, token, oc, ctx } = await sesionAdmin();
+    await request(app).post('/api/admin/billing/checkout').set(bearer(token)).send(empresa(10));
+    oc.marcarPagada('OC-000001', { fecha: '2026-10-14', referencia: 'TRF 1' });
+    expect(cerrarCanceladasVencidas(ctx.db, new Date('2027-01-01T00:00:00Z'))).toBe(0);
+    expect((await request(app).get('/api/admin/billing').set(bearer(token))).body.suscripcion.estado).toBe('activa');
   });
 });
 
