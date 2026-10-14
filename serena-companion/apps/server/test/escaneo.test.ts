@@ -23,6 +23,18 @@ describe('diagnóstico del escaneo', () => {
     expect(linea).not.toContain('ana');
   });
 
+  it('incluye el detalle del error en una sola línea', async () => {
+    const { app, ctx, orgId, messenger } = makeCtx();
+    addUser(ctx, orgId, { dni: '30111222', usuario: 'ana', legajo: 'L1', password: 'p' });
+    const { token } = await login(app, messenger, 'ana', 'p');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    await request(app)
+      .post('/api/escaneo/diagnostico')
+      .set(bearer(token))
+      .send({ resultado: 'CARGA_FALLIDA', ms: 900, detalle: 'TypeError: Failed to fetch\nmodule' });
+    expect(warn.mock.calls.flat().join(' ')).toContain('CARGA_FALLIDA en 0.9 s · TypeError: Failed to fetch module ·');
+  });
+
   it('rechaza datos fuera de formato y pide sesión', async () => {
     const { app, ctx, orgId, messenger } = makeCtx();
     addUser(ctx, orgId, { dni: '30111222', usuario: 'ana', legajo: 'L1', password: 'p' });

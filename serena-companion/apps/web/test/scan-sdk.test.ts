@@ -237,6 +237,17 @@ describe('adaptador del SDK de escaneo', () => {
     expect(Object.keys(diag[1]!).sort()).toEqual(['ms', 'resultado']);
   });
 
+  it('si el SDK no se puede cargar, el diagnóstico lleva el tipo y el mensaje del error', async () => {
+    const diag: Array<{ resultado: string; detalle?: string }> = [];
+    const eventos: ScanEvent[] = [];
+    const crear = async () => {
+      throw new RangeError('WebAssembly.Memory(): could not allocate memory');
+    };
+    await new SdkScanProvider(ESCALA, crear, 'k', (d) => diag.push(d)).mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
+    expect(eventos).toEqual([{ type: 'error', codigo: 'no_soportado' }]);
+    expect(diag).toMatchObject([{ resultado: 'CARGA_FALLIDA', detalle: 'RangeError: WebAssembly.Memory(): could not allocate memory' }]);
+  });
+
   it('una API key inválida o sin conexión al validar la licencia se informan como tales', async () => {
     for (const [init, codigo] of [
       ['INVALID_API_KEY', 'sin_licencia'],
