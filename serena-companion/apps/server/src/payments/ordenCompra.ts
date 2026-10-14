@@ -82,6 +82,24 @@ export function obtenerOrden(db: DB, id: string, orgId?: string): OrdenCompra | 
   return f ? aOrden(f) : null;
 }
 
+/**
+ * Cierra las suscripciones por orden de compra que la empresa canceló y cuyo período pagado ya terminó. Con una
+ * pasarela lo hace el aviso del proveedor; acá no hay proveedor que avise, así que corre cada hora en el servidor.
+ * Solo toca las canceladas por la empresa: un período vencido sin pagar lo marca el operador (`ordenes vencida`),
+ * porque una transferencia suele acreditarse con días de demora.
+ */
+export function cerrarCanceladasVencidas(db: DB, ahora = new Date()): number {
+  return Number(
+    db
+      .prepare(
+        `UPDATE subscriptions SET estado = 'cancelada', actualizada_en = ?
+         WHERE proveedor = 'orden_compra' AND cancelada_al_final = 1 AND estado IN ('activa', 'pago_vencido')
+           AND proximo_cobro IS NOT NULL AND proximo_cobro <= ?`,
+      )
+      .run(nowIso(), ahora.toISOString()).changes,
+  );
+}
+
 export function listarOrdenes(db: DB, orgId?: string): Array<OrdenCompra & { orgId: string }> {
   const filas = (orgId
     ? db.prepare('SELECT * FROM ordenes_compra WHERE org_id = ? ORDER BY numero DESC').all(orgId)

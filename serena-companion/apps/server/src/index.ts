@@ -4,7 +4,7 @@ import { DEFAULT_CONFIG } from '@serena/domain';
 import { canalesDirectos, datosTransferencia, env, notificadorGuardia, problemasDeProduccion, twilioConfigurado, twilioMessenger } from './env.ts';
 import { TwilioVerifyMessenger } from './sms/verify.ts';
 import { avisoOperaciones, ResendAvisoOperaciones } from './avisoOperaciones.ts';
-import { textoProforma } from './payments/ordenCompra.ts';
+import { cerrarCanceladasVencidas, textoProforma } from './payments/ordenCompra.ts';
 import { openDb } from './db.ts';
 import { Vault } from './crypto.ts';
 import { createApp } from './app.ts';
@@ -84,10 +84,13 @@ const ctx: AppContext = {
 };
 
 flushOrphanGroups(ctx);
-// Cuentas dadas de baja cuyo período de gracia venció: al iniciar y cada hora.
+// Al iniciar y cada hora: cuentas dadas de baja cuyo período de gracia venció, y suscripciones por orden de compra
+// canceladas cuyo período pagado terminó.
 const purgar = () => {
   const n = purgarVencidas(ctx);
   if (n) console.info(`[serena] ${n} cuenta(s) dada(s) de baja eliminada(s) al vencer el período de gracia`);
+  const c = cerrarCanceladasVencidas(ctx.db);
+  if (c) console.info(`[serena][pagos] ${c} suscripción(es) por orden de compra cancelada(s) al terminar el período pagado`);
 };
 purgar();
 setInterval(purgar, 3_600_000).unref();

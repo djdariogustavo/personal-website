@@ -141,8 +141,9 @@ de puestos, precio unitario, total y los datos para transferir (`SERENA_TRANSFER
 a la que la empresa envía el comprobante, que también recibe las respuestas al email de la orden). Se ve en la app
 (`/admin/facturacion/orden/:id`), se descarga en PDF y se envía por email, con el PDF adjunto, al contacto de compras
 y a `SERENA_ALERTAS_EMAIL`. Vence a los `SERENA_ORDEN_DIAS_PAGO` días (10 por defecto). Mientras está pendiente, la
-empresa puede anularla. **La factura se emite fuera de la app** (sin integración con AFIP); su número se registra en
-la orden. Los cambios de estado los hace un operador de SERENA, no la administración de la empresa, desde la consola
+empresa puede anularla. Si la cancela con la orden ya pagada, la suscripción sigue activa hasta el fin del período
+pagado y el servidor la cierra sola (control horario); un período vencido sin pagar lo marca el operador.
+**La factura se emite fuera de la app** (sin integración con AFIP); su número se registra en la orden. Los cambios de estado los hace un operador de SERENA, no la administración de la empresa, desde la consola
 del servidor (p. ej. la Shell de Render):
 
 ```bash
