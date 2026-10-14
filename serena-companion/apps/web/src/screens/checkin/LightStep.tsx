@@ -112,7 +112,7 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
   return (
     <div className="row" style={{ gap: 24, alignItems: 'flex-start' }}>
       <div className="stack" style={{ flex: '1 1 320px', minWidth: 0, gap: 10 }}>
-        <div className="camera">
+        <div className="camera camera-luz">
           <div ref={slot} style={{ position: 'absolute', inset: 0 }} data-scan-slot="preview" />
           {cam.kind !== 'error' && (
             <>
@@ -181,19 +181,6 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
               </span>
             </div>
             <p style={{ fontSize: 18, lineHeight: 1.5 }}>{measuring ? 'Mirá a la cámara un momento.' : copy.mensaje}</p>
-            {cam.kind === 'ok' && sdk.kind === 'preparando' && (
-              <div className="muted" role="status" style={{ fontSize: 15 }}>
-                Preparando el escaneo… puede tardar hasta 30 segundos la primera vez.
-              </div>
-            )}
-            {cam.kind === 'ok' && sdk.kind === 'error' && (
-              <div className="stack" role="alert" style={{ gap: 10 }}>
-                <div className="warn-text">{sdkMessage(sdk.codigo)}</div>
-                <button type="button" className="btn" onClick={() => preview.current?.()}>
-                  Reintentar
-                </button>
-              </div>
-            )}
           </>
         )}
         <div style={{ border: '1px solid var(--c-line)', borderRadius: 12, overflow: 'hidden' }}>
@@ -214,7 +201,21 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
             </div>
           )}
         </div>
-        <div className="actions">
+        <div className="actions actions-fijas">
+          {/* El estado del SDK va junto al botón: en el teléfono esta franja queda fija abajo y siempre se ve. */}
+          {cam.kind === 'ok' && sdk.kind === 'preparando' && (
+            <div className="muted" role="status" style={{ fontSize: 15 }}>
+              Preparando el escaneo… puede tardar hasta 30 segundos la primera vez.
+            </div>
+          )}
+          {cam.kind === 'ok' && sdk.kind === 'error' && (
+            <div className="stack" role="alert" style={{ gap: 10 }}>
+              <div className="warn-text">{sdkMessage(sdk.codigo)}</div>
+              <button type="button" className="btn" onClick={() => preview.current?.()}>
+                Reintentar
+              </button>
+            </div>
+          )}
           {cam.kind !== 'error' && (
             <button
               type="button"
