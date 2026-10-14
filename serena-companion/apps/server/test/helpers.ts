@@ -48,7 +48,7 @@ export function makeCtx() {
       ordenCompra: {
         db,
         cfg: {
-          transferencia: { titular: 'SERENA Prueba SRL', cuit: '30712345671', banco: 'Banco de Prueba', cbu: '0000003100000000000001', alias: 'SERENA.PRUEBA' },
+          transferencia: { titular: 'SERENA Prueba SRL', cuit: '30712345671', banco: 'Banco de Prueba', cbu: '0000003100000000000001', alias: 'SERENA.PRUEBA', email: 'cobranzas@serena.test' },
           diasPago: 10,
           notificar: async (o, pdf, organizacion) => void ordenesNotificadas.push({ numero: o.numero, pdf, organizacion }),
         },

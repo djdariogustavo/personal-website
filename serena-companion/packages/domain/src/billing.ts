@@ -121,6 +121,8 @@ export interface DatosTransferencia {
   banco: string;
   cbu: string;
   alias?: string | null;
+  /** Casilla donde la empresa envía el comprobante de la transferencia; también es la dirección de respuesta del email de la orden. */
+  email?: string | null;
   /** true si son datos de ejemplo (sin configurar): no se debe transferir. */
   ejemplo?: boolean;
 }

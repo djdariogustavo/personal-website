@@ -64,7 +64,8 @@ services:
         sync: false
 
       # Plan Empresa por orden de compra: datos para la transferencia, en JSON
-      # ({"titular","cuit","banco","cbu","alias"}). Sin esto, el plan Empresa no se ofrece.
+      # ({"titular","cuit","banco","cbu","alias","email"}; email: casilla para los comprobantes). Sin esto, el plan
+      # Empresa no se ofrece.
       - key: SERENA_TRANSFERENCIA_JSON
         sync: false
 

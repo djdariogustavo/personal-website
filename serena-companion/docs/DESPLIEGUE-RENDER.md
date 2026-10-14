@@ -66,7 +66,8 @@ públicos de prueba de webhooks, que exponen nombre, teléfono y ubicación a te
 
 - **Individual (Mercado Pago):** `MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_WEBHOOK_SECRET` y el webhook configurado en el
   panel de Mercado Pago (ver `docs/PENDIENTES.md`, sección 6).
-- **Empresa (orden de compra):** `SERENA_TRANSFERENCIA_JSON` con los datos bancarios. Las órdenes se gestionan desde la
+- **Empresa (orden de compra):** `SERENA_TRANSFERENCIA_JSON` con los datos bancarios y `email`, la casilla para los
+  comprobantes de transferencia. Las órdenes se gestionan desde la
   Shell: `npm run ordenes -w @serena/server -- listar`, `pagada OC-000001 --fecha … --referencia …`, `vencida …`,
   `factura …` (ver README, sección Servicio de pago).
 

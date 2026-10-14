@@ -56,8 +56,8 @@ export class ResendAvisoOperaciones implements AvisoOperaciones {
     return this.enviarA(this.cfg.to, asunto, texto);
   }
 
-  /** Envía a otros destinatarios, con adjuntos opcionales; devuelve si Resend lo aceptó. Nunca lanza. */
-  async enviarA(to: string[], asunto: string, texto: string, adjuntos: AdjuntoEmail[] = []): Promise<boolean> {
+  /** Envía a otros destinatarios, con adjuntos y dirección de respuesta opcionales; devuelve si Resend lo aceptó. Nunca lanza. */
+  async enviarA(to: string[], asunto: string, texto: string, adjuntos: AdjuntoEmail[] = [], responderA?: string | null): Promise<boolean> {
     try {
       const r = await this.fetchImpl('https://api.resend.com/emails', {
         method: 'POST',
@@ -67,6 +67,7 @@ export class ResendAvisoOperaciones implements AvisoOperaciones {
           to,
           subject: `[SERENA] ${asunto}`,
           text: texto,
+          ...(responderA ? { reply_to: responderA } : {}),
           ...(adjuntos.length ? { attachments: adjuntos.map((a) => ({ filename: a.nombre, content: a.contenido.toString('base64') })) } : {}),
         }),
         signal: AbortSignal.timeout(15_000),

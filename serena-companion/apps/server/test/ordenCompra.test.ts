@@ -1,9 +1,10 @@
 import { createHmac } from 'node:crypto';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import request from 'supertest';
 import { addUser, login, makeCtx } from './helpers.ts';
 import { MercadoPagoProvider } from '../src/payments/mercadopago.ts';
-import { OrdenCompraProvider } from '../src/payments/ordenCompra.ts';
+import { OrdenCompraProvider, textoProforma } from '../src/payments/ordenCompra.ts';
+import { leerTransferencia } from '../src/env.ts';
 import { generarPdf } from '../src/pdf.ts';
 
 const bearer = (t: string) => ({ authorization: `Bearer ${t}` });
@@ -53,6 +54,9 @@ describe('plan Empresa: orden de compra', () => {
     expect(det.body.orden).toMatchObject({ numero: 'OC-000001', estado: 'pendiente', puestos: 12, precioUnitario: 900_000, total: 10_800_000 });
     expect(det.body.orden.facturacion.cuit).toBe('30712345671');
     expect(det.body.transferencia.cbu).toBe('0000003100000000000001');
+    // La proforma dice a qué casilla enviar el comprobante.
+    expect(textoProforma(det.body.orden, det.body.transferencia, 'Org')).toContain('enviar el comprobante a cobranzas@serena.test.');
+    expect(textoProforma(det.body.orden, { ...det.body.transferencia, email: null }, 'Org')).toContain('enviar el comprobante al contacto de SERENA.');
 
     const pdf = await request(app).get(`/api/admin/billing/ordenes/${id}/pdf`).set(bearer(token)).buffer(true).parse((res, cb) => {
       const partes: Buffer[] = [];
@@ -152,6 +156,18 @@ describe('plan Individual: Mercado Pago', () => {
     expect(wh.status).toBe(200);
     const s = (await request(app).get('/api/admin/billing').set(bearer(token))).body.suscripcion;
     expect(s).toMatchObject({ estado: 'activa', proveedor: 'mercadopago', planId: 'individual-mensual', puestos: 1 });
+  });
+});
+
+describe('SERENA_TRANSFERENCIA_JSON', () => {
+  const base = { titular: 'SERENA SRL', cuit: '30712345671', banco: 'Banco', cbu: '0000003100000000000001' };
+  it('acepta el email de cobranzas y descarta uno mal escrito, sin frenar las órdenes', () => {
+    expect(leerTransferencia(JSON.stringify({ ...base, email: ' cobranzas@serena.test ' })).email).toBe('cobranzas@serena.test');
+    expect(leerTransferencia(JSON.stringify(base)).email).toBeUndefined();
+    const err = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(leerTransferencia(JSON.stringify({ ...base, email: 'cobranzas@' })).email).toBeNull();
+    expect(err).toHaveBeenCalledOnce();
+    err.mockRestore();
   });
 });
 

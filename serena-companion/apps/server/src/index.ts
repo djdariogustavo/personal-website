@@ -69,6 +69,8 @@ const ctx: AppContext = {
                 `Orden de compra ${orden.numero} · ${orden.facturacion.razonSocial}`,
                 textoProforma(orden, transferencia, nombreOrg),
                 [{ nombre: `SERENA-${orden.numero}.pdf`, contenido: pdf }],
+                // Las respuestas de la empresa (p. ej. con el comprobante) llegan a la casilla de cobranzas.
+                transferencia.email,
               );
               if (!ok) console.error(`[serena][pagos] No se pudo enviar por email la orden ${orden.numero}.`);
             },

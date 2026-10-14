@@ -618,7 +618,15 @@ export function OrdenCompraView() {
             CBU <span className="num">{t.cbu}</span>
             {t.alias ? ` · Alias ${t.alias}` : ''}
           </div>
-          <div className="meta">Indicá {o.numero} como referencia. Los puestos ya están habilitados; la suscripción se activa cuando SERENA confirme el pago.</div>
+          <div className="meta">
+            Indicá {o.numero} como referencia
+            {t.email ? (
+              <>
+                {' '}y enviá el comprobante a <a href={`mailto:${t.email}`}>{t.email}</a>
+              </>
+            ) : null}
+            . Los puestos ya están habilitados; la suscripción se activa cuando SERENA confirme el pago.
+          </div>
         </div>
       )}
       {error && <div className="alert">{error}</div>}
