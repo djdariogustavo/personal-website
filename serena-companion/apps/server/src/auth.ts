@@ -183,6 +183,7 @@ const KIOSK_ALLOWED: Array<[string, RegExp]> = [
   ['GET', /^\/me$/],
   ['POST', /^\/sync\/push$/],
   ['GET', /^\/sync\/pull$/],
+  ['POST', /^\/escaneo\/diagnostico$/],
   ['POST', /^\/emergency$/],
   ['GET', /^\/emergency\/[\w-]+$/],
 ];

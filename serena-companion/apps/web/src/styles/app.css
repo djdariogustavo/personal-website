@@ -907,6 +907,24 @@ select.input {
   overflow: hidden;
   background: radial-gradient(ellipse at 50% 30%, #2c2c72 0%, #0b0b2e 80%);
 }
+/*
+ * Paso de luz en el teléfono: la cámara ocupa a lo sumo la mitad de la pantalla y "Empezar escaneo" queda fijo
+ * abajo, a la vista mientras se mira el encuadre (antes había que bajar media pantalla para encontrarlo).
+ */
+@media (max-width: 720px) {
+  .camera.camera-luz {
+    max-height: 48svh;
+  }
+  .actions.actions-fijas {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    max-width: none;
+    padding: 12px 0 calc(12px + env(safe-area-inset-bottom));
+    background: var(--c-bg);
+    box-shadow: 0 -12px 16px -8px var(--c-bg);
+  }
+}
 .camera video {
   position: absolute;
   inset: 0;

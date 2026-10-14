@@ -35,6 +35,7 @@ export function ScanStep({
   const [lost, setLost] = useState<number | null>(null);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [failed, setFailed] = useState(false);
+  const [rostro, setRostro] = useState(true);
   const video = useRef<HTMLVideoElement>(null);
   const slot = useRef<HTMLDivElement>(null);
 
@@ -60,6 +61,7 @@ export function ScanStep({
         await p.start({ duracionS }, (e) => {
           if (!alive) return;
           if (e.type === 'progreso') setProgress(e.valor);
+          else if (e.type === 'calidad') setRostro(e.rostroCentrado);
           else if (e.type === 'metrica') setInd((cur) => ({ ...cur, [e.nombre]: { valor: e.valor, estable: e.estable } }));
           else if (e.type === 'senal_perdida') {
             setLost(3);
@@ -137,7 +139,7 @@ export function ScanStep({
             {clock}
           </div>
           <div className="muted" style={{ fontSize: 18 }}>
-            {lost ? 'Quedate quieto un momento.' : 'Respirá normal. Quedate quieto.'}
+            {lost ? 'Quedate quieto un momento.' : !rostro && progress === 0 ? 'Centrá la cara dentro del óvalo.' : 'Respirá normal. Quedate quieto.'}
           </div>
         </div>
       )}
