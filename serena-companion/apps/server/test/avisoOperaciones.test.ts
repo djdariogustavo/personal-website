@@ -34,6 +34,12 @@ describe('avisos de operación por email (Resend)', () => {
     expect(JSON.parse(String(init.body))).toEqual({ from: CFG.from, to: CFG.to, subject: '[SERENA] Falla', text: 'detalle' });
   });
 
+  it('con dirección de respuesta, la envía como reply_to', async () => {
+    const { f, llamadas } = fetchFalso();
+    await new ResendAvisoOperaciones(CFG, f).enviarA(['compras@empresa.test'], 'Orden', 'detalle', [], 'cobranzas@serena.test');
+    expect(JSON.parse(String(llamadas[0]!.init.body))).toMatchObject({ to: ['compras@empresa.test'], reply_to: 'cobranzas@serena.test' });
+  });
+
   it('avisa una sola vez por falla dentro de la ventana, y de nuevo cuando la ventana pasa', async () => {
     const { f, llamadas } = fetchFalso();
     let ahora = 0;

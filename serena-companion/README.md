@@ -137,7 +137,8 @@ Facturación ofrece dos caminos:
 | **Empresa** | `faena-mensual` o `faena-anual`: desde **10 puestos** | **Orden de compra y transferencia**. Datos de facturación: razón social, CUIT (con dígito verificador), condición frente al IVA, domicilio fiscal, contacto y email de compras, OC interna opcional | **Pendiente de pago** con los puestos ya habilitados → un operador de SERENA la marca **Pagada** (→ **Activa**, próximo vencimiento a 1 o 12 meses) o **Vencida** (→ pago vencido) |
 
 **Orden de compra / proforma (plan Empresa).** Al confirmar se emite con número correlativo (`OC-000001`…), detalle
-de puestos, precio unitario, total y los datos para transferir (`SERENA_TRANSFERENCIA_JSON`). Se ve en la app
+de puestos, precio unitario, total y los datos para transferir (`SERENA_TRANSFERENCIA_JSON`, con `email`: la casilla
+a la que la empresa envía el comprobante, que también recibe las respuestas al email de la orden). Se ve en la app
 (`/admin/facturacion/orden/:id`), se descarga en PDF y se envía por email, con el PDF adjunto, al contacto de compras
 y a `SERENA_ALERTAS_EMAIL`. Vence a los `SERENA_ORDEN_DIAS_PAGO` días (10 por defecto). Mientras está pendiente, la
 empresa puede anularla. **La factura se emite fuera de la app** (sin integración con AFIP); su número se registra en

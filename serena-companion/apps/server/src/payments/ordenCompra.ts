@@ -126,7 +126,7 @@ export function bloquesProforma(o: OrdenCompra, t: DatosTransferencia, organizac
     { texto: `Titular: ${t.titular} · CUIT ${formatCuit(t.cuit)}` },
     { texto: `Banco: ${t.banco}` },
     { texto: `CBU: ${t.cbu}${t.alias ? ` · Alias: ${t.alias}` : ''}` },
-    { texto: `Indicar ${o.numero} como referencia de la transferencia y enviar el comprobante al contacto de SERENA.`, antes: 4 },
+    { texto: `Indicar ${o.numero} como referencia de la transferencia y enviar el comprobante ${t.email ? `a ${t.email}` : 'al contacto de SERENA'}.`, antes: 4 },
     { texto: 'Los puestos quedan habilitados desde la emisión de esta orden. El estado del pago nunca bloquea el botón de emergencia ni el acceso de cada persona a sus datos.', tam: 8, antes: 8 },
   ];
 }

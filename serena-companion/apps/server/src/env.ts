@@ -130,11 +130,12 @@ export const env = {
       currency: (process.env.MERCADOPAGO_CURRENCY ?? 'ARS') as 'ARS' | 'CLP',
     },
     /**
-     * Plan Empresa por orden de compra. SERENA_TRANSFERENCIA_JSON: {"titular","cuit","banco","cbu","alias"}.
+     * Plan Empresa por orden de compra. SERENA_TRANSFERENCIA_JSON: {"titular","cuit","banco","cbu","alias","email"}
+     * (email: casilla para los comprobantes; opcional pero recomendado).
      * En producción, sin esos datos el plan Empresa no se ofrece; en desarrollo se usan datos de ejemplo marcados.
      */
     ordenCompra: {
-      transferencia: process.env.SERENA_TRANSFERENCIA_JSON ? (JSON.parse(process.env.SERENA_TRANSFERENCIA_JSON) as DatosTransferencia) : null,
+      transferencia: process.env.SERENA_TRANSFERENCIA_JSON ? leerTransferencia(process.env.SERENA_TRANSFERENCIA_JSON) : null,
       diasPago: Number(process.env.SERENA_ORDEN_DIAS_PAGO ?? 10),
     },
     /** Proveedor simulado para desarrollo y demos. Desactivado en producción salvo que se pida. */
@@ -216,9 +217,22 @@ export function notificadorGuardia(aviso: AvisoOperaciones | null): GuardNotifie
   return canales.length === 1 ? canales[0]! : new GuardiasCombinadas(canales);
 }
 
+/**
+ * Lee SERENA_TRANSFERENCIA_JSON. Un email mal escrito se descarta con un aviso en los registros: como dirección de
+ * respuesta, Resend rechazaría el envío entero y la orden no llegaría a la empresa.
+ */
+export function leerTransferencia(raw: string): DatosTransferencia {
+  const t = JSON.parse(raw) as DatosTransferencia;
+  if (t.email != null && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(t.email.trim())) {
+    console.error('[serena][pagos] SERENA_TRANSFERENCIA_JSON: el campo "email" no es un email válido; las órdenes salen sin él.');
+    return { ...t, email: null };
+  }
+  return t.email ? { ...t, email: t.email.trim() } : t;
+}
+
 /** Datos para la transferencia del plan Empresa: los configurados o, solo en desarrollo, unos de ejemplo marcados. */
 export function datosTransferencia(): DatosTransferencia | null {
   if (env.payments.ordenCompra.transferencia) return env.payments.ordenCompra.transferencia;
   if (env.isProd) return null;
-  return { titular: 'SERENA (ejemplo)', cuit: '30-00000000-0', banco: 'Banco de ejemplo', cbu: '0000000000000000000000', alias: 'SERENA.EJEMPLO', ejemplo: true };
+  return { titular: 'SERENA (ejemplo)', cuit: '30-00000000-0', banco: 'Banco de ejemplo', cbu: '0000000000000000000000', alias: 'SERENA.EJEMPLO', email: 'cobranzas@serena.invalid', ejemplo: true };
 }
