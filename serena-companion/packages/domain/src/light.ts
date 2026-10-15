@@ -28,10 +28,10 @@ function luma(r: number, g: number, b: number): number {
 }
 
 /**
- * Óvalo guía en coordenadas normalizadas, igual al dibujado en pantalla
- * (centro 50 % / 41 %, semiejes 26 % × 29 % del cuadro).
+ * Óvalo guía en coordenadas normalizadas del cuadro 4:5, igual al dibujado en pantalla (`.camera .oval`): centrado,
+ * 68 % del alto y 64 % del ancho (proporción de un rostro, 3:4).
  */
-export const OVAL = { cx: 0.5, cy: 0.41, rx: 0.26, ry: 0.29 } as const;
+export const OVAL = { cx: 0.5, cy: 0.5, rx: 0.32, ry: 0.34 } as const;
 
 export function frameStats(rgba: Uint8ClampedArray | Uint8Array, width: number, height: number, miniSize = 16): FrameStats {
   let sumIn = 0;

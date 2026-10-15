@@ -228,13 +228,28 @@ describe('adaptador del SDK de escaneo', () => {
   });
 
   it('informa cada inicialización para el diagnóstico: código y duración, sin datos de la persona', async () => {
-    const diag: Array<{ resultado: string; ms: number }> = [];
+    const diag: Array<{ resultado: string; etapa: string; ms: number }> = [];
     await new SdkScanProvider(ESCALA, sdkFalso({ init: 'CONNECTION_ERROR' }).crear, 'k', (d) => diag.push(d)).mountPreview({} as HTMLElement, null, () => undefined);
     const lento = new SdkScanProvider(ESCALA, sdkFalso({ initDemoraMs: 12_000 }).crear, 'k', (d) => diag.push(d)).mountPreview({} as HTMLElement, null, () => undefined);
     await vi.advanceTimersByTimeAsync(12_100);
     await lento;
-    expect(diag.map((d) => d.resultado)).toEqual(['CONNECTION_ERROR', 'OK']);
-    expect(Object.keys(diag[1]!).sort()).toEqual(['ms', 'resultado']);
+    expect(diag.map((d) => `${d.resultado}/${d.etapa}`)).toEqual(['INICIO/importar', 'CONNECTION_ERROR/licencia', 'INICIO/importar', 'OK/camara']);
+    // Solo código, etapa y duración (más las descargas del SDK si el navegador las registró): nada de la persona.
+    expect(Object.keys(diag[3]!).sort()).toEqual(['etapa', 'ms', 'resultado']);
+  });
+
+  it('si el SDK no se puede cargar, el diagnóstico lleva el tipo y el mensaje del error', async () => {
+    const diag: Array<{ resultado: string; etapa: string; detalle?: string }> = [];
+    const eventos: ScanEvent[] = [];
+    const crear = async () => {
+      throw new RangeError('WebAssembly.Memory(): could not allocate memory');
+    };
+    await new SdkScanProvider(ESCALA, crear, 'k', (d) => diag.push(d)).mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
+    expect(eventos).toEqual([{ type: 'error', codigo: 'no_soportado' }]);
+    expect(diag).toMatchObject([
+      { resultado: 'INICIO' },
+      { resultado: 'CARGA_FALLIDA', etapa: 'importar', detalle: 'RangeError: WebAssembly.Memory(): could not allocate memory' },
+    ]);
   });
 
   it('una API key inválida o sin conexión al validar la licencia se informan como tales', async () => {

@@ -90,7 +90,22 @@ export function createApp(ctx: AppContext, opts: OpcionesApp = {}) {
   app.use('/api', (_req, _res, next) => next(new HttpError(404, 'no_encontrado')));
 
   if (opts.staticDir && existsSync(opts.staticDir)) {
+    // Diagnóstico del SDK de escaneo: cada descarga de sus archivos (módulo y motor WASM de ~36 MB) queda en el
+    // registro con su estado, tamaño y duración, y si el teléfono cortó la descarga antes de terminar.
+    app.use('/vendor/shenai', (req, res, next) => {
+      const t0 = Date.now();
+      res.on('close', () => {
+        const completo = res.writableFinished ? '' : ' · CORTADA antes de terminar';
+        const tam = Number(res.getHeader('content-length') ?? 0);
+        console.info(
+          `[serena][escaneo] Descarga ${req.originalUrl.split('?')[0]}: HTTP ${res.statusCode} · ${(tam / 1e6).toFixed(1)} MB · ${((Date.now() - t0) / 1000).toFixed(1)} s${completo} · ${String(req.headers['user-agent'] ?? '—').slice(0, 120)}`,
+        );
+      });
+      next();
+    });
     app.use(express.static(opts.staticDir, { index: false, maxAge: '1h' }));
+    // Un archivo de /vendor que no existe es un 404, no la app: si no, el navegador recibe HTML en lugar del SDK.
+    app.use('/vendor', (_req, res) => res.status(404).type('text/plain').send('No encontrado'));
     app.get(/^(?!\/api\/).*/, (_req, res) => res.sendFile(join(opts.staticDir!, 'index.html')));
   }
 

@@ -100,10 +100,45 @@ function idSeudonimo(): string {
   }
 }
 
-/** Resultado de una inicialización del SDK: código (OK, CONNECTION_ERROR, SIN_RESPUESTA, …) y duración. */
+/**
+ * Resultado de una inicialización del SDK: código (OK, CONNECTION_ERROR, SIN_RESPUESTA, …), duración y, si hubo una
+ * excepción, su tipo y mensaje (p. ej. "RangeError: Out of memory"). Nunca datos de la persona ni de la medición.
+ */
 export interface DiagnosticoInicio {
   resultado: string;
+  etapa: EtapaInicio;
   ms: number;
+  detalle?: string;
+  /** Bytes recibidos del motor del SDK (shenai_sdk.wasm, ~36 MB) y del módulo, si el navegador llegó a pedirlos. */
+  wasmBytes?: number;
+  moduloEstado?: number;
+}
+
+export type EtapaInicio = 'importar' | 'crear' | 'licencia' | 'camara';
+
+/**
+ * Cuánto se descargó del SDK según el registro de recursos del navegador (Resource Timing): sin el motor WASM
+ * completo el SDK no arranca, y en un teléfono con poca memoria o mala red ahí suele estar la falla.
+ */
+function descargasSdk(): Pick<DiagnosticoInicio, 'wasmBytes' | 'moduloEstado'> {
+  try {
+    const recursos = performance.getEntriesByType('resource') as Array<PerformanceResourceTiming & { responseStatus?: number }>;
+    const wasm = recursos.filter((r) => r.name.includes('/vendor/shenai/') && r.name.endsWith('.wasm')).at(-1);
+    const modulo = recursos.filter((r) => r.name.includes('/vendor/shenai/index.mjs')).at(-1);
+    return {
+      ...(wasm ? { wasmBytes: Math.round(wasm.encodedBodySize || wasm.transferSize || 0) } : {}),
+      ...(modulo?.responseStatus ? { moduloEstado: modulo.responseStatus } : {}),
+    };
+  } catch {
+    return {};
+  }
+}
+
+/** Tipo y mensaje de una excepción del navegador o del SDK, acotado para el registro. */
+export function detalleError(e: unknown): string {
+  const nombre = e instanceof Error ? e.name : typeof e;
+  const mensaje = e instanceof Error ? e.message : String(e);
+  return `${nombre}: ${mensaje}`.replace(/[^\x20-\x7E\u00A0-\u00FF]/g, ' ').slice(0, 200);
 }
 
 export class SdkScanProvider implements ScanProvider {
@@ -223,22 +258,35 @@ export class SdkScanProvider implements ScanProvider {
 
   private async iniciar(): Promise<ShenaiSdk | ScanErrorCode> {
     const t0 = performance.now();
-    const informar = (resultado: string) => this.diagnostico({ resultado, ms: Math.round(performance.now() - t0) });
+    /** Etapa en curso, para saber dónde se cortó: importar el módulo, crear el motor (WASM), validar la licencia… */
+    let etapa: EtapaInicio = 'importar';
+    const informar = (resultado: string, error?: unknown) =>
+      this.diagnostico({
+        resultado,
+        etapa,
+        ms: Math.round(performance.now() - t0),
+        ...(error ? { detalle: detalleError(error) } : {}),
+        ...descargasSdk(),
+      });
+    // Primer aviso: confirma en el registro que el teléfono llegó a intentar el arranque, aunque después se corte.
+    informar('INICIO');
     let sdk: ShenaiSdk;
     try {
-      this.cargando ??= this.crear().then((crear) =>
-        crear({
+      this.cargando ??= this.crear().then((crear) => {
+        etapa = 'crear';
+        return crear({
           enableErrorReporting: false, // P4: sin envío de errores a terceros
           enablePreloadDisplay: false,
-        }),
-      );
+        });
+      });
       sdk = await this.cargando;
     } catch (e) {
       this.cargando = null;
       console.error('[serena][escaneo] No se pudo cargar el SDK:', (e as Error).message);
-      informar('CARGA_FALLIDA');
+      informar('CARGA_FALLIDA', e);
       return 'no_soportado';
     }
+    etapa = 'licencia';
     if (sdk.isInitialized()) return sdk;
 
     let canvas = document.getElementById(CANVAS_ID) as HTMLCanvasElement | null;
@@ -252,6 +300,7 @@ export class SdkScanProvider implements ScanProvider {
     }
 
     let tope: ReturnType<typeof setTimeout> | undefined;
+    let errorInit: unknown;
     const resultado = await new Promise<EnumSdk | null>((listo) => {
       tope = setTimeout(() => listo(null), INIT_TOPE_MS);
       try {
@@ -276,6 +325,7 @@ export class SdkScanProvider implements ScanProvider {
         );
       } catch (e) {
         console.error('[serena][escaneo] El SDK falló al inicializarse:', (e as Error).message);
+        errorInit = e;
         listo(null);
       }
     }).finally(() => clearTimeout(tope));
@@ -284,7 +334,7 @@ export class SdkScanProvider implements ScanProvider {
       console.error(`[serena][escaneo] El SDK no respondió a la inicialización en ${INIT_TOPE_MS / 1000} s.`);
       this.cargando = null;
       document.getElementById(CANVAS_ID)?.remove();
-      informar('SIN_RESPUESTA');
+      informar(errorInit ? 'EXCEPCION' : 'SIN_RESPUESTA', errorInit);
       return 'sin_conexion';
     }
     const r = nombre(sdk.InitializationResult, resultado);
@@ -294,9 +344,18 @@ export class SdkScanProvider implements ScanProvider {
       document.getElementById(CANVAS_ID)?.remove();
       return r === 'CONNECTION_ERROR' ? 'sin_conexion' : 'sin_licencia';
     }
-    sdk.setRecordingEnabled(false);
-    if (this.stream) sdk.setMediaStream(this.stream, true);
-    sdk.attachToCanvas(`#${CANVAS_ID}`);
+    etapa = 'camara';
+    try {
+      sdk.setRecordingEnabled(false);
+      if (this.stream) sdk.setMediaStream(this.stream, true);
+      sdk.attachToCanvas(`#${CANVAS_ID}`);
+    } catch (e) {
+      // La licencia validó pero el SDK no pudo tomar la cámara o el lienzo: también va al diagnóstico.
+      console.error('[serena][escaneo] El SDK no pudo conectarse a la cámara:', (e as Error).message);
+      informar('CONEXION_CAMARA_FALLIDA', e);
+      sdk.deinitialize();
+      return 'no_soportado';
+    }
     const errorCamara = nombre(sdk.CameraError, sdk.getLastCameraError());
     if (errorCamara) {
       informar(`CAMARA_${errorCamara}`);
