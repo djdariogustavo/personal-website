@@ -55,7 +55,10 @@ describe('diagnóstico del escaneo', () => {
     const { app, ctx, orgId, messenger } = makeCtx();
     addUser(ctx, orgId, { dni: '30111222', usuario: 'ana', legajo: 'L1', password: 'p' });
     const { token } = await login(app, messenger, 'ana', 'p');
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     expect((await request(app).post('/api/escaneo/diagnostico').set(bearer(token)).send({ resultado: 'texto libre <script>', ms: 1 })).status).toBe(400);
+    // El rechazo también queda en el registro, con el campo que falló.
+    expect(warn.mock.calls.flat().join(' ')).toContain('Diagnóstico con datos inválidos (resultado)');
     expect((await request(app).post('/api/escaneo/diagnostico').send({ resultado: 'OK', ms: 1 })).status).toBe(401);
   });
 
