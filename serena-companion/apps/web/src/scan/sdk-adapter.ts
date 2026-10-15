@@ -117,6 +117,10 @@ export interface DiagnosticoInicio {
 }
 
 export type EtapaInicio = 'importar' | 'crear' | 'licencia' | 'camara';
+interface EstadoInicio {
+  etapa: EtapaInicio;
+  t0: number;
+}
 
 /**
  * Cuánto se descargó del SDK según el registro de recursos del navegador (Resource Timing): sin el motor WASM
@@ -138,6 +142,8 @@ function descargasSdk(): Pick<DiagnosticoInicio, 'wasmBytes' | 'moduloEstado'> {
 
 /** Tipo y mensaje de una excepción del navegador o del SDK, acotado para el registro. */
 export function detalleError(e: unknown): string {
+  // Algunos motores (Emscripten) rechazan con undefined o un número, sin un Error: también se informa.
+  if (e === undefined || e === null) return `sin detalle (rechazo con ${String(e)})`;
   const nombre = e instanceof Error ? e.name : typeof e;
   const mensaje = e instanceof Error ? e.message : String(e);
   return `${nombre}: ${mensaje}`.replace(/[^\x20-\x7E\u00A0-\u00FF]/g, ' ').slice(0, 200);
@@ -258,16 +264,32 @@ export class SdkScanProvider implements ScanProvider {
     return r;
   }
 
+  /**
+   * Cualquier excepción no prevista en el arranque se informa y termina en error, en lugar de cortar la cadena sin
+   * aviso: así se perdió el motivo real en la prueba en el teléfono (solo quedaba el INICIO).
+   */
   private async iniciar(): Promise<ShenaiSdk | ScanErrorCode> {
-    const t0 = performance.now();
-    /** Etapa en curso, para saber dónde se cortó: importar el módulo, crear el motor (WASM), validar la licencia… */
-    let etapa: EtapaInicio = 'importar';
-    const informar = (resultado: string, error?: unknown) =>
+    const estado: EstadoInicio = { etapa: 'importar', t0: performance.now() };
+    try {
+      return await this.iniciarPasos(estado);
+    } catch (e) {
+      console.error('[serena][escaneo] Falla no prevista al iniciar el SDK:', detalleError(e));
+      this.diagnostico({ resultado: 'EXCEPCION_INTERNA', etapa: estado.etapa, ms: Math.round(performance.now() - estado.t0), detalle: detalleError(e), ...descargasSdk() });
+      this.cargando = null;
+      document.getElementById(CANVAS_ID)?.remove();
+      return 'no_soportado';
+    }
+  }
+
+  private async iniciarPasos(estado: EstadoInicio): Promise<ShenaiSdk | ScanErrorCode> {
+    const { t0 } = estado;
+    /** Informa el resultado; con un segundo argumento (aunque sea undefined) agrega el detalle del error. */
+    const informar = (resultado: string, ...error: unknown[]) =>
       this.diagnostico({
         resultado,
-        etapa,
+        etapa: estado.etapa,
         ms: Math.round(performance.now() - t0),
-        ...(error ? { detalle: detalleError(error) } : {}),
+        ...(error.length ? { detalle: detalleError(error[0]) } : {}),
         ...descargasSdk(),
       });
     // Primer aviso: confirma en el registro que el teléfono llegó a intentar el arranque, aunque después se corte.
@@ -275,7 +297,7 @@ export class SdkScanProvider implements ScanProvider {
     let sdk: ShenaiSdk;
     try {
       this.cargando ??= this.crear().then((crear) => {
-        etapa = 'crear';
+        estado.etapa = 'crear';
         return crear({
           enableErrorReporting: false, // P4: sin envío de errores a terceros
           enablePreloadDisplay: false,
@@ -291,11 +313,11 @@ export class SdkScanProvider implements ScanProvider {
       ]).finally(() => clearTimeout(topeCarga));
     } catch (e) {
       this.cargando = null;
-      console.error('[serena][escaneo] No se pudo cargar el SDK:', (e as Error).message);
+      console.error('[serena][escaneo] No se pudo cargar el SDK:', detalleError(e));
       informar('CARGA_FALLIDA', e);
       return 'no_soportado';
     }
-    etapa = 'licencia';
+    estado.etapa = 'licencia';
     if (sdk.isInitialized()) return sdk;
 
     let canvas = document.getElementById(CANVAS_ID) as HTMLCanvasElement | null;
@@ -333,7 +355,7 @@ export class SdkScanProvider implements ScanProvider {
           listo,
         );
       } catch (e) {
-        console.error('[serena][escaneo] El SDK falló al inicializarse:', (e as Error).message);
+        console.error('[serena][escaneo] El SDK falló al inicializarse:', detalleError(e));
         errorInit = e;
         listo(null);
       }
@@ -343,7 +365,8 @@ export class SdkScanProvider implements ScanProvider {
       console.error(`[serena][escaneo] El SDK no respondió a la inicialización en ${INIT_TOPE_MS / 1000} s.`);
       this.cargando = null;
       document.getElementById(CANVAS_ID)?.remove();
-      informar(errorInit ? 'EXCEPCION' : 'SIN_RESPUESTA', errorInit);
+      if (errorInit !== undefined) informar('EXCEPCION', errorInit);
+      else informar('SIN_RESPUESTA');
       return 'sin_conexion';
     }
     const r = nombre(sdk.InitializationResult, resultado);
@@ -353,14 +376,14 @@ export class SdkScanProvider implements ScanProvider {
       document.getElementById(CANVAS_ID)?.remove();
       return r === 'CONNECTION_ERROR' ? 'sin_conexion' : 'sin_licencia';
     }
-    etapa = 'camara';
+    estado.etapa = 'camara';
     try {
       sdk.setRecordingEnabled(false);
       if (this.stream) sdk.setMediaStream(this.stream, true);
       sdk.attachToCanvas(`#${CANVAS_ID}`);
     } catch (e) {
       // La licencia validó pero el SDK no pudo tomar la cámara o el lienzo: también va al diagnóstico.
-      console.error('[serena][escaneo] El SDK no pudo conectarse a la cámara:', (e as Error).message);
+      console.error('[serena][escaneo] El SDK no pudo conectarse a la cámara:', detalleError(e));
       informar('CONEXION_CAMARA_FALLIDA', e);
       sdk.deinitialize();
       return 'no_soportado';
