@@ -97,14 +97,17 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
   const dim = luz === 'insuficiente' ? 0.62 : luz === 'justa' ? 0.3 : 0;
   const live = cam.kind === 'ok' || cam.kind === 'demo';
   const measuring = cam.kind === 'ok' && !light;
-  const checks: Array<[string, 'ok' | 'warn' | 'no' | 'na']> = [
+  // "Cara centrada" la informa el SDK de escaneo: si el SDK no arrancó, no se puede cumplir y se muestra como no
+  // disponible (no como pendiente). La luz, el movimiento y el contraluz se miden en el dispositivo, sin el SDK.
+  const sdkCaido = cam.kind === 'ok' && sdk.kind === 'error';
+  const checks: Array<[string, 'ok' | 'warn' | 'no' | 'na' | 'off']> = [
     ['Luz suficiente', luz === 'optima' ? 'ok' : luz === 'justa' ? 'warn' : 'no'],
-    ['Cara centrada', rostro === null ? 'na' : rostro ? 'ok' : 'no'],
+    [sdkCaido ? 'Cara centrada: no disponible' : 'Cara centrada', sdkCaido ? 'off' : rostro === null ? 'na' : rostro ? 'ok' : 'no'],
     ['Sin movimiento', light?.movimiento ? 'no' : 'ok'],
     ['Sin contraluz', light?.contraluz ? 'no' : 'ok'],
   ];
-  const mark = { ok: '✓', warn: '!', no: '×', na: '·' };
-  const col = { ok: '#7FD3E3', warn: '#F0CF7A', no: '#F37CC2', na: '#9999B5' };
+  const mark = { ok: '✓', warn: '!', no: '×', na: '·', off: '–' };
+  const col = { ok: '#7FD3E3', warn: '#F0CF7A', no: '#F37CC2', na: '#9999B5', off: '#9999B5' };
   // En la vista previa (demo) no hay SDK: se puede empezar con la luz.
   const sdkListo = cam.kind === 'demo' || sdk.kind === 'listo';
   const canStart = live && !!light && luz !== 'insuficiente' && sdkListo;
@@ -117,8 +120,8 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
           {cam.kind !== 'error' && (
             <>
               {cam.kind === 'demo' ? (
-                <svg viewBox="0 0 200 240" style={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translateX(-50%)', width: '80%', height: 'auto' }} fill="rgba(184,184,203,.22)" aria-hidden="true">
-                  <ellipse cx="100" cy="98" rx="44" ry="54" />
+                <svg viewBox="0 0 200 240" style={{ position: 'absolute', left: '50%', bottom: 0, transform: 'translateX(-50%)', width: '100%', height: 'auto' }} fill="rgba(184,184,203,.22)" aria-hidden="true">
+                  <ellipse cx="100" cy="120" rx="54" ry="66" />
                   <path d="M18 240c4-50 38-76 82-76s78 26 82 76z" />
                 </svg>
               ) : (
@@ -126,13 +129,6 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
               )}
               <div style={{ position: 'absolute', inset: 0, background: '#000', opacity: light ? dim : 0.4, transition: 'opacity .2s' }} />
               <div className="oval" style={{ ['--oval' as string]: light ? fg : '#9999B5' }} />
-              <div className="checks">
-                {checks.map(([l, s]) => (
-                  <span key={l} style={{ color: col[s] }}>
-                    {mark[s]} {l}
-                  </span>
-                ))}
-              </div>
             </>
           )}
           {cam.kind === 'error' && (
@@ -147,6 +143,15 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
             </div>
           )}
         </div>
+        {cam.kind !== 'error' && (
+          <div className="checks">
+            {checks.map(([l, s]) => (
+              <span key={l} style={{ color: col[s], opacity: s === 'off' ? 0.75 : 1 }}>
+                {mark[s]} {l}
+              </span>
+            ))}
+          </div>
+        )}
         <Seal>EL VIDEO NO SE GUARDA · SE PROCESA EN ESTE DISPOSITIVO</Seal>
       </div>
       <div className="stack" style={{ flex: '1 1 300px', minWidth: 0, gap: 20 }}>

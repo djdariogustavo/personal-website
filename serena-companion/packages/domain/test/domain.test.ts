@@ -5,6 +5,7 @@ import {
   DEFAULT_CONFIG,
   detectRisk,
   frameStats,
+  OVAL,
   motionBetween,
   rosterInsight,
   rosterStatus,
@@ -46,8 +47,8 @@ describe('luz', () => {
     const d = new Uint8ClampedArray(w * h * 4);
     for (let y = 0; y < h; y++)
       for (let x = 0; x < w; x++) {
-        const dx = (x / w - 0.5) / 0.26;
-        const dy = (y / h - 0.41) / 0.29;
+        const dx = (x / w - OVAL.cx) / OVAL.rx;
+        const dy = (y / h - OVAL.cy) / OVAL.ry;
         const v = dx * dx + dy * dy <= 1 ? face : bg;
         const i = (y * w + x) * 4;
         d[i] = d[i + 1] = d[i + 2] = v;

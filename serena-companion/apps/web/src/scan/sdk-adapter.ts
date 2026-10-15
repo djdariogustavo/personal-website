@@ -106,8 +106,32 @@ function idSeudonimo(): string {
  */
 export interface DiagnosticoInicio {
   resultado: string;
+  etapa: EtapaInicio;
   ms: number;
   detalle?: string;
+  /** Bytes recibidos del motor del SDK (shenai_sdk.wasm, ~36 MB) y del módulo, si el navegador llegó a pedirlos. */
+  wasmBytes?: number;
+  moduloEstado?: number;
+}
+
+export type EtapaInicio = 'importar' | 'crear' | 'licencia' | 'camara';
+
+/**
+ * Cuánto se descargó del SDK según el registro de recursos del navegador (Resource Timing): sin el motor WASM
+ * completo el SDK no arranca, y en un teléfono con poca memoria o mala red ahí suele estar la falla.
+ */
+function descargasSdk(): Pick<DiagnosticoInicio, 'wasmBytes' | 'moduloEstado'> {
+  try {
+    const recursos = performance.getEntriesByType('resource') as Array<PerformanceResourceTiming & { responseStatus?: number }>;
+    const wasm = recursos.filter((r) => r.name.includes('/vendor/shenai/') && r.name.endsWith('.wasm')).at(-1);
+    const modulo = recursos.filter((r) => r.name.includes('/vendor/shenai/index.mjs')).at(-1);
+    return {
+      ...(wasm ? { wasmBytes: Math.round(wasm.encodedBodySize || wasm.transferSize || 0) } : {}),
+      ...(modulo?.responseStatus ? { moduloEstado: modulo.responseStatus } : {}),
+    };
+  } catch {
+    return {};
+  }
 }
 
 /** Tipo y mensaje de una excepción del navegador o del SDK, acotado para el registro. */
@@ -234,16 +258,27 @@ export class SdkScanProvider implements ScanProvider {
 
   private async iniciar(): Promise<ShenaiSdk | ScanErrorCode> {
     const t0 = performance.now();
+    /** Etapa en curso, para saber dónde se cortó: importar el módulo, crear el motor (WASM), validar la licencia… */
+    let etapa: EtapaInicio = 'importar';
     const informar = (resultado: string, error?: unknown) =>
-      this.diagnostico({ resultado, ms: Math.round(performance.now() - t0), ...(error ? { detalle: detalleError(error) } : {}) });
+      this.diagnostico({
+        resultado,
+        etapa,
+        ms: Math.round(performance.now() - t0),
+        ...(error ? { detalle: detalleError(error) } : {}),
+        ...descargasSdk(),
+      });
+    // Primer aviso: confirma en el registro que el teléfono llegó a intentar el arranque, aunque después se corte.
+    informar('INICIO');
     let sdk: ShenaiSdk;
     try {
-      this.cargando ??= this.crear().then((crear) =>
-        crear({
+      this.cargando ??= this.crear().then((crear) => {
+        etapa = 'crear';
+        return crear({
           enableErrorReporting: false, // P4: sin envío de errores a terceros
           enablePreloadDisplay: false,
-        }),
-      );
+        });
+      });
       sdk = await this.cargando;
     } catch (e) {
       this.cargando = null;
@@ -251,6 +286,7 @@ export class SdkScanProvider implements ScanProvider {
       informar('CARGA_FALLIDA', e);
       return 'no_soportado';
     }
+    etapa = 'licencia';
     if (sdk.isInitialized()) return sdk;
 
     let canvas = document.getElementById(CANVAS_ID) as HTMLCanvasElement | null;
@@ -308,6 +344,7 @@ export class SdkScanProvider implements ScanProvider {
       document.getElementById(CANVAS_ID)?.remove();
       return r === 'CONNECTION_ERROR' ? 'sin_conexion' : 'sin_licencia';
     }
+    etapa = 'camara';
     try {
       sdk.setRecordingEnabled(false);
       if (this.stream) sdk.setMediaStream(this.stream, true);

@@ -912,8 +912,10 @@ select.input {
  * abajo, a la vista mientras se mira el encuadre (antes había que bajar media pantalla para encontrarlo).
  */
 @media (max-width: 720px) {
+  /* Limita el alto sin deformar el cuadro 4:5 (la medición de luz usa esa proporción). */
   .camera.camera-luz {
-    max-height: 48svh;
+    width: min(100%, calc(46svh * 4 / 5));
+    margin-inline: auto;
   }
   .actions.actions-fijas {
     position: sticky;
@@ -933,28 +935,26 @@ select.input {
   object-fit: cover;
   transform: scaleX(-1);
 }
+/* Óvalo centrado, 68 % del alto: la misma región que mide la luz (OVAL en packages/domain/src/light.ts). */
 .camera .oval {
   position: absolute;
   left: 50%;
-  top: 12%;
-  width: 52%;
-  height: 58%;
-  transform: translateX(-50%);
+  top: 50%;
+  width: 64%;
+  height: 68%;
+  transform: translate(-50%, -50%);
   border: 2.5px solid var(--oval, var(--ok-fg));
   border-radius: 50%;
   box-shadow: 0 0 0 2000px rgba(1, 1, 71, 0.35);
   transition: border-color var(--t);
 }
-.camera .checks {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
+/* Marcas de control debajo de la cámara, para no tapar el óvalo. */
+.checks {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
-.camera .checks span {
+.checks span {
   white-space: nowrap;
   font-size: 13px;
   font-weight: 500;

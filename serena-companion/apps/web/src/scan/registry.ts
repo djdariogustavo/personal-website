@@ -26,10 +26,24 @@ export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promis
   if (scanMode === 'simulado') instance = new SimulatedScanProvider();
   else if (scanMode === 'sdk') {
     const { SdkScanProvider } = await import('./sdk-adapter.ts');
-    const { api } = await import('../lib/api.ts');
+    const { getToken } = await import('../lib/api.ts');
     instance = new SdkScanProvider(escaneo?.escalaEstresSdk ?? null, undefined, undefined, (d) => {
-      // Diagnóstico de campo: solo el código y la duración (el servidor agrega el navegador). Si falla, se ignora.
-      void api('/escaneo/diagnostico', { method: 'POST', body: d, timeoutMs: 10_000 }).catch(() => undefined);
+      // Diagnóstico de campo (sin datos de la persona; el servidor agrega el navegador). `keepalive` lo entrega aunque
+      // la persona cierre o recargue la página en ese momento. Si falla, se ignora: es solo diagnóstico.
+      const token = getToken();
+      const nav = navigator as Navigator & { deviceMemory?: number };
+      const cuerpo = {
+        ...d,
+        memoriaGb: nav.deviceMemory,
+        nucleos: nav.hardwareConcurrency,
+        aislado: globalThis.crossOriginIsolated === true,
+      };
+      void fetch('/api/escaneo/diagnostico', {
+        method: 'POST',
+        keepalive: true,
+        headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify(cuerpo),
+      }).catch(() => undefined);
     });
   } else instance = new UnavailableScanProvider();
   return instance;
