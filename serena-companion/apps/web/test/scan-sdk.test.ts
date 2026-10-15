@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScanEvent } from '@serena/domain';
 import { calidadDesdeSdk, estresAEscala, metricasFinales, metricasParciales, presetParaDuracion, senalPerdida } from '../src/scan/shenai-map.ts';
-import { INIT_TOPE_MS, SdkScanProvider } from '../src/scan/sdk-adapter.ts';
+import { CARGA_TOPE_MS, INIT_TOPE_MS, SdkScanProvider } from '../src/scan/sdk-adapter.ts';
 
 const ESCALA = { min: 0, max: 10 };
 const RESULTADOS = { heart_rate_bpm: 72.4, hrv_sdnn_ms: 48.6, breathing_rate_bpm: 14.2, stress_index: 5, average_signal_quality: 0.87 };
@@ -236,6 +236,16 @@ describe('adaptador del SDK de escaneo', () => {
     expect(diag.map((d) => `${d.resultado}/${d.etapa}`)).toEqual(['INICIO/importar', 'CONNECTION_ERROR/licencia', 'INICIO/importar', 'OK/camara']);
     // Solo código, etapa y duración (más las descargas del SDK si el navegador las registró): nada de la persona.
     expect(Object.keys(diag[3]!).sort()).toEqual(['etapa', 'ms', 'resultado']);
+  });
+
+  it('si la descarga del SDK se traba, se corta con un error en lugar de quedar en "Preparando…"', async () => {
+    const diag: Array<{ resultado: string; detalle?: string }> = [];
+    const eventos: ScanEvent[] = [];
+    const montaje = new SdkScanProvider(ESCALA, () => new Promise(() => undefined), 'k', (d) => diag.push(d)).mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
+    await vi.advanceTimersByTimeAsync(CARGA_TOPE_MS + 100);
+    await montaje;
+    expect(eventos).toEqual([{ type: 'error', codigo: 'no_soportado' }]);
+    expect(diag.at(-1)).toMatchObject({ resultado: 'CARGA_FALLIDA', detalle: expect.stringContaining('no terminó') });
   });
 
   it('si el SDK no se puede cargar, el diagnóstico lleva el tipo y el mensaje del error', async () => {

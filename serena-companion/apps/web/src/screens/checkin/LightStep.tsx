@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { LIGHT_COPY, type LightAssessment, type ScanErrorCode } from '@serena/domain';
 import { useApp, useOnline } from '../../lib/store.tsx';
 import { LightMonitor, openFrontCamera, stopStream } from '../../lib/camera.ts';
-import { getScanProvider, scanMode } from '../../scan/registry.ts';
+import { getScanProvider, scanMode, ultimoDiagnosticoEscaneo } from '../../scan/registry.ts';
 import { Icon, Seal } from '../../components/ui.tsx';
 
 type CamState = { kind: 'cargando' } | { kind: 'ok' } | { kind: 'demo' } | { kind: 'error'; codigo: ScanErrorCode };
@@ -216,6 +216,7 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
           {cam.kind === 'ok' && sdk.kind === 'error' && (
             <div className="stack" role="alert" style={{ gap: 10 }}>
               <div className="warn-text">{sdkMessage(sdk.codigo)}</div>
+              <DetalleTecnico />
               <button type="button" className="btn" onClick={() => preview.current?.()}>
                 Reintentar
               </button>
@@ -241,6 +242,21 @@ export function LightStep({ onStream, onStart, onSkip, kiosk }: { onStream: (s: 
         </div>
       </div>
     </div>
+  );
+}
+
+/** Código y error exacto del SDK, plegado: para una captura de pantalla cuando el escaneo no arranca. */
+function DetalleTecnico() {
+  const d = ultimoDiagnosticoEscaneo();
+  if (!d) return null;
+  return (
+    <details className="muted" style={{ fontSize: 13 }}>
+      <summary>Detalle técnico</summary>
+      <div className="num" style={{ marginTop: 6, wordBreak: 'break-word' }}>
+        {d.resultado} · etapa {d.etapa}
+        {d.detalle ? ` · ${d.detalle}` : ''}
+      </div>
+    </details>
   );
 }
 

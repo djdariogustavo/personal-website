@@ -3,7 +3,9 @@
  * abra sin conexión. Nunca guarda respuestas de /api (datos personales): esos
  * viven cifrados en IndexedDB y se sincronizan con la cola de la app.
  */
-const CACHE = 'serena-shell-v2';
+// v3: borra lo guardado por versiones anteriores, que podían haber guardado la app (HTML) en lugar del SDK de
+// escaneo si /vendor/shenai todavía no existía en el servidor. Con eso el SDK no cargaba nunca en ese teléfono.
+const CACHE = 'serena-shell-v3';
 const SHELL = ['/', '/index.html', '/manifest.webmanifest', '/assets/serena-logo-white.png', '/assets/serena-mark.png'];
 
 self.addEventListener('install', (e) => {
@@ -31,7 +33,9 @@ self.addEventListener('fetch', (e) => {
       (hit) =>
         hit ||
         fetch(e.request).then((res) => {
-          if (res.ok && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/vendor/'))) {
+          // Nunca se guarda HTML como si fuera un recurso: sería la app servida en lugar del archivo pedido.
+          const html = (res.headers.get('content-type') || '').includes('text/html');
+          if (res.ok && !html && (url.pathname.startsWith('/assets/') || url.pathname.startsWith('/vendor/'))) {
             const copy = res.clone();
             caches.open(CACHE).then((c) => c.put(e.request, copy));
           }

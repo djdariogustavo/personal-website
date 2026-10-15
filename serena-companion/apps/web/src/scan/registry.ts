@@ -20,6 +20,12 @@ export const scanMode: ScanMode =
 
 let instance: ScanProvider | null = null;
 
+/** Último diagnóstico de la inicialización del SDK: la pantalla de luz lo muestra en "Detalle técnico" si falla. */
+let ultimo: { resultado: string; etapa: string; detalle?: string } | null = null;
+export function ultimoDiagnosticoEscaneo() {
+  return ultimo;
+}
+
 /** La primera llamada (paso de luz) pasa la configuración; las siguientes reciben la misma instancia. */
 export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promise<ScanProvider> {
   if (instance) return instance;
@@ -30,6 +36,7 @@ export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promis
     instance = new SdkScanProvider(escaneo?.escalaEstresSdk ?? null, undefined, undefined, (d) => {
       // Diagnóstico de campo (sin datos de la persona; el servidor agrega el navegador). `keepalive` lo entrega aunque
       // la persona cierre o recargue la página en ese momento. Si falla, se ignora: es solo diagnóstico.
+      ultimo = { resultado: d.resultado, etapa: d.etapa, ...(d.detalle ? { detalle: d.detalle } : {}) };
       const token = getToken();
       const nav = navigator as Navigator & { deviceMemory?: number };
       const cuerpo = {

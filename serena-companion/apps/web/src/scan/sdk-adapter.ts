@@ -76,6 +76,8 @@ const CADA_MS = 250;
  * esperando. Con la clave real, sin GPU, respondió OK en 11,5 a 19,6 s: el tope deja más del doble de margen.
  */
 export const INIT_TOPE_MS = 45_000;
+/** Tope para descargar e instanciar el SDK (módulo y motor WASM de ~36 MB) con una conexión móvil lenta. */
+export const CARGA_TOPE_MS = 120_000;
 
 /** Nombre del valor de un enum del SDK (los enums son objetos con `value`). */
 function nombre<K extends string>(e: Enums<K>, v: EnumSdk | null): K | null {
@@ -279,7 +281,14 @@ export class SdkScanProvider implements ScanProvider {
           enablePreloadDisplay: false,
         });
       });
-      sdk = await this.cargando;
+      // Tope para la descarga del SDK (~36 MB): sin él, una descarga trabada dejaría "Preparando…" para siempre.
+      let topeCarga: ReturnType<typeof setTimeout> | undefined;
+      sdk = await Promise.race([
+        this.cargando,
+        new Promise<never>((_, falla) => {
+          topeCarga = setTimeout(() => falla(new Error(`la carga no terminó en ${CARGA_TOPE_MS / 1000} s`)), CARGA_TOPE_MS);
+        }),
+      ]).finally(() => clearTimeout(topeCarga));
     } catch (e) {
       this.cargando = null;
       console.error('[serena][escaneo] No se pudo cargar el SDK:', (e as Error).message);

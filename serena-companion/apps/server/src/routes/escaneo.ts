@@ -29,7 +29,12 @@ export function escaneoRoutes(_ctx: AppContext) {
   r.post('/escaneo/diagnostico', (req, res) => {
     auth(req);
     const d = diagnosticoSchema.safeParse(req.body);
-    if (!d.success) return res.status(400).json({ error: 'datos_invalidos' });
+    if (!d.success) {
+      // También se registra: un diagnóstico que no llega es justo lo que hay que poder ver.
+      const campos = d.error.issues.map((i) => i.path.join('.') || '(cuerpo)').join(', ');
+      console.warn(`[serena][escaneo] Diagnóstico con datos inválidos (${campos}): ${JSON.stringify(req.body ?? null).slice(0, 300)}`);
+      return res.status(400).json({ error: 'datos_invalidos' });
+    }
     const navegador = String(req.headers['user-agent'] ?? '—').slice(0, 200);
     const log = d.data.resultado === 'OK' || d.data.resultado === 'INICIO' ? console.info : console.warn;
     // Sin saltos de línea ni caracteres de control: una línea por inicialización en los registros.
