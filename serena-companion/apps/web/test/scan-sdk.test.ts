@@ -248,6 +248,32 @@ describe('adaptador del SDK de escaneo', () => {
     expect(diag.at(-1)).toMatchObject({ resultado: 'CARGA_FALLIDA', detalle: expect.stringContaining('no terminó') });
   });
 
+  it('un rechazo sin error (undefined, como hacen algunos motores WASM) se informa igual, con la etapa', async () => {
+    for (const [crear, etapa] of [
+      [() => Promise.reject(undefined), 'importar'],
+      [async () => () => Promise.reject(undefined), 'crear'],
+    ] as const) {
+      const diag: Array<{ resultado: string; etapa: string; detalle?: string }> = [];
+      const eventos: ScanEvent[] = [];
+      await new SdkScanProvider(ESCALA, crear as never, 'k', (d) => diag.push(d)).mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
+      expect(eventos).toEqual([{ type: 'error', codigo: 'no_soportado' }]);
+      expect(diag.at(-1)).toEqual(expect.objectContaining({ resultado: 'CARGA_FALLIDA', etapa, detalle: 'sin detalle (rechazo con undefined)' }));
+    }
+  });
+
+  it('una excepción no prevista durante el arranque se informa (EXCEPCION_INTERNA) y termina en error', async () => {
+    const diag: Array<{ resultado: string; etapa: string; detalle?: string }> = [];
+    const eventos: ScanEvent[] = [];
+    const f = sdkFalso();
+    const crear = async () => async (a: Record<string, unknown>) => {
+      const sdk = await (await f.crear())(a);
+      return { ...sdk, isInitialized: () => { throw new TypeError('isInitialized falló'); } };
+    };
+    await new SdkScanProvider(ESCALA, crear as never, 'k', (d) => diag.push(d)).mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
+    expect(eventos).toEqual([{ type: 'error', codigo: 'no_soportado' }]);
+    expect(diag.at(-1)).toEqual(expect.objectContaining({ resultado: 'EXCEPCION_INTERNA', etapa: 'licencia', detalle: 'TypeError: isInitialized falló' }));
+  });
+
   it('si el SDK no se puede cargar, el diagnóstico lleva el tipo y el mensaje del error', async () => {
     const diag: Array<{ resultado: string; etapa: string; detalle?: string }> = [];
     const eventos: ScanEvent[] = [];
