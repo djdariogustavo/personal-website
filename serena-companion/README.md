@@ -87,7 +87,7 @@ serena-companion/
 - **Resultado alto.** Cuenta de 15 s para conectar con la guardia salvo que la persona elija otra opción.
   Con los umbrales por defecto, el autorreporte solo **no** dispara el escalamiento (evita avisos por un
   toque equivocado) hasta calibrar en el trial.
-- **Acompañante.** Claude (`claude-opus-5` por defecto, configurable) con perfil de escucha sin rol
+- **Acompañante.** Claude (`claude-opus-5-5` por defecto, configurable) con perfil de escucha sin rol
   profesional y respuesta estructurada `{respuesta, riesgo}`. Un detector determinístico de expresiones de
   riesgo corre **antes** del modelo: el estado de cuidado se activa si cualquiera de los dos lo marca, y el
   modelo nunca puede desactivarlo. Si el modelo no está configurado o falla, responde un acompañante
