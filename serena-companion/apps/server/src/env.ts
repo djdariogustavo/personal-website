@@ -59,7 +59,7 @@ export const env = {
 
   anthropic: {
     enabled: Boolean(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN),
-    model: process.env.SERENA_COMPANION_MODEL ?? 'claude-opus-5',
+    model: process.env.SERENA_COMPANION_MODEL ?? 'claude-opus-5-5',
   },
 
   /**
