@@ -16,6 +16,16 @@ export interface Hallazgo {
 export async function auditar(page: Page, pantalla: string, hallazgos: Hallazgo[]) {
   // Se espera a que terminen las animaciones de entrada para medir el contraste final.
   await page.waitForTimeout(400);
+  // Y a las transiciones en curso (por ejemplo, un botón que se habilita al cargar datos y
+  // pasa de opacidad 0,35 a 1): medido a mitad de camino, el contraste da un falso hallazgo.
+  await page.evaluate(() =>
+    Promise.all(
+      document
+        .getAnimations()
+        .filter((a) => Number.isFinite(Number(a.effect?.getComputedTiming().endTime)))
+        .map((a) => a.finished.catch(() => undefined)),
+    ),
+  );
   const r = await new AxeBuilder({ page }).withTags(TAGS).analyze();
   for (const v of r.violations)
     hallazgos.push({ pantalla, regla: v.id, impacto: v.impact, ayuda: v.help, nodos: v.nodes.slice(0, 4).map((n) => n.target.join(' ') + (n.failureSummary ? ` — ${n.failureSummary.split('\n')[1]?.trim() ?? ''}` : '')) });
