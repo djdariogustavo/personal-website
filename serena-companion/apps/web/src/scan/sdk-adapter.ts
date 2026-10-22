@@ -22,6 +22,8 @@ import {
  *
  * Activación (build de la web):
  *   VITE_SCAN_PROVIDER=sdk
+ *   y la credencial: por defecto, un token de corta duración que emite el servidor por escaneo (POST /api/escaneo/token,
+ *   con SHENAI_ADMIN_KEY en el servidor); la clave permanente no viaja en la app. Solo para pruebas locales:
  *   VITE_SCAN_SDK_KEY=<API key del panel de cliente>
  *   VITE_SCAN_SDK_URL=/vendor/shenai/index.mjs   (opcional; es el valor por defecto)
  * y en el servidor SERENA_AISLAMIENTO_ORIGEN=true (COOP/COEP: el SDK usa SharedArrayBuffer).
@@ -68,6 +70,13 @@ type CrearSdk = (args: Record<string, unknown>) => Promise<ShenaiSdk>;
 
 const SDK_URL = (import.meta.env.VITE_SCAN_SDK_URL as string | undefined) || '/vendor/shenai/index.mjs';
 const SDK_KEY = (import.meta.env.VITE_SCAN_SDK_KEY as string | undefined) ?? '';
+
+/**
+ * Credencial para initialize(): una clave fija o una función que obtiene un token de corta duración (del servidor) en
+ * cada inicialización. La función devuelve el código de error del escaneo si no pudo obtenerlo.
+ */
+export type CredencialEscaneo = string | (() => Promise<string | ScanErrorCode>);
+const esCodigoError = (v: string): v is ScanErrorCode => !v.startsWith('sh_') && /^[a-z_]+$/.test(v);
 const CANVAS_ID = 'serena-scan-sdk';
 const CADA_MS = 250;
 /**
@@ -171,13 +180,13 @@ export class SdkScanProvider implements ScanProvider {
     private readonly escalaEstres: EscalaEstres | null,
     private readonly crear: () => Promise<CrearSdk> = async () =>
       ((await import(/* @vite-ignore */ SDK_URL)) as { default: CrearSdk }).default,
-    private readonly apiKey: string = SDK_KEY,
+    private readonly credencial: CredencialEscaneo = SDK_KEY,
     /** Informa el resultado de cada inicialización (sin datos de la persona) para diagnosticar fallas en el campo. */
     private readonly diagnostico: (d: DiagnosticoInicio) => void = () => undefined,
   ) {}
 
   async availability(ctx: { online: boolean }): Promise<ScanAvailability> {
-    if (!this.apiKey) return { disponible: false, motivo: 'sin_licencia' };
+    if (!this.credencial) return { disponible: false, motivo: 'sin_licencia' };
     // Sin la escala confirmada, el estrés del SDK no puede alimentar el nivel de riesgo.
     if (!this.escalaEstres) {
       console.warn('[serena][escaneo] Falta escaneo.escalaEstresSdk en la configuración: el escaneo queda deshabilitado.');
@@ -320,6 +329,24 @@ export class SdkScanProvider implements ScanProvider {
     estado.etapa = 'licencia';
     if (sdk.isInitialized()) return sdk;
 
+    // Credencial: con tokens del servidor se pide uno nuevo en cada inicialización (vida corta, un dispositivo).
+    let clave: string;
+    if (typeof this.credencial === 'string') clave = this.credencial;
+    else {
+      let obtenida: string | ScanErrorCode;
+      try {
+        obtenida = await this.credencial();
+      } catch (e) {
+        console.error('[serena][escaneo] No se pudo obtener el token del escaneo:', detalleError(e));
+        obtenida = 'sin_conexion';
+      }
+      if (esCodigoError(obtenida)) {
+        informar(obtenida === 'sin_conexion' ? 'TOKEN_SIN_CONEXION' : 'TOKEN_RECHAZADO');
+        return obtenida;
+      }
+      clave = obtenida;
+    }
+
     let canvas = document.getElementById(CANVAS_ID) as HTMLCanvasElement | null;
     if (!canvas) {
       // El SDK necesita un lienzo; la vista previa la muestra SERENA, así que queda fuera de pantalla.
@@ -336,7 +363,7 @@ export class SdkScanProvider implements ScanProvider {
       tope = setTimeout(() => listo(null), INIT_TOPE_MS);
       try {
         sdk.initialize(
-          this.apiKey,
+          clave,
           idSeudonimo(),
           {
             cameraMode: this.stream ? sdk.CameraMode.MEDIA_STREAM : sdk.CameraMode.FACING_USER,

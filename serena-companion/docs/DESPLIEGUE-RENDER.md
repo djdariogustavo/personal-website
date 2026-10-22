@@ -23,7 +23,8 @@ Costo de referencia de Render (verificar en su sitio): plan Starter más el disc
    | Variable | Valor |
    |---|---|
    | `SERENA_PUBLIC_URL` | `https://serena-app.onrender.com` (o la URL que asigne Render; se puede corregir después) |
-   | `VITE_SCAN_SDK_KEY` | API key de Shen.AI |
+   | `SHENAI_ADMIN_KEY` | Credencial de administración de Shen.AI con el permiso `tokens:generate` (el servidor emite un token de 15 min por escaneo) |
+   | `VITE_SCAN_SDK_KEY` | Solo transición: API key fija de Shen.AI dentro de la app. Si está, tiene prioridad; borrarla cuando el escaneo funcione con `SHENAI_ADMIN_KEY` y volver a desplegar |
    | `TWILIO_ACCOUNT_SID`, `TWILIO_API_KEY_SID`, `TWILIO_API_KEY_SECRET` | Credenciales de Twilio |
    | `TWILIO_VERIFY_SERVICE_SID` | Servicio Verify "SERENA" (códigos) |
    | `TWILIO_MESSAGING_SERVICE_SID` | "SERENA APP - Avisos de seguridad" (avisos sin código) |

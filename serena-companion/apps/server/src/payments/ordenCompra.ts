@@ -22,6 +22,10 @@ import type { CheckoutInput, CheckoutOutput, NormalizedPaymentEvent, PaymentProv
  * (no la administración de la empresa) registra el pago desde la consola del servidor (npm run ordenes), lo que
  * activa la suscripción y fija el próximo vencimiento; o la marca vencida. La factura se emite fuera de la app
  * (sin integración con AFIP) y su número se registra en la orden.
+ *
+ * Renovación: cada hora el servidor emite la orden del período siguiente cuando faltan `diasPago` días para el fin
+ * del período pagado (emitirRenovaciones). La suscripción sigue activa mientras tanto; al registrar el pago, el
+ * período nuevo corre desde el fin del anterior. Si la empresa cancela, la renovación pendiente se anula.
  */
 
 export interface ConfigOrdenCompra {
@@ -30,6 +34,8 @@ export interface ConfigOrdenCompra {
   diasPago: number;
   /** Envía la orden por email (con el PDF) al contacto de compras y a operaciones. No debe lanzar. */
   notificar?: (orden: OrdenCompra, pdf: Buffer, organizacion: string) => Promise<void>;
+  /** Precio vigente por puesto del plan (para las renovaciones). Sin él, se repite el de la orden anterior. */
+  precioVigente?: (planId: string, moneda: string) => number | undefined;
 }
 
 interface FilaOrden {
@@ -50,6 +56,8 @@ interface FilaOrden {
   pagada_en: string | null;
   referencia_pago: string | null;
   numero_factura: string | null;
+  renueva_id: string | null;
+  periodo_desde: string | null;
 }
 
 export const numeroOrden = (n: number) => `OC-${String(n).padStart(6, '0')}`;
@@ -72,6 +80,7 @@ function aOrden(f: FilaOrden): OrdenCompra {
     pagadaEn: f.pagada_en,
     referenciaPago: f.referencia_pago,
     numeroFactura: f.numero_factura,
+    periodoDesde: f.periodo_desde ?? null,
   };
 }
 
@@ -137,6 +146,7 @@ export function bloquesProforma(o: OrdenCompra, t: DatosTransferencia, organizac
     { separador: true },
     { texto: 'Detalle', negrita: true },
     { texto: `${o.planNombre} · ${o.puestos} puestos × ${formatMoney(o.precioUnitario, o.moneda)} por puesto por ${periodo}` },
+    ...(o.periodoDesde ? [{ texto: `Renovación: período desde el ${fechaCorta(o.periodoDesde)}. Pagar antes de esa fecha mantiene el servicio sin interrupción.` }] : []),
     { texto: `Total por ${periodo}: ${formatMoney(o.total, o.moneda)}`, tam: 12, negrita: true, antes: 4 },
     { separador: true },
     { texto: 'Datos para la transferencia', negrita: true },
@@ -145,7 +155,7 @@ export function bloquesProforma(o: OrdenCompra, t: DatosTransferencia, organizac
     { texto: `Banco: ${t.banco}` },
     { texto: `CBU: ${t.cbu}${t.alias ? ` · Alias: ${t.alias}` : ''}` },
     { texto: `Indicar ${o.numero} como referencia de la transferencia y enviar el comprobante ${t.email ? `a ${t.email}` : 'al contacto de SERENA'}.`, antes: 4 },
-    { texto: 'Los puestos quedan habilitados desde la emisión de esta orden. El estado del pago nunca bloquea el botón de emergencia ni el acceso de cada persona a sus datos.', tam: 8, antes: 8 },
+    { texto: o.periodoDesde ? 'Los puestos siguen habilitados durante el período en curso. El estado del pago nunca bloquea el botón de emergencia ni el acceso de cada persona a sus datos.' : 'Los puestos quedan habilitados desde la emisión de esta orden. El estado del pago nunca bloquea el botón de emergencia ni el acceso de cada persona a sus datos.', tam: 8, antes: 8 },
   ];
 }
 
@@ -227,7 +237,54 @@ export class OrdenCompraProvider implements PaymentProvider {
     const r = this.db
       .prepare("UPDATE ordenes_compra SET estado = 'anulada', actualizada_en = ? WHERE id = ? AND estado = 'pendiente'")
       .run(nowIso(), externoSuscripcion);
+    // La renovación ya emitida del período siguiente tampoco corresponde: la empresa no va a renovar.
+    this.db
+      .prepare("UPDATE ordenes_compra SET estado = 'anulada', actualizada_en = ? WHERE renueva_id = ? AND estado = 'pendiente'")
+      .run(nowIso(), externoSuscripcion);
     return { inmediata: r.changes > 0 };
+  }
+
+  /**
+   * Emite la orden del período siguiente de cada suscripción por orden de compra activa (no cancelada) a la que le
+   * faltan `diasPago` días o menos para terminar. Una sola renovación por orden pagada (índice único). Devuelve las
+   * órdenes emitidas.
+   */
+  emitirRenovaciones(ahora = new Date()): OrdenCompra[] {
+    const limite = new Date(ahora.getTime() + this.cfg.diasPago * 86_400_000).toISOString();
+    const candidatas = this.db
+      .prepare(
+        `SELECT o.*, s.puestos AS puestos_vigentes, s.proximo_cobro AS fin_periodo, g.nombre AS org_nombre
+         FROM subscriptions s
+         JOIN ordenes_compra o ON o.id = s.externo_suscripcion AND o.estado = 'pagada'
+         JOIN orgs g ON g.id = s.org_id
+         WHERE s.proveedor = 'orden_compra' AND s.estado = 'activa' AND s.cancelada_al_final = 0
+           AND s.proximo_cobro IS NOT NULL AND s.proximo_cobro <= ?
+           AND NOT EXISTS (SELECT 1 FROM ordenes_compra r WHERE r.renueva_id = o.id)`,
+      )
+      .all(limite) as unknown as Array<FilaOrden & { puestos_vigentes: number; fin_periodo: string; org_nombre: string }>;
+    const emitidas: OrdenCompra[] = [];
+    for (const c of candidatas) {
+      const unit = this.cfg.precioVigente?.(c.plan_id, c.moneda) ?? c.precio_unitario;
+      const puestos = c.puestos_vigentes || c.puestos;
+      const id = randomUUID();
+      const ahoraIso = nowIso();
+      tx(this.db, () => {
+        const n = (this.db.prepare('SELECT COALESCE(MAX(numero), 0) + 1 AS n FROM ordenes_compra').get() as { n: number }).n;
+        this.db
+          .prepare(
+            `INSERT INTO ordenes_compra (id, numero, org_id, checkout_id, plan_id, plan_nombre, intervalo, puestos, moneda, precio_unitario, total,
+              facturacion, estado, emitida_en, vence_en, actualizada_en, renueva_id, periodo_desde)
+             VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, 'pendiente', ?, ?, ?, ?, ?)`,
+          )
+          // Vence al terminar el período pagado: hasta entonces la suscripción sigue activa.
+          .run(id, n, c.org_id, c.plan_id, c.plan_nombre, c.intervalo, puestos, c.moneda, unit, unit * puestos, c.facturacion, ahoraIso, c.fin_periodo, ahoraIso, c.id, c.fin_periodo);
+      });
+      const orden = obtenerOrden(this.db, id)!;
+      emitidas.push(orden);
+      console.info(`[serena][pagos] Renovación emitida: ${orden.numero} (renueva ${numeroOrden(c.numero)}, ${c.org_nombre}).`);
+      if (this.cfg.notificar) void this.cfg.notificar(orden, pdfOrden(orden, this.cfg.transferencia, c.org_nombre), c.org_nombre).catch(() => undefined);
+    }
+    return emitidas;
   }
 
   /** Operador de SERENA: registra la transferencia; activa la suscripción y fija el próximo vencimiento. */
@@ -250,7 +307,8 @@ export class OrdenCompraProvider implements PaymentProvider {
         estado: 'activa',
         externoSuscripcion: f.id,
         puestos: f.puestos,
-        proximoCobro: sumarMeses(pagadaEn, f.intervalo === 'anual' ? 12 : 1),
+        // Una renovación corre desde el fin del período anterior, aunque se pague antes o después.
+        proximoCobro: sumarMeses(f.periodo_desde ?? pagadaEn, f.intervalo === 'anual' ? 12 : 1),
         canceladaAlFinal: false,
       },
     });

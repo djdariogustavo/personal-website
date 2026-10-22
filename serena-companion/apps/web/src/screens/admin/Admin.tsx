@@ -589,6 +589,7 @@ export function OrdenCompraView() {
         <div style={{ fontSize: 18 }}>
           Total por {periodo}: <strong className="num">{formatMoney(o.total, o.moneda)}</strong>
         </div>
+        {o.periodoDesde && <div className="meta">Renovación del período que empieza el {fecha(o.periodoDesde)}</div>}
         <div className="meta">
           Emitida el {fecha(o.emitidaEn)} · vence el {fecha(o.venceEn)}
           {o.pagadaEn ? ` · pagada el ${fecha(o.pagadaEn)}` : ''}

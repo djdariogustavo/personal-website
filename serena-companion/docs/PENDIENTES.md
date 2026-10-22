@@ -3,6 +3,23 @@
 Lo que la app ya deja preparado pero depende de terceros o de decisiones del cliente.
 Cada punto indica **dónde** se completa, para no tocar el resto del código.
 
+## Resumen al 2026-10-21: el código está completo; lo que falta es de terceros
+
+| # | Pendiente | Responsable | Bloquea el lanzamiento |
+|---|---|---|---|
+| 1 | Crear la credencial de administración de Shen.AI (permiso `tokens:generate`), cargar `SHENAI_ADMIN_KEY` en Render, probar un escaneo en un teléfono y borrar `VITE_SCAN_SDK_KEY` | Gustavo (panel de Shen.AI + Render) | Solo el escaneo (sin él, check-in con autorreporte) |
+| 2 | Leer en Render el código de inicialización del SDK de la segunda prueba en teléfono (`[serena][escaneo]`) | Gustavo | Solo el escaneo |
+| 3 | Confirmación por escrito de Shen.AI: no guarda ni transmite imágenes (P4), funcionamiento offline (P1), web y kiosco (P2), build sin `new Function` | Shen.AI | Publicar "El video no se guarda" |
+| 4 | Umbrales de estrés con la escala 0–10 y de somnolencia ocular | Dra. Karina Viñas | Que el escaneo influya en el nivel de riesgo |
+| 5 | Validar líneas de ayuda por faena y definir el receptor de la guardia (PEC) | Dra. Viñas + cliente | **Sí** |
+| 6 | Texto legal de privacidad (Ley 25.326 / Chile), contenido de Recursos y prompt del acompañante | Legal + salud ocupacional | **Sí** |
+| 7 | Precios definitivos (`SERENA_PLANS_JSON`), datos bancarios (`SERENA_TRANSFERENCIA_JSON`), IVA en la proforma | Área comercial | **Sí** (cobro) |
+| 8 | Mercado Pago en modo productivo: credenciales y webhook | Gustavo | **Sí** (cobro Individual) |
+| 9 | Remitente de SMS local o alfanumérico "SERENA" | Twilio | No (recomendado) |
+
+**Cerrado en código el 2026-10-21:** tokens de corta duración para el SDK (§1), renovación automática del plan
+Empresa (§6), cambio y recuperación de contraseña por la propia persona (§7, ya estaba implementado).
+
 ## 1. SDK de escaneo (NeuroSentinel™ · Shen.AI en marca blanca) — INICIALIZA CON LA CLAVE REAL, FALTA LA PRUEBA CON UNA PERSONA
 
 Acceso al SDK concedido (contrato con el proveedor). El paquete se instala como dependencia; sus archivos no se
@@ -35,7 +52,7 @@ código en los registros de Render.
 | **Umbrales de estrés con la escala real** | **Decisión clínica pendiente** (ver tabla abajo) | `config.niveles` |
 | Escala de `average_signal_quality` | No documentada; hoy se acota a 0–1. Confirmar con el proveedor o medir en el piloto | `shenai-map.ts` (`calidadGlobal`) |
 | Hosts del SDK (`connect-src`) | **Medidos con la clave real** (2026-10-02): `licensing-web.shen.ai` (licencia, gRPC-web `ActivateLicense`), `plumbus.shen.ai` (modelos: 4 archivos, ~9,6 MB), `translations.shen.ai` (textos en español, con `language: 'es'`). Se conserva `api.shen.ai` para los tokens. Sin `licensing-web` el resultado es `CONNECTION_ERROR`. Son el valor por defecto | `SERENA_ESCANEO_CONNECT_SRC` (`apps/server/src/env.ts`) |
-| Clave en el cliente | La clave permanente viaja en la app. Para producción el proveedor recomienda **tokens de corta duración** emitidos por el servidor (`POST https://api.shen.ai/v1/token`, credencial de administración con `tokens:generate`, TTL ≤ 1 h, `single_device`) | Pendiente: endpoint en el servidor |
+| Clave en el cliente | **Implementado (2026-10-21):** sin `VITE_SCAN_SDK_KEY`, la app pide un token por escaneo a `POST /api/escaneo/token` (sesión y consentimiento de cámara, 20 por hora por persona). El servidor lo emite con `SHENAI_ADMIN_KEY` (`POST https://api.shen.ai/v1/token`: 15 min, `single_device`, 3 mediciones; ajustable con `SHENAI_TOKEN_TTL_S` y `SHENAI_TOKEN_MAX_MEDICIONES`). Una credencial rechazada (401/403) avisa a operaciones por email. **Falta:** crear la credencial en el panel, cargarla en Render y borrar `VITE_SCAN_SDK_KEY` (mientras exista, tiene prioridad) | `apps/server/src/escaneoToken.ts`, `routes/escaneo.ts`, `apps/web/src/scan/registry.ts` |
 
 **Estrés: escala del proveedor frente a los umbrales provisorios de SERENA** (conversión lineal: SERENA = 1 + 0,4 × SI):
 
@@ -146,8 +163,11 @@ mensajes, pero no leer la cuenta ni el Messaging Service.
   - Precios definitivos de ambos planes (hoy **de ejemplo**: $15.000/mes Individual; $9.000 por puesto por mes
     Empresa) en `SERENA_PLANS_JSON`, y los precios de Stripe (`STRIPE_PRICE_IDS`) si se usa.
   - Cargar `SERENA_TRANSFERENCIA_JSON` en Render con los datos bancarios reales (sin eso, el plan Empresa no se ofrece).
-  - Renovación del plan Empresa: hoy cada período pagado se registra con `npm run ordenes -- pagada`; emitir la orden
-    del período siguiente es manual (nueva orden desde Facturación). Evaluar emisión automática.
+  - ~~Renovación del plan Empresa~~ **Implementada (2026-10-21):** cada hora el servidor emite la orden del período
+    siguiente cuando faltan `SERENA_ORDEN_DIAS_PAGO` días (10 por defecto) para el fin del período pagado, con el
+    precio vigente del plan y los puestos actuales, y la envía por email con el PDF. La suscripción sigue activa; al
+    registrar el pago (`npm run ordenes -- pagada OC-…`), el período nuevo corre desde el fin del anterior. Si la
+    empresa cancela, la renovación pendiente se anula. A demanda: `npm run ordenes -- renovar`.
   - Definir si la proforma muestra IVA discriminado (hoy indica que la factura se emite por separado).
 - Configurar los webhooks en cada proveedor apuntando a
   `https://<dominio>/api/billing/webhooks/stripe` y `.../mercadopago`.
@@ -166,5 +186,5 @@ mensajes, pero no leer la cuenta ni el Messaging Service.
 - Facturación fiscal (AFIP / SII) no está incluida: la emite el proveedor o el ERP.
 
 ## 7. Operación
-- Cambio de contraseña y recuperación de cuenta por la propia persona (hoy la gestiona salud ocupacional).
+- ~~Cambio de contraseña y recuperación de cuenta por la propia persona~~: implementado (`routes/password.ts`).
 - Para varias instancias: mover el límite de pedidos (`ratelimit.ts`) y la base a un almacén compartido.

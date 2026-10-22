@@ -7,8 +7,11 @@
  *   npm run ordenes -w @serena/server -- pagada OC-000001 --fecha 2026-10-12 --referencia "TRF 123456" [--factura "A-0001-00000012"]
  *   npm run ordenes -w @serena/server -- vencida OC-000001
  *   npm run ordenes -w @serena/server -- factura OC-000001 --numero "A-0001-00000012"
+ *   npm run ordenes -w @serena/server -- renovar
  *
  * "pagada" activa la suscripción de la organización y fija el próximo vencimiento (1 mes o 12 desde el pago).
+ * "renovar" emite ya las órdenes del período siguiente que correspondan (el servidor lo hace solo cada hora; no envía
+ * email desde la consola: la orden queda en la app y en PDF).
  * "vencida" la pasa a pago vencido. Ninguno bloquea el botón de emergencia ni el acceso de cada persona a sus datos.
  */
 import { CONDICION_IVA, ESTADO_ORDEN, formatCuit, formatMoney, type OrdenCompra } from '@serena/domain';
@@ -74,11 +77,17 @@ try {
       mostrar(oc.marcarVencida(numero));
       console.info('Suscripción en pago vencido.');
       break;
+    case 'renovar': {
+      const emitidas = oc.emitirRenovaciones();
+      if (!emitidas.length) console.info('No hay renovaciones para emitir.');
+      for (const o of emitidas) mostrar(o);
+      break;
+    }
     case 'factura':
       mostrar(oc.registrarFactura(numero, opciones.get('numero') ?? ''));
       break;
     default:
-      console.error('Comandos: listar | ver <OC> | pagada <OC> --fecha AAAA-MM-DD --referencia <ref> [--factura <nro>] | vencida <OC> | factura <OC> --numero <nro>');
+      console.error('Comandos: listar | ver <OC> | renovar | pagada <OC> --fecha AAAA-MM-DD --referencia <ref> [--factura <nro>] | vencida <OC> | factura <OC> --numero <nro>');
       process.exit(1);
   }
 } catch (e) {

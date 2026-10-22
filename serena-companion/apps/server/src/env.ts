@@ -103,6 +103,14 @@ export const env = {
     )
       .split(/\s+/)
       .filter(Boolean),
+    /**
+     * Credencial de administración del proveedor (permiso tokens:generate): el servidor emite un token de corta
+     * duración por escaneo y la clave permanente no viaja en la app. Ver escaneoToken.ts.
+     */
+    adminKey: process.env.SHENAI_ADMIN_KEY ?? null,
+    tokenTtlS: process.env.SHENAI_TOKEN_TTL_S ? Number(process.env.SHENAI_TOKEN_TTL_S) : undefined,
+    tokenMaxMediciones: process.env.SHENAI_TOKEN_MAX_MEDICIONES ? Number(process.env.SHENAI_TOKEN_MAX_MEDICIONES) : undefined,
+    licenseId: process.env.SHENAI_LICENSE_ID ? Number(process.env.SHENAI_LICENSE_ID) : undefined,
   },
 
   guardWebhookUrl: process.env.SERENA_GUARD_WEBHOOK_URL ?? null,

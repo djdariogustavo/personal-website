@@ -8,9 +8,11 @@ import { cerrarCanceladasVencidas, textoProforma } from './payments/ordenCompra.
 import { openDb } from './db.ts';
 import { Vault } from './crypto.ts';
 import { createApp } from './app.ts';
-import { buildRegistry } from './payments/index.ts';
+import { buildRegistry, loadPlans } from './payments/index.ts';
+import { OrdenCompraProvider } from './payments/ordenCompra.ts';
 import { BasicCompanion, ClaudeCompanion } from './companion.ts';
 import { ConsoleMessenger } from './notify.ts';
+import { EmisorTokensEscaneo } from './escaneoToken.ts';
 import type { AppContext } from './context.ts';
 import { flushOrphanGroups } from './routes/safety.ts';
 import { purgarVencidas } from './baja.ts';
@@ -44,6 +46,7 @@ const operaciones = (env.alertas.to ?? '')
   .map((x) => x.trim())
   .filter(Boolean);
 
+const planes = loadPlans();
 const ctx: AppContext = {
   db,
   vault: new Vault(env.masterKey),
@@ -61,6 +64,7 @@ const ctx: AppContext = {
           cfg: {
             transferencia,
             diasPago: env.payments.ordenCompra.diasPago,
+            precioVigente: (planId, moneda) => planes.find((p) => p.id === planId)?.precioPorPuesto[moneda as 'ARS'],
             // La orden va al contacto de compras de la empresa y a operaciones de SERENA, con el PDF adjunto.
             notificar: async (orden, pdf, nombreOrg) => {
               if (!emailOrdenes) return console.warn(`[serena][pagos] Orden ${orden.numero} emitida sin email (falta RESEND_API_KEY o SERENA_ALERTAS_FROM).`);
@@ -81,6 +85,15 @@ const ctx: AppContext = {
   companion: env.anthropic.enabled ? new ClaudeCompanion(env.anthropic.model) : new BasicCompanion(),
   messenger: (env.smsReal ? twilioMessenger(env.twilio, aviso) : null) ?? new ConsoleMessenger(),
   guard: notificadorGuardia(aviso),
+  escaneoTokens: env.escaneo.adminKey
+    ? new EmisorTokensEscaneo({
+        adminKey: env.escaneo.adminKey,
+        ttlS: env.escaneo.tokenTtlS,
+        maxMediciones: env.escaneo.tokenMaxMediciones,
+        licenseId: env.escaneo.licenseId,
+        aviso,
+      })
+    : null,
 };
 
 flushOrphanGroups(ctx);
@@ -91,6 +104,15 @@ const purgar = () => {
   if (n) console.info(`[serena] ${n} cuenta(s) dada(s) de baja eliminada(s) al vencer el período de gracia`);
   const c = cerrarCanceladasVencidas(ctx.db);
   if (c) console.info(`[serena][pagos] ${c} suscripción(es) por orden de compra cancelada(s) al terminar el período pagado`);
+  // Órdenes del período siguiente del plan Empresa, con `diasPago` días de anticipación.
+  const oc = ctx.payments.get('orden_compra');
+  if (oc instanceof OrdenCompraProvider) {
+    try {
+      oc.emitirRenovaciones();
+    } catch (e) {
+      console.error('[serena][pagos][ALERTA] No se pudieron emitir las renovaciones:', e);
+    }
+  }
 };
 purgar();
 setInterval(purgar, 3_600_000).unref();
@@ -107,5 +129,6 @@ app.listen(env.port, () => {
   const guardia = [env.guardWebhookUrl && 'webhook', gd.telefonos.length && `SMS a ${gd.telefonos.length} teléfono(s)`, gd.emails.length && `email a ${gd.emails.length} dirección(es)`].filter(Boolean);
   console.info(`[serena] Guardia: ${guardia.join(' + ') || 'consola (desarrollo)'}`);
   console.info(`[serena] Alertas de operación: ${aviso ? `email a ${env.alertas.to}` : 'solo en los registros (sin RESEND_API_KEY, SERENA_ALERTAS_FROM o SERENA_ALERTAS_EMAIL)'}`);
+  console.info(`[serena] Escaneo: ${ctx.escaneoTokens ? 'tokens de corta duración emitidos por el servidor' : 'sin credencial de administración (SHENAI_ADMIN_KEY)'}`);
   console.info(`[serena] Pagos: ${ctx.payments.list().map((p) => p.nombre).join(', ') || 'ninguno configurado'}`);
 });
