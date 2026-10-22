@@ -1,0 +1,10 @@
+# Sitio personal (Jekyll). SERENA Companion se despliega aparte, en Render (render.yaml).
+[build]
+  command = "bundle exec jekyll build"
+  publish = "_site"
+  # No reconstruir el sitio cuando el cambio es solo de SERENA Companion o de su despliegue.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- . ':(exclude)serena-companion' ':(exclude)render.yaml' ':(exclude).github'"
+
+[build.environment]
+  RUBY_VERSION = "3.3.6"
+  JEKYLL_ENV = "production"

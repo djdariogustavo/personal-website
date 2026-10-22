@@ -1,5 +1,5 @@
 import { DEMO } from '../demo/flags.ts';
-import type { RemoteConfig, ScanProvider } from '@serena/domain';
+import type { RemoteConfig, ScanErrorCode, ScanProvider } from '@serena/domain';
 import { SimulatedScanProvider } from './simulated.ts';
 import { UnavailableScanProvider } from './unavailable.ts';
 
@@ -32,8 +32,22 @@ export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promis
   if (scanMode === 'simulado') instance = new SimulatedScanProvider();
   else if (scanMode === 'sdk') {
     const { SdkScanProvider } = await import('./sdk-adapter.ts');
-    const { getToken } = await import('../lib/api.ts');
-    instance = new SdkScanProvider(escaneo?.escalaEstresSdk ?? null, undefined, undefined, (d) => {
+    const { api, ApiError, getToken, isOffline } = await import('../lib/api.ts');
+    const claveFija = (import.meta.env.VITE_SCAN_SDK_KEY as string | undefined) ?? '';
+    // Sin clave fija (producción): un token de corta duración por inicialización, emitido por el servidor.
+    const credencial = claveFija
+      ? claveFija
+      : async (): Promise<string | ScanErrorCode> => {
+          try {
+            return (await api<{ token: string }>('/escaneo/token', { method: 'POST' })).token;
+          } catch (e) {
+            if (isOffline(e)) return 'sin_conexion';
+            if (e instanceof ApiError && e.code === 'sin_consentimiento') return 'sin_permiso';
+            if (e instanceof ApiError && (e.code === 'escaneo_sin_conexion' || e.status === 429)) return 'sin_conexion';
+            return 'sin_licencia';
+          }
+        };
+    instance = new SdkScanProvider(escaneo?.escalaEstresSdk ?? null, undefined, credencial, (d) => {
       // Diagnóstico de campo (sin datos de la persona; el servidor agrega el navegador). `keepalive` lo entrega aunque
       // la persona cierre o recargue la página en ese momento. Si falla, se ignora: es solo diagnóstico.
       ultimo = { resultado: d.resultado, etapa: d.etapa, ...(d.detalle ? { detalle: d.detalle } : {}) };

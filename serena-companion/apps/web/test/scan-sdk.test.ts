@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ScanEvent } from '@serena/domain';
 import { calidadDesdeSdk, estresAEscala, metricasFinales, metricasParciales, presetParaDuracion, senalPerdida } from '../src/scan/shenai-map.ts';
-import { CARGA_TOPE_MS, INIT_TOPE_MS, SdkScanProvider } from '../src/scan/sdk-adapter.ts';
+import { CARGA_TOPE_MS, INIT_TOPE_MS, SdkScanProvider, type DiagnosticoInicio } from '../src/scan/sdk-adapter.ts';
 
 const ESCALA = { min: 0, max: 10 };
 const RESULTADOS = { heart_rate_bpm: 72.4, hrv_sdnn_ms: 48.6, breathing_rate_bpm: 14.2, stress_index: 5, average_signal_quality: 0.87 };
@@ -63,8 +63,10 @@ function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' |
   let inicializado = false;
   const llamadas: string[] = [];
   const settings: Array<Record<string, unknown>> = [];
+  const claves: string[] = [];
   const sdk = {
-    initialize: (_k: string, _u: string, s: Record<string, unknown>, cb: (r: { value: number }) => void) => {
+    initialize: (k: string, _u: string, s: Record<string, unknown>, cb: (r: { value: number }) => void) => {
+      claves.push(k);
       settings.push(s);
       // Como el SDK real ante algunas fallas: el motor se detiene y nunca llama al callback.
       if (opts.init === 'SIN_RESPUESTA') return;
@@ -105,7 +107,7 @@ function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' |
     progreso = p;
     if (fin) estado = MeasurementState[fin];
   };
-  return { crear, llamadas, settings, args, avanzar };
+  return { crear, llamadas, settings, args, avanzar, claves };
 }
 
 describe('adaptador del SDK de escaneo', () => {
@@ -297,5 +299,35 @@ describe('adaptador del SDK de escaneo', () => {
       await new SdkScanProvider(ESCALA, sdkFalso({ init }).crear, 'k').mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
       expect(eventos).toEqual([{ type: 'error', codigo }]);
     }
+  });
+  it('con tokens del servidor pide uno nuevo en cada inicialización y se lo pasa al SDK', async () => {
+    const f = sdkFalso();
+    let n = 0;
+    const p = new SdkScanProvider(ESCALA, f.crear, async () => `sh_${String(++n).padStart(32, '0')}`);
+    expect(await p.availability({ online: true })).toEqual({ disponible: true });
+    await p.mountPreview({} as HTMLElement, null, () => undefined);
+    await p.stop();
+    await p.mountPreview({} as HTMLElement, null, () => undefined);
+    expect(f.claves).toEqual([`sh_${'0'.repeat(31)}1`, `sh_${'0'.repeat(31)}2`]);
+  });
+
+  it('si el servidor no entrega el token, informa el motivo sin llamar al SDK', async () => {
+    for (const codigo of ['sin_licencia', 'sin_conexion', 'sin_permiso'] as const) {
+      const f = sdkFalso();
+      const diag: DiagnosticoInicio[] = [];
+      const eventos: ScanEvent[] = [];
+      await new SdkScanProvider(ESCALA, f.crear, async () => codigo, (d) => diag.push(d)).mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
+      expect(eventos).toEqual([{ type: 'error', codigo }]);
+      expect(f.claves).toEqual([]);
+      expect(diag.at(-1)?.resultado).toBe(codigo === 'sin_conexion' ? 'TOKEN_SIN_CONEXION' : 'TOKEN_RECHAZADO');
+    }
+  });
+
+  it('una excepción al pedir el token se trata como sin conexión', async () => {
+    const eventos: ScanEvent[] = [];
+    await new SdkScanProvider(ESCALA, sdkFalso().crear, async () => {
+      throw new TypeError('Failed to fetch');
+    }).mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
+    expect(eventos).toEqual([{ type: 'error', codigo: 'sin_conexion' }]);
   });
 });

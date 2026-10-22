@@ -35,11 +35,15 @@ services:
       - key: SERENA_JWT_SECRET
         generateValue: true
 
-      # Escaneo con el SDK Shen.AI (la clave se incrusta al compilar la web: restringirla al dominio en el panel del proveedor).
+      # Escaneo con el SDK Shen.AI. Credencial: SHENAI_ADMIN_KEY (permiso tokens:generate) en el servidor, que emite un
+      # token de corta duración por escaneo. VITE_SCAN_SDK_KEY (clave fija dentro de la app) queda solo como transición:
+      # si está definida tiene prioridad; borrarla en Render una vez verificado el escaneo con SHENAI_ADMIN_KEY.
       - key: SERENA_AISLAMIENTO_ORIGEN
         value: "true"
       - key: VITE_SCAN_PROVIDER
         value: sdk
+      - key: SHENAI_ADMIN_KEY
+        sync: false
       - key: VITE_SCAN_SDK_KEY
         sync: false
 

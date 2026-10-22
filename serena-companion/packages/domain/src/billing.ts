@@ -112,6 +112,8 @@ export interface OrdenCompra {
   pagadaEn: string | null;
   referenciaPago: string | null;
   numeroFactura: string | null;
+  /** Renovación: inicio del período que paga (fin del período anterior). Null en la primera orden. */
+  periodoDesde?: string | null;
 }
 
 /** Datos para la transferencia, configurados por el operador de SERENA. */

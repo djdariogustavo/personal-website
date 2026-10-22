@@ -204,3 +204,73 @@ describe('PDF', () => {
     expect(s).toContain('\\(prueba\\)');
   });
 });
+
+describe('plan Empresa: renovación automática', () => {
+  /** Empresa con la primera orden pagada el 2026-10-12: período hasta el 2026-11-12. */
+  async function conOrdenPagada() {
+    const s = await sesionAdmin();
+    const r = await request(s.app).post('/api/admin/billing/checkout').set(bearer(s.token)).send(empresa(12));
+    const id = r.body.url.split('/').pop() as string;
+    s.oc.marcarPagada('OC-000001', { fecha: '2026-10-12', referencia: 'TRF 1' });
+    s.ordenesNotificadas.length = 0;
+    return { ...s, id };
+  }
+  const billing = async (s: { app: Parameters<typeof request>[0]; token: string }) =>
+    (await request(s.app).get('/api/admin/billing').set(bearer(s.token))).body.suscripcion;
+
+  it('no emite nada mientras falte más que el plazo de pago para el fin del período', async () => {
+    const s = await conOrdenPagada();
+    expect(s.oc.emitirRenovaciones(new Date('2026-10-25T12:00:00Z'))).toEqual([]);
+  });
+
+  it('emite una sola orden del período siguiente, con vencimiento al fin del período y la suscripción todavía activa', async () => {
+    const s = await conOrdenPagada();
+    const ahora = new Date('2026-11-03T12:00:00Z');
+    const [nueva, ...resto] = s.oc.emitirRenovaciones(ahora);
+    expect(resto).toEqual([]);
+    expect(nueva).toMatchObject({ numero: 'OC-000002', estado: 'pendiente', puestos: 12, total: 10_800_000, venceEn: '2026-11-12T15:00:00.000Z', periodoDesde: '2026-11-12T15:00:00.000Z' });
+    expect(nueva!.facturacion.razonSocial).toBe('Minera Ejemplo S.A.');
+    // Idempotente: la hora siguiente no emite otra.
+    expect(s.oc.emitirRenovaciones(new Date('2026-11-03T13:00:00Z'))).toEqual([]);
+    expect(await billing(s)).toMatchObject({ estado: 'activa', proximoCobro: '2026-11-12T15:00:00.000Z' });
+    await vi.waitFor(() => expect(s.ordenesNotificadas.map((o) => o.numero)).toEqual(['OC-000002']));
+    expect(textoProforma(nueva!, { titular: 'T', cuit: '30712345671', banco: 'B', cbu: '1', alias: null, email: null }, 'Org')).toContain('Renovación: período desde el 12/11/2026');
+  });
+
+  it('al pagarla, el período nuevo corre desde el fin del anterior aunque la transferencia llegue antes', async () => {
+    const s = await conOrdenPagada();
+    s.oc.emitirRenovaciones(new Date('2026-11-03T12:00:00Z'));
+    s.oc.marcarPagada('OC-000002', { fecha: '2026-11-05', referencia: 'TRF 2' });
+    expect(await billing(s)).toMatchObject({ estado: 'activa', proximoCobro: '2026-12-12T15:00:00.000Z' });
+    // Y el ciclo sigue: la renovación de la renovación.
+    expect(s.oc.emitirRenovaciones(new Date('2026-12-04T12:00:00Z')).map((o) => o.numero)).toEqual(['OC-000003']);
+  });
+
+  it('usa el precio vigente del plan y los puestos actuales de la suscripción', async () => {
+    const s = await conOrdenPagada();
+    const oc = new OrdenCompraProvider(s.ctx.db, { ...s.oc.cfg, precioVigente: () => 1_000_000 });
+    s.ctx.db.prepare('UPDATE subscriptions SET puestos = 15').run();
+    expect(oc.emitirRenovaciones(new Date('2026-11-03T12:00:00Z'))[0]).toMatchObject({ puestos: 15, precioUnitario: 1_000_000, total: 15_000_000 });
+  });
+
+  it('si la empresa cancela, no se renueva y la renovación pendiente se anula', async () => {
+    const s = await conOrdenPagada();
+    s.oc.emitirRenovaciones(new Date('2026-11-03T12:00:00Z'));
+    const r = await request(s.app).post('/api/admin/billing/cancel').set(bearer(s.token));
+    expect(r.body.suscripcion).toMatchObject({ estado: 'activa', canceladaAlFinal: true });
+    const det = (await request(s.app).get('/api/admin/billing/ordenes').set(bearer(s.token))).body;
+    const lista = (det.ordenes ?? det) as Array<{ numero: string; estado: string }>;
+    expect(lista.find((o) => o.numero === 'OC-000002')?.estado).toBe('anulada');
+
+    const otra = await conOrdenPagada();
+    await request(otra.app).post('/api/admin/billing/cancel').set(bearer(otra.token));
+    expect(otra.oc.emitirRenovaciones(new Date('2026-11-03T12:00:00Z'))).toEqual([]);
+  });
+
+  it('una renovación impaga al fin del período se puede marcar vencida', async () => {
+    const s = await conOrdenPagada();
+    s.oc.emitirRenovaciones(new Date('2026-11-03T12:00:00Z'));
+    s.oc.marcarVencida('OC-000002');
+    expect(await billing(s)).toMatchObject({ estado: 'pago_vencido' });
+  });
+});

@@ -253,6 +253,12 @@ export const MIGRATIONS: string[] = [
   );
   CREATE INDEX ordenes_compra_org ON ordenes_compra (org_id, numero);
   `,
+  // Renovación del plan Empresa: la orden del período siguiente apunta a la que renueva y fija desde cuándo corre.
+  `
+  ALTER TABLE ordenes_compra ADD COLUMN renueva_id TEXT REFERENCES ordenes_compra(id);
+  ALTER TABLE ordenes_compra ADD COLUMN periodo_desde TEXT;
+  CREATE UNIQUE INDEX ordenes_compra_renueva ON ordenes_compra (renueva_id) WHERE renueva_id IS NOT NULL;
+  `,
 ];
 
 export type DB = DatabaseSync;

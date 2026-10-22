@@ -4,6 +4,7 @@ import type { PaymentRegistry } from './payments/index.ts';
 import type { Companion } from './companion.ts';
 import type { Messenger, GuardNotifier } from './notify.ts';
 import type { RemoteConfig } from '@serena/domain';
+import type { EmisorTokensEscaneo } from './escaneoToken.ts';
 
 export interface AppContext {
   db: DB;
@@ -16,4 +17,6 @@ export interface AppContext {
   companion: Companion;
   messenger: Messenger;
   guard: GuardNotifier;
+  /** Tokens de corta duración para el SDK de escaneo; null sin credencial de administración del proveedor. */
+  escaneoTokens?: EmisorTokensEscaneo | null;
 }
