@@ -49,6 +49,9 @@ interface ShenaiSdk {
   setRecordingEnabled(enabled: boolean): void;
   startMeasurement(): void;
   stopMeasurement(): void;
+  /** POSITIONING: el SDK mira la cámara sin medir. MEASURE: mide (así lo arrancan los ejemplos oficiales 3.x). */
+  setOperatingMode?(mode: EnumSdk): void;
+  getOperatingMode?(): EnumSdk;
   getMeasurementState(): EnumSdk;
   getMeasurementProgressPercentage(): number;
   getFaceState(): EnumSdk;
@@ -60,11 +63,12 @@ interface ShenaiSdk {
   MeasurementState: Enums<EstadoMedicionSdk>;
   MeasurementEnvironmentCondition: Enums<CondicionSdk>;
   FaceState: Enums<'OK'>;
-  CameraMode: Enums<'FACING_USER' | 'MEDIA_STREAM'>;
+  CameraMode: Enums<'FACING_USER' | 'MEDIA_STREAM' | 'OFF'>;
   CameraError: Enums<'PERMISSION_NOT_GRANTED' | 'NO_CAMERA_DEVICE'>;
   MeasurementPreset: Enums<'ONE_MINUTE_HR_HRV_BR' | 'CUSTOM'>;
   PrecisionMode: Enums<'STRICT'>;
   OnboardingMode: Enums<'HIDDEN'>;
+  OperatingMode?: Enums<'POSITIONING' | 'MEASURE' | 'SYSTEM_OVERLOADED'>;
 }
 type CrearSdk = (args: Record<string, unknown>) => Promise<ShenaiSdk>;
 
@@ -135,7 +139,7 @@ export interface DiagnosticoInicio {
   moduloEstado?: number;
 }
 
-export type EtapaInicio = 'importar' | 'crear' | 'licencia' | 'camara';
+export type EtapaInicio = 'importar' | 'crear' | 'licencia' | 'camara' | 'medicion';
 interface EstadoInicio {
   etapa: EtapaInicio;
   t0: number;
@@ -181,6 +185,9 @@ export class SdkScanProvider implements ScanProvider {
   private iniciando: Promise<ShenaiSdk | ScanErrorCode> | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private stream: MediaStream | null = null;
+  /** Copia de la pista de la cámara que recibe el SDK (como en el ejemplo WebRTC oficial) y la cámara de origen. */
+  private flujoSdk: MediaStream | null = null;
+  private origenSdk: MediaStream | null = null;
 
   /**
    * @param escalaEstres rango del índice de estrés del SDK (configuración remota escaneo.escalaEstresSdk).
@@ -212,6 +219,9 @@ export class SdkScanProvider implements ScanProvider {
     this.stream = stream;
     const sdk = await this.inicializar(listener);
     if (!sdk) return;
+    // El SDK queda inicializado entre check-ins (reinicializarlo en la misma página no responde): se le pasa la
+    // cámara nueva.
+    this.conectarCamara(sdk);
     listener(this.calidad(sdk));
     this.cada(() => listener(this.calidad(sdk)));
   }
@@ -223,9 +233,31 @@ export class SdkScanProvider implements ScanProvider {
     if (!validado) console.warn(`[serena][escaneo] Medición de ${opts.duracionS} s: el SDK la marca como no validada; usar 60 s.`);
     const escala = this.escalaEstres!;
     let ultimaSenal = 0;
-    sdk.startMeasurement();
+    this.conectarCamara(sdk);
+    const t0 = performance.now();
+    // Arranque como en los ejemplos oficiales 3.x (modo de operación MEASURE). Si el SDK no lo tiene, o a los 2 s la
+    // medición sigue sin empezar, se usa startMeasurement().
+    let viaInicio = 'startMeasurement';
+    if (sdk.setOperatingMode && sdk.OperatingMode?.MEASURE) {
+      sdk.setOperatingMode(sdk.OperatingMode.MEASURE);
+      viaInicio = 'MEASURE';
+    } else sdk.startMeasurement();
+    let respaldoUsado = viaInicio === 'startMeasurement';
+    // Diagnóstico de la medición (sin datos de la persona): estado, rostro, condición incumplida y progreso a los
+    // 3, 10, 20 y 40 s y al terminar. Sin esto, "el reloj no arranca" no se puede explicar desde el servidor.
+    const hitos = [3_000, 10_000, 20_000, 40_000];
+    const informarMedicion = (motivo: string) =>
+      this.diagnostico({ resultado: 'MEDICION', etapa: 'medicion', ms: Math.round(performance.now() - t0), detalle: `${motivo} · ${this.foto(sdk, viaInicio)}` });
+    this.alTerminar = (motivo) => informarMedicion(motivo);
     this.cada(() => {
+      const transcurrido = performance.now() - t0;
+      if (hitos.length && transcurrido >= hitos[0]!) informarMedicion(`a los ${Math.round(hitos.shift()! / 1000)} s`);
       const estado = nombre(sdk.MeasurementState, sdk.getMeasurementState());
+      if (!respaldoUsado && transcurrido >= 2_000 && estado === 'NOT_STARTED') {
+        respaldoUsado = true;
+        viaInicio = 'MEASURE+startMeasurement';
+        sdk.startMeasurement();
+      }
       if (!estado) return;
       if (estado === 'FAILED') return this.terminar(() => listener({ type: 'error', codigo: 'medicion_fallida' }));
       if (estado === 'FINISHED') {
@@ -252,17 +284,18 @@ export class SdkScanProvider implements ScanProvider {
     });
   }
 
-  /** Libera la medición, la cámara del SDK y el lienzo. El módulo queda cargado para el próximo check-in. */
+  /**
+   * Termina la medición y libera la copia de la cámara. El SDK queda inicializado (en espera) para el próximo
+   * check-in: reinicializarlo en la misma página no respondía (prueba en teléfono del 2026-10-22, SIN_RESPUESTA a
+   * los 45 s), y la licencia ya validada sigue sirviendo.
+   */
   async stop(): Promise<void> {
     this.detener();
-    const sdk = this.sdk;
-    if (sdk?.isInitialized()) {
-      sdk.stopMeasurement();
-      sdk.deinitialize();
-    }
-    this.sdk = null;
-    this.iniciando = null;
-    document.getElementById(CANVAS_ID)?.remove();
+    if (this.sdk?.isInitialized()) this.cerrarMedicion('salida');
+    else this.alTerminar = null;
+    this.flujoSdk?.getTracks().forEach((t) => t.stop());
+    this.flujoSdk = null;
+    this.origenSdk = null;
     this.stream = null;
   }
 
@@ -363,9 +396,16 @@ export class SdkScanProvider implements ScanProvider {
       canvas = document.createElement('canvas');
       canvas.id = CANVAS_ID;
       canvas.setAttribute('aria-hidden', 'true');
-      Object.assign(canvas.style, { position: 'fixed', left: '-10000px', top: '0', width: '320px', height: '240px' });
+      Object.assign(canvas.style, { position: 'fixed', left: '-10000px', top: '0', width: '480px', height: '640px', opacity: '0', pointerEvents: 'none' });
       document.body.appendChild(canvas);
     }
+    // Resolución del lienzo = la del video (ejemplo oficial); sin esto queda en 300×150.
+    const ajustes = this.stream?.getVideoTracks()[0]?.getSettings?.() ?? {};
+    const ancho = ajustes.width || 640;
+    const alto = ajustes.height || 480;
+    canvas.width = ancho;
+    canvas.height = alto;
+    const proporcion = ancho && alto ? ancho / alto : 0;
 
     let tope: ReturnType<typeof setTimeout> | undefined;
     let errorInit: unknown;
@@ -376,7 +416,10 @@ export class SdkScanProvider implements ScanProvider {
           clave,
           idSeudonimo(),
           {
-            cameraMode: this.stream ? sdk.CameraMode.MEDIA_STREAM : sdk.CameraMode.FACING_USER,
+            // Con cámara propia: OFF al inicializar y la cámara con setMediaStream (ejemplo WebRTC oficial).
+            cameraMode: this.stream ? sdk.CameraMode.OFF ?? sdk.CameraMode.MEDIA_STREAM : sdk.CameraMode.FACING_USER,
+            ...(sdk.OperatingMode?.POSITIONING ? { operatingMode: sdk.OperatingMode.POSITIONING } : {}),
+            ...(proporcion ? { cameraAspectRatio: proporcion } : {}),
             precisionMode: sdk.PrecisionMode.STRICT,
             measurementPreset: sdk.MeasurementPreset.ONE_MINUTE_HR_HRV_BR,
             onboardingMode: sdk.OnboardingMode.HIDDEN,
@@ -416,8 +459,9 @@ export class SdkScanProvider implements ScanProvider {
     estado.etapa = 'camara';
     try {
       sdk.setRecordingEnabled(false);
-      if (this.stream) sdk.setMediaStream(this.stream, true);
       sdk.attachToCanvas(`#${CANVAS_ID}`);
+      this.origenSdk = null;
+      this.conectarCamara(sdk);
     } catch (e) {
       // La licencia validó pero el SDK no pudo tomar la cámara o el lienzo: también va al diagnóstico.
       console.error('[serena][escaneo] El SDK no pudo conectarse a la cámara:', detalleError(e));
@@ -452,7 +496,73 @@ export class SdkScanProvider implements ScanProvider {
 
   private terminar(emitir: () => void) {
     this.detener();
-    this.sdk?.stopMeasurement();
+    this.cerrarMedicion('fin');
     emitir();
+  }
+
+  /** Callback del diagnóstico de la medición en curso (se informa una vez, al terminar o al salir). */
+  private alTerminar: ((motivo: string) => void) | null = null;
+
+  /** Deja el SDK en espera (POSITIONING) sin desinicializarlo e informa cómo terminó la medición. */
+  private cerrarMedicion(motivo: string) {
+    const sdk = this.sdk;
+    if (this.alTerminar) {
+      const f = this.alTerminar;
+      this.alTerminar = null;
+      try {
+        f(motivo);
+      } catch {
+        /* solo diagnóstico */
+      }
+    }
+    if (!sdk) return;
+    try {
+      if (sdk.setOperatingMode && sdk.OperatingMode?.POSITIONING) sdk.setOperatingMode(sdk.OperatingMode.POSITIONING);
+      sdk.stopMeasurement();
+    } catch (e) {
+      console.warn('[serena][escaneo] No se pudo detener la medición:', detalleError(e));
+    }
+  }
+
+  /** Estado del SDK en una línea, para el diagnóstico. */
+  private foto(sdk: ShenaiSdk, via: string): string {
+    const leer = (f: () => string | number | null) => {
+      try {
+        return f() ?? '—';
+      } catch {
+        return 'error';
+      }
+    };
+    const pista = this.flujoSdk?.getVideoTracks()[0];
+    const ajustes = pista?.getSettings?.() ?? {};
+    return [
+      `inicio ${via}`,
+      `estado ${leer(() => nombre(sdk.MeasurementState, sdk.getMeasurementState()))}`,
+      `modo ${leer(() => (sdk.getOperatingMode && sdk.OperatingMode ? nombre(sdk.OperatingMode, sdk.getOperatingMode()) : null))}`,
+      `rostro ${leer(() => nombre(sdk.FaceState as Enums<string>, sdk.getFaceState()) ?? `#${sdk.getFaceState()?.value}`)}`,
+      `condición ${leer(() => nombre(sdk.MeasurementEnvironmentCondition, sdk.getCurrentViolatedMeasurementEnvironmentCondition()))}`,
+      `progreso ${leer(() => Math.round(sdk.getMeasurementProgressPercentage()))}%`,
+      `pista ${pista ? `${pista.readyState}${ajustes.width ? ` ${ajustes.width}x${ajustes.height}` : ''}` : 'ninguna'}`,
+      `lienzo ${leer(() => {
+        const c = document.getElementById(CANVAS_ID) as HTMLCanvasElement | null;
+        return c ? `${c.width}x${c.height}` : null;
+      })}`,
+    ].join(' · ');
+  }
+
+  /**
+   * Pasa al SDK una copia de la pista de la cámara (ejemplo WebRTC oficial): la original la siguen usando el video de
+   * la pantalla y la medición de luz. Solo si cambió la cámara.
+   */
+  private conectarCamara(sdk: ShenaiSdk) {
+    if (!this.stream || this.origenSdk === this.stream) return;
+    const pista = this.stream.getVideoTracks()[0];
+    if (!pista || pista.readyState !== 'live') return;
+    const anterior = this.flujoSdk;
+    const copia = new MediaStream([pista.clone()]);
+    sdk.setMediaStream(copia, true);
+    this.flujoSdk = copia;
+    this.origenSdk = this.stream;
+    anterior?.getTracks().forEach((t) => t.stop());
   }
 }

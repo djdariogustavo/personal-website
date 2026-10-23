@@ -64,10 +64,12 @@ const en = <K extends string>(...nombres: K[]) =>
   }) as unknown as Record<K, { value: number }>;
 
 /** SDK falso con la misma API que el real (subconjunto que usa SERENA). */
-function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' | 'SIN_RESPUESTA'; initDemoraMs?: number; resultados?: typeof RESULTADOS | null; falla?: boolean } = {}) {
+function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' | 'SIN_RESPUESTA'; initDemoraMs?: number; resultados?: typeof RESULTADOS | null; falla?: boolean; medirConModo?: boolean } = {}) {
   const MeasurementState = en('NOT_STARTED', 'WAITING_FOR_FACE', 'RUNNING_SIGNAL_SHORT', 'RUNNING_SIGNAL_GOOD', 'RUNNING_SIGNAL_BAD', 'RUNNING_SIGNAL_BAD_DEVICE_UNSTABLE', 'FINALIZING', 'FINISHED', 'FAILED');
   const InitializationResult = en('OK', 'INVALID_API_KEY', 'CONNECTION_ERROR', 'INTERNAL_ERROR');
   let estado = MeasurementState.NOT_STARTED;
+  const OperatingMode = en('POSITIONING', 'MEASURE', 'SYSTEM_OVERLOADED');
+  let modo = OperatingMode.POSITIONING;
   let progreso = 0;
   let inicializado = false;
   const llamadas: string[] = [];
@@ -92,6 +94,14 @@ function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' |
     setMediaStream: () => void llamadas.push('setMediaStream'),
     setRecordingEnabled: (v: boolean) => void llamadas.push(`setRecordingEnabled:${v}`),
     startMeasurement: () => void ((estado = MeasurementState.RUNNING_SIGNAL_GOOD), llamadas.push('startMeasurement')),
+    // Como en los ejemplos oficiales 3.x: pasar a MEASURE arranca la medición (salvo con medirConModo: false).
+    setOperatingMode: (m: { value: number }) => {
+      modo = m;
+      llamadas.push(`modo:${m === OperatingMode.MEASURE ? 'MEASURE' : 'POSITIONING'}`);
+      if (m === OperatingMode.MEASURE && opts.medirConModo !== false) estado = MeasurementState.RUNNING_SIGNAL_GOOD;
+    },
+    getOperatingMode: () => modo,
+    OperatingMode,
     stopMeasurement: () => void llamadas.push('stopMeasurement'),
     getMeasurementState: () => estado,
     getMeasurementProgressPercentage: () => progreso,
@@ -172,7 +182,9 @@ describe('adaptador del SDK de escaneo', () => {
       resultado: { metricas: { pulso: 72, hrv: 49, respiracion: 14, estres: 3 }, calidad: 0.87, duracionS: 60 },
     });
     await p.stop();
-    expect(f.llamadas).toContain('deinitialize');
+    // El SDK queda en espera, no se desinicializa (reinicializar en la misma página no responde).
+    expect(f.llamadas).not.toContain('deinitialize');
+    expect(f.llamadas.at(-2)).toBe('modo:POSITIONING');
   });
 
   it('si el SDK falla o el resultado está incompleto, informa medicion_fallida y no inventa valores', async () => {
@@ -215,11 +227,11 @@ describe('adaptador del SDK de escaneo', () => {
     const inicio = p.start({ duracionS: 60 }, (e) => eventos.push(e));
     await vi.advanceTimersByTimeAsync(1_000);
     // Todavía no hay SDK listo: no se lanza la medición sobre un SDK sin inicializar.
-    expect(f.llamadas).not.toContain('startMeasurement');
+    expect(f.llamadas).not.toContain('modo:MEASURE');
     await vi.advanceTimersByTimeAsync(14_000);
     await Promise.all([montaje, inicio]);
     expect(f.settings).toHaveLength(1);
-    expect(f.llamadas).toContain('startMeasurement');
+    expect(f.llamadas).toContain('modo:MEASURE');
     f.avanzar(50);
     await vi.advanceTimersByTimeAsync(300);
     expect(eventos).toContainEqual({ type: 'progreso', valor: 0.5 });
@@ -234,6 +246,7 @@ describe('adaptador del SDK de escaneo', () => {
     const eventos: ScanEvent[] = [];
     await p.start({ duracionS: 60 }, (e) => eventos.push(e));
     expect(eventos).toEqual([{ type: 'error', codigo: 'sin_conexion' }]);
+    expect(f.llamadas).not.toContain('modo:MEASURE');
     expect(f.llamadas).not.toContain('startMeasurement');
     expect(f.settings).toHaveLength(2);
   });
@@ -309,15 +322,22 @@ describe('adaptador del SDK de escaneo', () => {
       expect(eventos).toEqual([{ type: 'error', codigo }]);
     }
   });
-  it('con tokens del servidor pide uno nuevo en cada inicialización y se lo pasa al SDK', async () => {
-    const f = sdkFalso();
+  it('con tokens del servidor pide uno por inicialización: reutiliza el SDK entre check-ins y pide otro al reintentar', async () => {
     let n = 0;
-    const p = new SdkScanProvider(ESCALA, f.crear, async () => `sh_${String(++n).padStart(32, '0')}`);
+    const token = async () => `sh_${String(++n).padStart(32, '0')}`;
+    const f = sdkFalso();
+    const p = new SdkScanProvider(ESCALA, f.crear, token);
     expect(await p.availability({ online: true })).toEqual({ disponible: true });
     await p.mountPreview({} as HTMLElement, null, () => undefined);
     await p.stop();
     await p.mountPreview({} as HTMLElement, null, () => undefined);
-    expect(f.claves).toEqual([`sh_${'0'.repeat(31)}1`, `sh_${'0'.repeat(31)}2`]);
+    expect(f.claves).toEqual([`sh_${'0'.repeat(31)}1`]);
+    // Tras una inicialización fallida, el reintento pide un token nuevo.
+    const g = sdkFalso({ init: 'CONNECTION_ERROR' });
+    const q = new SdkScanProvider(ESCALA, g.crear, token);
+    await q.mountPreview({} as HTMLElement, null, () => undefined);
+    await q.mountPreview({} as HTMLElement, null, () => undefined);
+    expect(g.claves).toEqual([`sh_${'0'.repeat(31)}2`, `sh_${'0'.repeat(31)}3`]);
   });
 
   it('si el servidor no entrega el token, informa el motivo sin llamar al SDK', async () => {
@@ -338,5 +358,49 @@ describe('adaptador del SDK de escaneo', () => {
       throw new TypeError('Failed to fetch');
     }).mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
     expect(eventos).toEqual([{ type: 'error', codigo: 'sin_conexion' }]);
+  });
+  it('arranca la medición con el modo MEASURE y, si a los 2 s no empezó, con startMeasurement', async () => {
+    const f = sdkFalso({ medirConModo: false });
+    const diag: DiagnosticoInicio[] = [];
+    const p = new SdkScanProvider(ESCALA, f.crear, 'k', (d) => diag.push(d));
+    await p.start({ duracionS: 60 }, () => undefined);
+    expect(f.llamadas).toContain('modo:MEASURE');
+    expect(f.llamadas).not.toContain('startMeasurement');
+    await vi.advanceTimersByTimeAsync(2_300);
+    expect(f.llamadas).toContain('startMeasurement');
+    await vi.advanceTimersByTimeAsync(1_000);
+    const m = diag.find((d) => d.etapa === 'medicion');
+    expect(m?.resultado).toBe('MEDICION');
+    expect(m?.detalle).toMatch(/^a los 3 s · inicio MEASURE\+startMeasurement · estado RUNNING_SIGNAL_GOOD · modo MEASURE/);
+    expect(m?.detalle).toContain('progreso 0%');
+    await p.stop();
+    // Al salir se informa cómo quedó, una sola vez.
+    expect(diag.filter((d) => d.detalle?.startsWith('salida'))).toHaveLength(1);
+  });
+
+  it('al inicializar con cámara propia usa OFF, espera en POSITIONING y le pasa al SDK una copia de la pista', async () => {
+    const clonada = { readyState: 'live', stop: vi.fn(), getSettings: () => ({ width: 1280, height: 720 }) };
+    const original = { readyState: 'live', clone: () => clonada, getSettings: () => ({ width: 1280, height: 720 }) };
+    const stream = { getVideoTracks: () => [original] } as unknown as MediaStream;
+    vi.stubGlobal('MediaStream', class {
+      constructor(readonly pistas: unknown[]) {}
+      getVideoTracks() {
+        return this.pistas;
+      }
+      getTracks() {
+        return this.pistas;
+      }
+    });
+    const f = sdkFalso();
+    const p = new SdkScanProvider(ESCALA, f.crear, 'k');
+    await p.mountPreview({} as HTMLElement, stream, () => undefined);
+    expect(f.settings[0]).toMatchObject({ cameraMode: { value: 0 }, operatingMode: { value: 0 }, cameraAspectRatio: 1280 / 720 });
+    expect(f.llamadas).toContain('setMediaStream');
+    // Otro check-in en la misma página: no se reinicializa y se le pasa la cámara nueva.
+    await p.stop();
+    expect(clonada.stop).toHaveBeenCalled();
+    await p.mountPreview({} as HTMLElement, { getVideoTracks: () => [original] } as unknown as MediaStream, () => undefined);
+    expect(f.settings).toHaveLength(1);
+    expect(f.llamadas.filter((l) => l === 'setMediaStream')).toHaveLength(2);
   });
 });
