@@ -52,7 +52,16 @@ describe('traducción del SDK de escaneo al contrato de SERENA', () => {
 });
 
 /** Enums como los expone el SDK: objetos con `value`. */
-const en = <K extends string>(...nombres: K[]) => Object.fromEntries(nombres.map((n, i) => [n, { value: i }])) as Record<K, { value: number }>;
+/**
+ * Enum como los del SDK real (embind 3.1.15): los miembros más `values` y una propiedad interna minificada que vale
+ * undefined (`Xi`), ambas propias y enumerables. Medido en el navegador con el SDK servido por producción.
+ */
+const en = <K extends string>(...nombres: K[]) =>
+  ({
+    values: Object.fromEntries(nombres.map((_, i) => [i, {}])),
+    Xi: undefined,
+    ...Object.fromEntries(nombres.map((n, i) => [n, { value: i }])),
+  }) as unknown as Record<K, { value: number }>;
 
 /** SDK falso con la misma API que el real (subconjunto que usa SERENA). */
 function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' | 'SIN_RESPUESTA'; initDemoraMs?: number; resultados?: typeof RESULTADOS | null; falla?: boolean } = {}) {

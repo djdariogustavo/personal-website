@@ -8,7 +8,7 @@ Cada punto indica **dónde** se completa, para no tocar el resto del código.
 | # | Pendiente | Responsable | Bloquea el lanzamiento |
 |---|---|---|---|
 | 1 | Crear la credencial de administración de Shen.AI (permiso `tokens:generate`), cargar `SHENAI_ADMIN_KEY` en Render, probar un escaneo en un teléfono y borrar `VITE_SCAN_SDK_KEY` | Gustavo (panel de Shen.AI + Render) | Solo el escaneo (sin él, check-in con autorreporte) |
-| 2 | Leer en Render el código de inicialización del SDK de la segunda prueba en teléfono (`[serena][escaneo]`) | Gustavo | Solo el escaneo |
+| 2 | ~~Leer el código de la segunda prueba en teléfono~~ (2026-10-22): con el token, la licencia respondió en 3–4 s y el adaptador falló al leer el resultado (`TypeError … reading 'value'`: los enums reales traen `values` y una propiedad interna `undefined`). Corregido; **repetir la prueba en el teléfono** | Gustavo | Solo el escaneo |
 | 3 | Confirmación por escrito de Shen.AI: no guarda ni transmite imágenes (P4), funcionamiento offline (P1), web y kiosco (P2), build sin `new Function` | Shen.AI | Publicar "El video no se guarda" |
 | 4 | Umbrales de estrés con la escala 0–10 y de somnolencia ocular | Dra. Karina Viñas | Que el escaneo influya en el nivel de riesgo |
 | 5 | Validar líneas de ayuda por faena y definir el receptor de la guardia (PEC) | Dra. Viñas + cliente | **Sí** |
