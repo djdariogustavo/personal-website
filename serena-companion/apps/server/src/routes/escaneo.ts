@@ -9,10 +9,10 @@ import { ErrorTokenEscaneo } from '../escaneoToken.ts';
 const diagnosticoSchema = z.object({
   resultado: z.string().regex(/^[A-Z_]{2,40}$/),
   /** Etapa en que terminó: importar el módulo, crear el motor (WASM), validar la licencia o conectar la cámara. */
-  etapa: z.enum(['importar', 'crear', 'licencia', 'camara']).optional(),
+  etapa: z.enum(['importar', 'crear', 'licencia', 'camara', 'medicion']).optional(),
   ms: z.number().int().min(0).max(600_000),
   /** Tipo y mensaje de la excepción del navegador o del SDK, si la hubo. */
-  detalle: z.string().max(200).optional(),
+  detalle: z.string().max(400).optional(),
   /** Bytes recibidos del motor WASM del SDK y estado HTTP del módulo, según el navegador. */
   wasmBytes: z.number().int().min(0).max(500_000_000).optional(),
   moduloEstado: z.number().int().min(0).max(999).optional(),
@@ -59,7 +59,7 @@ export function escaneoRoutes(ctx: AppContext) {
       return res.status(400).json({ error: 'datos_invalidos' });
     }
     const navegador = String(req.headers['user-agent'] ?? '—').slice(0, 200);
-    const log = d.data.resultado === 'OK' || d.data.resultado === 'INICIO' ? console.info : console.warn;
+    const log = ['OK', 'INICIO', 'MEDICION'].includes(d.data.resultado) ? console.info : console.warn;
     // Sin saltos de línea ni caracteres de control: una línea por inicialización en los registros.
     const x = d.data;
     const partes = [
