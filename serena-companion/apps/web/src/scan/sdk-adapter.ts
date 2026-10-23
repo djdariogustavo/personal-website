@@ -89,9 +89,19 @@ export const INIT_TOPE_MS = 45_000;
 export const CARGA_TOPE_MS = 120_000;
 
 /** Nombre del valor de un enum del SDK (los enums son objetos con `value`). */
-function nombre<K extends string>(e: Enums<K>, v: EnumSdk | null): K | null {
-  if (!v) return null;
-  return (Object.keys(e) as K[]).find((k) => e[k].value === v.value) ?? null;
+/**
+ * Los enums del SDK real (embind) tienen, además de sus valores, propiedades internas propias y enumerables:
+ * `values` (un objeto sin `value`) y otra de nombre minificado que vale `undefined` (en 3.1.15, `Xi`). Leer
+ * `.value` de todas las claves rompía con "Cannot read properties of undefined (reading 'value')" justo al recibir
+ * el resultado de la licencia (prueba en teléfono del 2026-10-22). Solo cuentan los miembros con `value` numérico.
+ */
+function nombre<K extends string>(e: Enums<K>, v: EnumSdk | null | undefined): K | null {
+  if (!v || typeof v.value !== 'number') return null;
+  for (const k of Object.keys(e ?? {})) {
+    const miembro = (e as Record<string, unknown>)[k] as { value?: unknown } | null | undefined;
+    if (miembro && typeof miembro === 'object' && typeof miembro.value === 'number' && miembro.value === v.value) return k as K;
+  }
+  return null;
 }
 
 /**
