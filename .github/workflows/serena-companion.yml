@@ -22,7 +22,8 @@ defaults:
 
 jobs:
   verificar:
-    runs-on: ubuntu-latest
+    # Fijo: ubuntu-latest pasó a 26.04 y Playwright 1.56 no instala Chromium ahí (nov. 2026).
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
