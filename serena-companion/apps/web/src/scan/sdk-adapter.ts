@@ -58,6 +58,9 @@ interface ShenaiSdk {
   isReadyToStartMeasurement?(): boolean;
   getRequiredModelsDownloadProgressPercentage?(): number;
   getFaceState(): EnumSdk;
+  /** Plan de la licencia (algunos planes no calculan todas las métricas). */
+  getPricingPlan?(): string;
+  isGeneralWellnessSdk?(): boolean;
   getCurrentViolatedMeasurementEnvironmentCondition(): EnumSdk | null;
   getRealtimeMetrics(periodSec: number): ResultadosSdk | null;
   getMeasurementResults(): ResultadosSdk | null;
@@ -65,7 +68,7 @@ interface ShenaiSdk {
   InitializationResult: Enums<'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' | 'INTERNAL_ERROR'>;
   MeasurementState: Enums<EstadoMedicionSdk>;
   MeasurementEnvironmentCondition: Enums<CondicionSdk>;
-  FaceState: Enums<'OK'>;
+  FaceState: Enums<'OK' | 'TOO_FAR' | 'TOO_CLOSE' | 'NOT_CENTERED' | 'NOT_VISIBLE' | 'TURNED_AWAY' | 'UNKNOWN'>;
   CameraMode: Enums<'FACING_USER' | 'MEDIA_STREAM' | 'OFF'>;
   CameraError: Enums<'PERMISSION_NOT_GRANTED' | 'NO_CAMERA_DEVICE'>;
   MeasurementPreset: Enums<'ONE_MINUTE_HR_HRV_BR' | 'CUSTOM'>;
@@ -280,7 +283,16 @@ export class SdkScanProvider implements ScanProvider {
       if (estado === 'FINISHED') {
         const r = sdk.getMeasurementResults();
         const metricas = r && metricasFinales(r, escala);
-        if (!r || !metricas) return this.terminar(() => listener({ type: 'error', codigo: 'medicion_fallida' }));
+        if (!r || !metricas) {
+          // Qué faltó (sin valores: son datos de salud), para saber si es la señal o el preset del SDK.
+          const faltan = r
+            ? (['heart_rate_bpm', 'hrv_sdnn_ms', 'breathing_rate_bpm', 'stress_index'] as const).filter((k) => r[k] === null || r[k] === undefined).join(', ')
+            : 'sin resultados';
+          const latidos = r && Array.isArray((r as { heartbeats?: unknown[] }).heartbeats) ? (r as unknown as { heartbeats: unknown[] }).heartbeats.length : '—';
+          informarMedicion(`resultado incompleto (falta: ${faltan || '—'}; calidad ${r ? Math.round(calidadGlobal(r) * 100) : '—'}%; latidos ${latidos})`, 'RESULTADO_INCOMPLETO');
+          this.alTerminar = null;
+          return this.terminar(() => listener({ type: 'error', codigo: 'medicion_fallida' }));
+        }
         for (const [n, v] of Object.entries(metricas)) listener({ type: 'metrica', nombre: n as keyof typeof metricas, valor: v, estable: true });
         const resultado: ScanResult = { metricas, calidad: calidadGlobal(r), duracionS: opts.duracionS };
         return this.terminar(() => listener({ type: 'completo', resultado }));
@@ -497,8 +509,8 @@ export class SdkScanProvider implements ScanProvider {
   }
 
   private calidad(sdk: ShenaiSdk) {
-    const rostroOk = nombre(sdk.FaceState, sdk.getFaceState()) === 'OK';
-    return calidadDesdeSdk(nombre(sdk.MeasurementEnvironmentCondition, sdk.getCurrentViolatedMeasurementEnvironmentCondition()), rostroOk);
+    const rostro = nombre(sdk.FaceState, sdk.getFaceState());
+    return calidadDesdeSdk(nombre(sdk.MeasurementEnvironmentCondition, sdk.getCurrentViolatedMeasurementEnvironmentCondition()), rostro === 'OK', rostro);
   }
 
   private cada(fn: () => void) {
@@ -559,6 +571,14 @@ export class SdkScanProvider implements ScanProvider {
       `rostro ${leer(() => nombre(sdk.FaceState as Enums<string>, sdk.getFaceState()) ?? `#${sdk.getFaceState()?.value}`)}`,
       `condición ${leer(() => nombre(sdk.MeasurementEnvironmentCondition, sdk.getCurrentViolatedMeasurementEnvironmentCondition()))}`,
       `progreso ${leer(() => Math.round(sdk.getMeasurementProgressPercentage()))}%`,
+      // Qué métricas en vivo ya tienen valor (solo presencia, sin valores: son datos de salud).
+      `en vivo ${leer(() => {
+        const r = sdk.getRealtimeMetrics(10);
+        if (!r) return null;
+        const hay = (['heart_rate_bpm', 'hrv_sdnn_ms', 'breathing_rate_bpm', 'stress_index'] as const).filter((k) => r[k] !== null && r[k] !== undefined);
+        return hay.length ? hay.map((k) => k.split('_')[0]).join('+') : 'ninguna';
+      })}`,
+      `plan ${leer(() => (sdk.getPricingPlan ? sdk.getPricingPlan() || 'vacío' : null))}${leer(() => (sdk.isGeneralWellnessSdk?.() ? ' (bienestar general)' : ''))}`,
       `listo ${leer(() => (sdk.isReadyToStartMeasurement ? (sdk.isReadyToStartMeasurement() ? 'sí' : 'no') : null))}`,
       `modelos ${leer(() => (sdk.getRequiredModelsDownloadProgressPercentage ? `${Math.round(sdk.getRequiredModelsDownloadProgressPercentage())}%` : null))}`,
       `pista ${pista ? `${pista.readyState}${ajustes.width ? ` ${ajustes.width}x${ajustes.height}` : ''}` : 'ninguna'}`,

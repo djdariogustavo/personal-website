@@ -17,6 +17,8 @@ export interface QualityEvent {
   type: 'calidad';
   luz: LightLevel;
   rostroCentrado: boolean;
+  /** Por qué el rostro no está bien encuadrado, si el proveedor lo sabe (para decir qué corregir). */
+  encuadre?: 'cerca' | 'lejos' | 'descentrado';
   movimiento: boolean;
   contraluz: boolean;
 }
