@@ -23,8 +23,10 @@ const env = {
   SERENA_STATIC_DIR: join(root, 'apps/web/dist'),
   SERENA_PUBLIC_URL: `http://127.0.0.1:${process.env.E2E_PORT ?? '8790'}`,
 };
-// Nunca se usan servicios reales en las pruebas (ni IA ni SMS), aunque haya credenciales en el entorno.
-for (const k of Object.keys(env)) if (k.startsWith('TWILIO_') || k.startsWith('ANTHROPIC_') || k === 'SERENA_SMS') delete env[k];
+// Nunca se usan servicios reales en las pruebas (IA, SMS, email ni avisos a la guardia), aunque haya
+// credenciales o contactos reales en el entorno: un aviso de prueba llegaría al celular de una persona.
+const REALES = ['TWILIO_', 'ANTHROPIC_', 'RESEND_', 'SERENA_ALERTAS_', 'SERENA_GUARDIA_', 'SHENAI_ADMIN'];
+for (const k of Object.keys(env)) if (REALES.some((p) => k.startsWith(p)) || k === 'SERENA_SMS' || k === 'SERENA_GUARD_WEBHOOK_URL') delete env[k];
 
 const tsx = join(root, 'node_modules/.bin/tsx');
 const seed = spawnSync(tsx, ['apps/server/src/seed.ts'], { cwd: root, env, stdio: 'inherit' });

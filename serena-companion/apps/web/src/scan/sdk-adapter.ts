@@ -54,6 +54,9 @@ interface ShenaiSdk {
   getOperatingMode?(): EnumSdk;
   getMeasurementState(): EnumSdk;
   getMeasurementProgressPercentage(): number;
+  /** El SDK solo mide con licencia activa y modelos descargados; antes de eso ignora el pedido de medir. */
+  isReadyToStartMeasurement?(): boolean;
+  getRequiredModelsDownloadProgressPercentage?(): number;
   getFaceState(): EnumSdk;
   getCurrentViolatedMeasurementEnvironmentCondition(): EnumSdk | null;
   getRealtimeMetrics(periodSec: number): ResultadosSdk | null;
@@ -83,6 +86,9 @@ export type CredencialEscaneo = string | (() => Promise<string | ScanErrorCode>)
 const esCodigoError = (v: string): v is ScanErrorCode => !v.startsWith('sh_') && /^[a-z_]+$/.test(v);
 const CANVAS_ID = 'serena-scan-sdk';
 const CADA_MS = 250;
+/** Si la medición no arranca, se vuelve a pedir cada ARRANQUE_REINTENTO_MS; a los ARRANQUE_TOPE_MS se da por fallida. */
+export const ARRANQUE_REINTENTO_MS = 2_000;
+export const ARRANQUE_TOPE_MS = 20_000;
 /**
  * Tope para que el SDK responda a initialize (valida la licencia en línea y descarga sus modelos). Probado con el SDK
  * real 3.1.15: ante algunas fallas el motor se detiene (Aborted) sin llamar al callback, y sin tope la persona quedaría
@@ -235,28 +241,39 @@ export class SdkScanProvider implements ScanProvider {
     let ultimaSenal = 0;
     this.conectarCamara(sdk);
     const t0 = performance.now();
-    // Arranque como en los ejemplos oficiales 3.x (modo de operación MEASURE). Si el SDK no lo tiene, o a los 2 s la
-    // medición sigue sin empezar, se usa startMeasurement().
-    let viaInicio = 'startMeasurement';
-    if (sdk.setOperatingMode && sdk.OperatingMode?.MEASURE) {
-      sdk.setOperatingMode(sdk.OperatingMode.MEASURE);
-      viaInicio = 'MEASURE';
-    } else sdk.startMeasurement();
-    let respaldoUsado = viaInicio === 'startMeasurement';
+    // Arranque como en los ejemplos oficiales 3.x (modo de operación MEASURE). A veces el SDK ignora el pedido y
+    // queda en POSITIONING / NOT_STARTED con el rostro bien encuadrado (reproducido en ~1 de 10 intentos con el SDK
+    // real: el reloj quedaba en 1:00 para siempre). Mientras no arranque se repite el pedido cada 2 s, con
+    // startMeasurement() de respaldo; si a los 20 s sigue sin arrancar, se informa y se ofrece seguir sin escaneo.
+    const conModo = !!(sdk.setOperatingMode && sdk.OperatingMode?.MEASURE);
+    const pedirMedicion = () => (conModo ? sdk.setOperatingMode!(sdk.OperatingMode!.MEASURE) : sdk.startMeasurement());
+    pedirMedicion();
+    let viaInicio = conModo ? 'MEASURE' : 'startMeasurement';
+    let reintentos = 0;
+    let arranco = false;
     // Diagnóstico de la medición (sin datos de la persona): estado, rostro, condición incumplida y progreso a los
     // 3, 10, 20 y 40 s y al terminar. Sin esto, "el reloj no arranca" no se puede explicar desde el servidor.
     const hitos = [3_000, 10_000, 20_000, 40_000];
-    const informarMedicion = (motivo: string) =>
-      this.diagnostico({ resultado: 'MEDICION', etapa: 'medicion', ms: Math.round(performance.now() - t0), detalle: `${motivo} · ${this.foto(sdk, viaInicio)}` });
+    const informarMedicion = (motivo: string, resultado = 'MEDICION') =>
+      this.diagnostico({ resultado, etapa: 'medicion', ms: Math.round(performance.now() - t0), detalle: `${motivo} · ${this.foto(sdk, viaInicio)}` });
     this.alTerminar = (motivo) => informarMedicion(motivo);
     this.cada(() => {
       const transcurrido = performance.now() - t0;
       if (hitos.length && transcurrido >= hitos[0]!) informarMedicion(`a los ${Math.round(hitos.shift()! / 1000)} s`);
       const estado = nombre(sdk.MeasurementState, sdk.getMeasurementState());
-      if (!respaldoUsado && transcurrido >= 2_000 && estado === 'NOT_STARTED') {
-        respaldoUsado = true;
-        viaInicio = 'MEASURE+startMeasurement';
-        sdk.startMeasurement();
+      if (!arranco && estado && estado !== 'NOT_STARTED') arranco = true;
+      if (!arranco) {
+        if (transcurrido >= ARRANQUE_TOPE_MS) {
+          informarMedicion(`no arrancó en ${ARRANQUE_TOPE_MS / 1000} s`, 'NO_ARRANCA');
+          this.alTerminar = null;
+          return this.terminar(() => listener({ type: 'error', codigo: 'medicion_fallida' }));
+        }
+        if (transcurrido >= (reintentos + 1) * ARRANQUE_REINTENTO_MS) {
+          reintentos++;
+          viaInicio = conModo ? `MEASURE+startMeasurement${reintentos > 1 ? ` ×${reintentos}` : ''}` : `startMeasurement ×${reintentos + 1}`;
+          if (conModo) pedirMedicion();
+          sdk.startMeasurement();
+        }
       }
       if (!estado) return;
       if (estado === 'FAILED') return this.terminar(() => listener({ type: 'error', codigo: 'medicion_fallida' }));
@@ -542,6 +559,8 @@ export class SdkScanProvider implements ScanProvider {
       `rostro ${leer(() => nombre(sdk.FaceState as Enums<string>, sdk.getFaceState()) ?? `#${sdk.getFaceState()?.value}`)}`,
       `condición ${leer(() => nombre(sdk.MeasurementEnvironmentCondition, sdk.getCurrentViolatedMeasurementEnvironmentCondition()))}`,
       `progreso ${leer(() => Math.round(sdk.getMeasurementProgressPercentage()))}%`,
+      `listo ${leer(() => (sdk.isReadyToStartMeasurement ? (sdk.isReadyToStartMeasurement() ? 'sí' : 'no') : null))}`,
+      `modelos ${leer(() => (sdk.getRequiredModelsDownloadProgressPercentage ? `${Math.round(sdk.getRequiredModelsDownloadProgressPercentage())}%` : null))}`,
       `pista ${pista ? `${pista.readyState}${ajustes.width ? ` ${ajustes.width}x${ajustes.height}` : ''}` : 'ninguna'}`,
       `lienzo ${leer(() => {
         const c = document.getElementById(CANVAS_ID) as HTMLCanvasElement | null;

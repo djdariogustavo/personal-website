@@ -64,7 +64,7 @@ const en = <K extends string>(...nombres: K[]) =>
   }) as unknown as Record<K, { value: number }>;
 
 /** SDK falso con la misma API que el real (subconjunto que usa SERENA). */
-function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' | 'SIN_RESPUESTA'; initDemoraMs?: number; resultados?: typeof RESULTADOS | null; falla?: boolean; medirConModo?: boolean } = {}) {
+function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' | 'SIN_RESPUESTA'; initDemoraMs?: number; resultados?: typeof RESULTADOS | null; falla?: boolean; medirConModo?: boolean; ignorarPedidos?: number } = {}) {
   const MeasurementState = en('NOT_STARTED', 'WAITING_FOR_FACE', 'RUNNING_SIGNAL_SHORT', 'RUNNING_SIGNAL_GOOD', 'RUNNING_SIGNAL_BAD', 'RUNNING_SIGNAL_BAD_DEVICE_UNSTABLE', 'FINALIZING', 'FINISHED', 'FAILED');
   const InitializationResult = en('OK', 'INVALID_API_KEY', 'CONNECTION_ERROR', 'INTERNAL_ERROR');
   let estado = MeasurementState.NOT_STARTED;
@@ -72,6 +72,9 @@ function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' |
   let modo = OperatingMode.POSITIONING;
   let progreso = 0;
   let inicializado = false;
+  /** Como la falla intermitente del SDK real: los primeros pedidos de medir se ignoran (queda en POSITIONING). */
+  let ignorar = opts.ignorarPedidos ?? 0;
+  const ignora = () => ignorar-- > 0;
   const llamadas: string[] = [];
   const settings: Array<Record<string, unknown>> = [];
   const claves: string[] = [];
@@ -93,11 +96,15 @@ function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' |
     attachToCanvas: () => void llamadas.push('attachToCanvas'),
     setMediaStream: () => void llamadas.push('setMediaStream'),
     setRecordingEnabled: (v: boolean) => void llamadas.push(`setRecordingEnabled:${v}`),
-    startMeasurement: () => void ((estado = MeasurementState.RUNNING_SIGNAL_GOOD), llamadas.push('startMeasurement')),
+    startMeasurement: () => {
+      llamadas.push('startMeasurement');
+      if (!ignora()) estado = MeasurementState.RUNNING_SIGNAL_GOOD;
+    },
     // Como en los ejemplos oficiales 3.x: pasar a MEASURE arranca la medición (salvo con medirConModo: false).
     setOperatingMode: (m: { value: number }) => {
-      modo = m;
       llamadas.push(`modo:${m === OperatingMode.MEASURE ? 'MEASURE' : 'POSITIONING'}`);
+      if (m === OperatingMode.MEASURE && ignora()) return;
+      modo = m;
       if (m === OperatingMode.MEASURE && opts.medirConModo !== false) estado = MeasurementState.RUNNING_SIGNAL_GOOD;
     },
     getOperatingMode: () => modo,
@@ -359,7 +366,7 @@ describe('adaptador del SDK de escaneo', () => {
     }).mountPreview({} as HTMLElement, null, (e) => eventos.push(e));
     expect(eventos).toEqual([{ type: 'error', codigo: 'sin_conexion' }]);
   });
-  it('arranca la medición con el modo MEASURE y, si a los 2 s no empezó, con startMeasurement', async () => {
+  it('arranca la medición con el modo MEASURE y, si a los 2 s no empezó, la vuelve a pedir con startMeasurement', async () => {
     const f = sdkFalso({ medirConModo: false });
     const diag: DiagnosticoInicio[] = [];
     const p = new SdkScanProvider(ESCALA, f.crear, 'k', (d) => diag.push(d));
@@ -376,6 +383,47 @@ describe('adaptador del SDK de escaneo', () => {
     await p.stop();
     // Al salir se informa cómo quedó, una sola vez.
     expect(diag.filter((d) => d.detalle?.startsWith('salida'))).toHaveLength(1);
+  });
+
+  it('si el SDK ignora el pedido de medir, lo repite cada 2 s hasta que arranca', async () => {
+    const f = sdkFalso({ ignorarPedidos: 3 });
+    const diag: DiagnosticoInicio[] = [];
+    const eventos: Array<{ type: string }> = [];
+    const p = new SdkScanProvider(ESCALA, f.crear, 'k', (d) => diag.push(d));
+    await p.start({ duracionS: 60 }, (e) => eventos.push(e));
+    await vi.advanceTimersByTimeAsync(2_300);
+    // Pedido inicial y primer reintento (MEASURE + startMeasurement) ignorados: sigue sin arrancar.
+    expect(f.llamadas.filter((l) => l === 'modo:MEASURE')).toHaveLength(2);
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(f.llamadas.filter((l) => l === 'modo:MEASURE')).toHaveLength(3);
+    await vi.advanceTimersByTimeAsync(6_000);
+    // Arrancó al segundo reintento: no se vuelve a pedir ni hay error.
+    expect(f.llamadas.filter((l) => l === 'modo:MEASURE')).toHaveLength(3);
+    expect(eventos.some((e) => e.type === 'error')).toBe(false);
+    expect(diag.find((d) => d.detalle?.startsWith('a los 10 s'))?.detalle).toMatch(/inicio MEASURE\+startMeasurement ×2 · estado RUNNING_SIGNAL_GOOD · modo MEASURE/);
+    await p.stop();
+  });
+
+  it('si la medición no arranca en 20 s, informa NO_ARRANCA y termina en error en lugar de quedar en 1:00', async () => {
+    const f = sdkFalso({ ignorarPedidos: Infinity });
+    const diag: DiagnosticoInicio[] = [];
+    const eventos: Array<{ type: string; codigo?: string }> = [];
+    const p = new SdkScanProvider(ESCALA, f.crear, 'k', (d) => diag.push(d));
+    await p.start({ duracionS: 60 }, (e) => eventos.push(e));
+    await vi.advanceTimersByTimeAsync(19_000);
+    expect(eventos.some((e) => e.type === 'error')).toBe(false);
+    await vi.advanceTimersByTimeAsync(1_500);
+    expect(eventos.at(-1)).toEqual({ type: 'error', codigo: 'medicion_fallida' });
+    const fallas = diag.filter((d) => d.resultado === 'NO_ARRANCA');
+    expect(fallas).toHaveLength(1);
+    expect(fallas[0]!.detalle).toMatch(/^no arrancó en 20 s · .*estado NOT_STARTED · modo POSITIONING/);
+    // El SDK queda en espera y el cierre no se informa dos veces.
+    expect(f.llamadas.at(-1)).toBe('stopMeasurement');
+    expect(diag.filter((d) => d.detalle?.startsWith('fin'))).toHaveLength(0);
+    const pedidos = f.llamadas.filter((l) => l === 'modo:MEASURE').length;
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(f.llamadas.filter((l) => l === 'modo:MEASURE')).toHaveLength(pedidos);
+    await p.stop();
   });
 
   it('al inicializar con cámara propia usa OFF, espera en POSITIONING y le pasa al SDK una copia de la pista', async () => {
