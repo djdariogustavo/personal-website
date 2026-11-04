@@ -46,12 +46,14 @@ export interface EscalaEstres {
 }
 
 /** Condición del entorno que el SDK informa como incumplida → evento `calidad` de SERENA. */
-export function calidadDesdeSdk(condicion: CondicionSdk | null, rostroOk: boolean): QualityEvent {
+export function calidadDesdeSdk(condicion: CondicionSdk | null, rostroOk: boolean, rostroEstado?: string | null): QualityEvent {
   const luz: LightLevel = condicion === 'SUFFICIENT_LIGHT_LEVEL' ? 'insuficiente' : condicion === 'EVEN_LIGHTING' ? 'justa' : 'optima';
+  const rostroCentrado = rostroOk && condicion !== 'FACE_POSITION' && condicion !== 'FOREHEAD_VISIBLE';
   return {
     type: 'calidad',
     luz,
-    rostroCentrado: rostroOk && condicion !== 'FACE_POSITION' && condicion !== 'FOREHEAD_VISIBLE',
+    rostroCentrado,
+    ...(rostroCentrado ? {} : { encuadre: rostroEstado === 'TOO_CLOSE' ? 'cerca' : rostroEstado === 'TOO_FAR' ? 'lejos' : 'descentrado' }),
     movimiento: condicion === 'FACE_STABLE' || condicion === 'DEVICE_STABLE',
     contraluz: condicion === 'NO_BACKLIGHT',
   };
