@@ -470,6 +470,19 @@
     }
 
     /* Media: ilustración SVG por defecto; foto real opcional con --vr-photo */
+    /* Spotlight que sigue al puntero (patrón "Feature Grid Spotlight Cards" de 21st.dev) */
+    .vr-solution::before {
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background: radial-gradient(circle 240px at var(--mx, 50%) var(--my, 0%), rgba(119, 100, 216, .13), transparent 70%);
+      content: "";
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity .3s ease;
+    }
+    .vr-solution-body { position: relative; z-index: 1; }
+
     .vr-solution-media {
       position: relative;
       display: flex;
@@ -598,6 +611,7 @@
         box-shadow: var(--vr-shadow-md);
         transform: translateY(-5px);
       }
+      .vr-solution:hover::before { opacity: 1; }
     }
 
     .vr-disclaimer {
@@ -645,21 +659,25 @@
     .vr-faq summary::-webkit-details-marker { display: none; }
 
     .vr-faq summary::after {
-      display: flex;
       width: 32px;
       height: 32px;
       flex: none;
-      align-items: center;
-      justify-content: center;
       border: 1px solid var(--vr-line-strong);
       border-radius: 50%;
-      color: var(--vr-violet-ink);
-      content: "+";
-      font-size: 1.2rem;
-      line-height: 1;
-      transition: transform .2s ease, background-color .2s ease;
+      background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235a47c8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") center / 16px no-repeat;
+      content: "";
+      transition: transform .25s ease, background-color .25s ease;
     }
-    .vr-faq details[open] summary::after { transform: rotate(45deg); background: rgba(119, 100, 216, .1); }
+    .vr-faq details[open] summary::after { transform: rotate(180deg); background-color: rgba(119, 100, 216, .1); }
+
+    /* Apertura animada (mejora progresiva: sin soporte, abre sin animar) */
+    .vr-faq details { interpolate-size: allow-keywords; }
+    .vr-faq details::details-content {
+      block-size: 0;
+      overflow: hidden;
+      transition: block-size .3s ease, content-visibility .3s allow-discrete;
+    }
+    .vr-faq details[open]::details-content { block-size: auto; }
 
     .vr-faq details p { max-width: 640px; margin: 0 0 22px; color: var(--vr-muted); font-size: .96rem; }
 
@@ -951,23 +969,23 @@
           <h2 id="vr-faq-title">Preguntas frecuentes</h2>
         </div>
         <div class="vr-faq-list">
-          <details>
+          <details name="vr-faq">
             <summary>¿Qué modalidades ofrecen?</summary>
             <p>Los programas pueden dictarse en modalidad online, presencial o híbrida, según el perfil de los participantes y las condiciones de la operación.</p>
           </details>
-          <details>
+          <details name="vr-faq">
             <summary>¿Para cuántos participantes están pensados?</summary>
             <p>Las academias para contratistas y proveedores están diseñadas para grupos de 10 a 30 participantes, con seguimiento y reporte por cohorte.</p>
           </details>
-          <details>
+          <details name="vr-faq">
             <summary>¿El contenido se adapta a cada país y rol?</summary>
             <p>Sí. Parte del diagnóstico inicial es definir el país, el perfil de los participantes y su nivel de responsabilidad, para contextualizar contenidos, casos y evaluación.</p>
           </details>
-          <details>
+          <details name="vr-faq">
             <summary>¿Qué evidencia recibe la organización?</summary>
             <p>Avance, resultados de evaluación y reportes por cohorte que permiten documentar el proceso formativo y gestionar las capacidades del equipo.</p>
           </details>
-          <details>
+          <details name="vr-faq">
             <summary>¿Las constancias reemplazan habilitaciones oficiales?</summary>
             <p>No. Las constancias privadas de finalización no sustituyen habilitaciones oficiales ni las responsabilidades legales del empleador, y la simulación de escritorio no equivale a una habilitación operacional.</p>
           </details>
@@ -995,6 +1013,15 @@
   </main>
 
   <script>
+    /* Spotlight: posición del puntero dentro de cada tarjeta. */
+    document.querySelectorAll('.vr-solution').forEach(function (card) {
+      card.addEventListener('pointermove', function (e) {
+        var r = card.getBoundingClientRect();
+        card.style.setProperty('--mx', (e.clientX - r.left) + 'px');
+        card.style.setProperty('--my', (e.clientY - r.top) + 'px');
+      });
+    });
+
     /* Revelado al hacer scroll. Sin JS o con reduced-motion todo queda visible. */
     (function () {
       var root = document.querySelector('.vr-landing');
