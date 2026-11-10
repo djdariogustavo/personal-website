@@ -1,0 +1,1013 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Capacitación minera contextualizada por país y por rol, con evaluación, simulación y evidencia para empresas, contratistas y proveedores.">
+  <meta property="og:title" content="Capacitación minera | Velasco Robota Training Center">
+  <meta property="og:description" content="Seguridad, academias de contratistas y simulación operacional con evaluación y evidencia documentada.">
+  <meta property="og:type" content="website">
+  <meta name="theme-color" content="#fff8ed">
+  <title>Capacitación minera | Velasco Robota Training Center</title>
+
+  <style>
+    /* =========================================================
+       Velasco Robota Training Center · Hero + soluciones
+       CSS autónomo, sin dependencias externas.
+       Todo está bajo .vr-landing para no chocar con el LMS.
+       ========================================================= */
+
+    :root {
+      --vr-bg: #fff8ed;
+      --vr-bg-soft: #fff1d9;
+      --vr-panel: #ffffff;
+      --vr-panel-hover: #fffaf1;
+      --vr-text: #241d35;
+      --vr-muted: #574e66;
+      --vr-subtle: #6b627a;          /* AA sobre --vr-bg (≈5.5:1) */
+      --vr-line: rgba(36, 29, 53, .14);
+      --vr-line-strong: rgba(36, 29, 53, .28);
+
+      --vr-coral: #f05b62;           /* decorativo */
+      --vr-coral-ink: #c8344a;       /* botón: texto blanco ≥ 5:1 */
+      --vr-coral-ink-hover: #a9283c;
+      --vr-orange: #f49a43;
+      --vr-lime: #c4d83c;
+      --vr-violet: #7764d8;          /* decorativo */
+      --vr-violet-ink: #5a47c8;      /* texto pequeño ≥ 6:1 */
+      --vr-teal: #42b7a5;
+
+      --vr-radius: 16px;
+      --vr-radius-lg: 24px;
+      --vr-max: 1240px;
+      --vr-shadow-sm: 0 8px 24px rgba(83, 57, 48, .07);
+      --vr-shadow-md: 0 22px 54px rgba(83, 57, 48, .13);
+      --vr-serif: Georgia, "Times New Roman", serif;
+      --vr-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .vr-landing,
+    .vr-landing *,
+    .vr-landing *::before,
+    .vr-landing *::after {
+      box-sizing: border-box;
+    }
+
+    .vr-landing {
+      width: 100%;
+      overflow-x: clip;               /* clip no rompe position: sticky */
+      color: var(--vr-text);
+      background:
+        radial-gradient(circle at 82% 8%, rgba(196, 216, 60, .26), transparent 22rem),
+        radial-gradient(circle at 4% 36%, rgba(240, 91, 98, .11), transparent 20rem),
+        var(--vr-bg);
+      font-family: var(--vr-sans);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .vr-landing a { color: inherit; text-decoration: none; }
+    .vr-landing h1, .vr-landing h2, .vr-landing h3 { text-wrap: balance; }
+    .vr-landing p { text-wrap: pretty; }
+
+    .vr-container {
+      width: min(calc(100% - 48px), var(--vr-max));
+      margin-inline: auto;
+    }
+
+    /* Foco visible consistente */
+    .vr-landing a:focus-visible,
+    .vr-landing summary:focus-visible,
+    .vr-landing button:focus-visible {
+      outline: 3px solid var(--vr-violet-ink);
+      outline-offset: 3px;
+      border-radius: 8px;
+    }
+
+    .vr-skip {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+      z-index: 100;
+      padding: 12px 18px;
+      border-radius: 10px;
+      color: #fff;
+      background: var(--vr-text);
+      font-size: .85rem;
+      font-weight: 700;
+      transform: translateY(-160%);
+    }
+    .vr-skip:focus { transform: none; }
+
+    /* ---------- Navegación ---------- */
+    .vr-nav {
+      position: sticky;
+      top: 0;
+      z-index: 50;
+      border-bottom: 1px solid var(--vr-line);
+      background: rgba(255, 248, 237, .86);
+      backdrop-filter: saturate(1.4) blur(14px);
+      -webkit-backdrop-filter: saturate(1.4) blur(14px);
+    }
+
+    .vr-nav-inner {
+      display: flex;
+      min-height: 68px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .vr-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--vr-serif);
+      font-size: 1.12rem;
+      font-weight: 600;
+      letter-spacing: -.01em;
+    }
+
+    .vr-brand-mark {
+      width: 30px;
+      height: 30px;
+      flex: none;
+      border-radius: 9px 9px 9px 3px;
+      background: conic-gradient(from 210deg, var(--vr-coral), var(--vr-orange), var(--vr-lime), var(--vr-violet), var(--vr-coral));
+    }
+
+    .vr-brand small {
+      display: block;
+      margin-top: 1px;
+      color: var(--vr-subtle);
+      font-family: var(--vr-sans);
+      font-size: .64rem;
+      font-weight: 700;
+      letter-spacing: .15em;
+      text-transform: uppercase;
+    }
+
+    .vr-nav-links {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+    }
+
+    .vr-nav-links a {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      padding: 0 14px;
+      border-radius: 999px;
+      color: var(--vr-muted);
+      font-size: .86rem;
+      font-weight: 600;
+      transition: background-color .2s ease, color .2s ease;
+    }
+
+    .vr-nav-links a:hover { color: var(--vr-text); background: rgba(119, 100, 216, .1); }
+
+    /* ---------- Etiquetas y botones ---------- */
+    .vr-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 0 24px;
+      color: var(--vr-violet-ink);
+      font-size: .73rem;
+      font-weight: 800;
+      letter-spacing: .17em;
+      line-height: 1.2;
+      text-transform: uppercase;
+    }
+
+    .vr-eyebrow::before {
+      width: 24px;
+      height: 2px;
+      background: var(--vr-orange);
+      content: "";
+    }
+
+    .vr-button {
+      display: inline-flex;
+      min-height: 52px;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 14px 24px;
+      border: 1px solid transparent;
+      border-radius: var(--vr-radius);
+      font-size: .78rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+      line-height: 1.1;
+      text-align: center;
+      text-transform: uppercase;
+      transition: background-color .22s ease, border-color .22s ease, transform .22s ease, box-shadow .22s ease;
+    }
+
+    .vr-button-primary {
+      color: #fff !important;
+      background: var(--vr-coral-ink);
+      box-shadow: 0 12px 28px rgba(200, 52, 74, .24);
+    }
+
+    .vr-button-primary:hover { background: var(--vr-coral-ink-hover); transform: translateY(-2px); }
+
+    .vr-button-secondary {
+      color: var(--vr-text) !important;
+      border-color: var(--vr-line-strong);
+      background: rgba(255, 255, 255, .7);
+    }
+
+    .vr-button-secondary:hover {
+      border-color: var(--vr-violet-ink);
+      background: rgba(119, 100, 216, .09);
+      transform: translateY(-2px);
+    }
+
+    .vr-button-sm { min-height: 44px; padding: 10px 18px; font-size: .72rem; }
+
+    .vr-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-top: 36px;
+    }
+
+    /* ---------- Hero ---------- */
+    .vr-hero {
+      position: relative;
+      isolation: isolate;
+      padding: clamp(64px, 9vw, 124px) 0 72px;
+      border-bottom: 1px solid var(--vr-line);
+    }
+
+    .vr-hero::before,
+    .vr-hero::after {
+      position: absolute;
+      z-index: -1;
+      border: 1px solid rgba(119, 100, 216, .17);
+      content: "";
+      pointer-events: none;
+      transform: rotate(45deg);
+    }
+    .vr-hero::before { top: -190px; right: -90px; width: 520px; height: 520px; }
+    .vr-hero::after  { top: 150px; right: 90px; width: 270px; height: 270px; border-color: rgba(240, 91, 98, .18); }
+
+    .vr-hero-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(320px, .95fr);
+      align-items: center;
+      gap: clamp(40px, 7vw, 100px);
+    }
+
+    .vr-hero h1 {
+      max-width: 760px;
+      margin: 0;
+      font-family: var(--vr-serif);
+      font-size: clamp(2.9rem, 6.2vw, 5.9rem);
+      font-weight: 500;
+      letter-spacing: -.055em;
+      line-height: .96;
+    }
+
+    .vr-hero h1 strong { color: var(--vr-violet-ink); font-weight: 500; }
+
+    .vr-hero-lead {
+      max-width: 620px;
+      margin: 28px 0 0;
+      color: var(--vr-muted);
+      font-size: clamp(1.05rem, 1.5vw, 1.24rem);
+      line-height: 1.65;
+    }
+
+    .vr-hero-note {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 22px;
+      margin: 28px 0 0;
+      padding: 0;
+      color: var(--vr-subtle);
+      font-size: .84rem;
+      list-style: none;
+    }
+
+    .vr-hero-note li { display: inline-flex; align-items: center; gap: 8px; }
+    .vr-hero-note li::before {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: var(--vr-teal); content: "";
+    }
+
+    /* Tarjeta de ruta (reemplaza el placeholder de imagen) */
+    .vr-route {
+      position: relative;
+      padding: 30px 28px 26px;
+      border: 1px solid var(--vr-line);
+      border-radius: 28px 28px 28px 8px;
+      background: rgba(255, 255, 255, .9);
+      box-shadow: var(--vr-shadow-md);
+      overflow: hidden;
+    }
+
+    .vr-route::after {
+      position: absolute;
+      right: -60px;
+      bottom: -90px;
+      width: 230px;
+      height: 230px;
+      border: 1px solid rgba(240, 91, 98, .3);
+      border-radius: 50%;
+      content: "";
+      pointer-events: none;
+    }
+
+    .vr-route h2 {
+      margin: 0 0 6px;
+      font-family: var(--vr-serif);
+      font-size: clamp(1.4rem, 2.2vw, 1.9rem);
+      font-weight: 500;
+      letter-spacing: -.03em;
+      line-height: 1.15;
+    }
+
+    .vr-route h2 em { color: var(--vr-violet-ink); font-style: normal; }
+
+    .vr-route > p { margin: 0 0 22px; color: var(--vr-muted); font-size: .94rem; }
+
+    .vr-steps {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      gap: 0;
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      counter-reset: step;
+    }
+
+    .vr-steps li {
+      position: relative;
+      display: grid;
+      grid-template-columns: 40px 1fr;
+      gap: 16px;
+      padding: 0 0 20px;
+      counter-increment: step;
+    }
+
+    .vr-steps li:last-child { padding-bottom: 0; }
+
+    .vr-steps li::before {
+      display: flex;
+      width: 40px;
+      height: 40px;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--vr-line-strong);
+      border-radius: 50%;
+      color: var(--vr-violet-ink);
+      background: #fff;
+      content: counter(step);
+      font-family: var(--vr-serif);
+      font-size: 1.05rem;
+    }
+
+    .vr-steps li:not(:last-child)::after {
+      position: absolute;
+      top: 40px;
+      bottom: 0;
+      left: 19.5px;
+      width: 1px;
+      background: linear-gradient(var(--vr-line-strong), transparent);
+      content: "";
+    }
+
+    .vr-steps strong { display: block; font-size: .95rem; line-height: 1.3; }
+    .vr-steps span { display: block; margin-top: 2px; color: var(--vr-muted); font-size: .86rem; line-height: 1.5; }
+
+    /* Barra de prueba / capacidades */
+    .vr-proof-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      margin: 72px 0 0;
+      padding: 0;
+      border-top: 1px solid var(--vr-line);
+      border-bottom: 1px solid var(--vr-line);
+      list-style: none;
+    }
+
+    .vr-proof-item {
+      display: grid;
+      grid-template-columns: 36px 1fr;
+      gap: 14px;
+      padding: 22px 22px 20px;
+      border-right: 1px solid var(--vr-line);
+    }
+    .vr-proof-item:last-child { border-right: 0; }
+
+    .vr-icon {
+      width: 36px;
+      height: 36px;
+      flex: none;
+      padding: 8px;
+      border-radius: 11px;
+      color: var(--vr-violet-ink);
+      background: rgba(119, 100, 216, .11);
+    }
+
+    .vr-proof-item strong {
+      display: block;
+      margin-bottom: 4px;
+      font-size: .74rem;
+      letter-spacing: .09em;
+      line-height: 1.3;
+      text-transform: uppercase;
+    }
+    .vr-proof-item span { display: block; color: var(--vr-muted); font-size: .86rem; line-height: 1.45; }
+
+    /* ---------- Soluciones ---------- */
+    .vr-solutions { padding: clamp(76px, 9vw, 128px) 0 40px; scroll-margin-top: 68px; }
+
+    .vr-section-heading {
+      display: grid;
+      grid-template-columns: minmax(0, .9fr) minmax(280px, 1fr);
+      align-items: end;
+      gap: 50px;
+      margin-bottom: 48px;
+    }
+
+    .vr-section-heading h2 {
+      max-width: 680px;
+      margin: 0;
+      font-family: var(--vr-serif);
+      font-size: clamp(2.3rem, 4.6vw, 4.8rem);
+      font-weight: 500;
+      letter-spacing: -.045em;
+      line-height: 1;
+    }
+
+    .vr-section-heading p { max-width: 520px; margin: 0 0 4px; color: var(--vr-muted); font-size: 1.02rem; }
+
+    .vr-solutions-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+
+    .vr-solution {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid var(--vr-line);
+      border-radius: 22px 22px 22px 8px;
+      background: var(--vr-panel);
+      box-shadow: var(--vr-shadow-sm);
+      transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+    }
+
+    /* Media: ilustración SVG por defecto; foto real opcional con --vr-photo */
+    .vr-solution-media {
+      position: relative;
+      display: flex;
+      min-height: 150px;
+      align-items: flex-end;
+      justify-content: space-between;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--vr-line);
+      background:
+        var(--vr-photo, none) center / cover no-repeat,
+        linear-gradient(145deg, var(--vr-tint-a), var(--vr-tint-b));
+    }
+
+    .vr-solution:nth-child(1) { --vr-tint-a: rgba(240, 91, 98, .2);  --vr-tint-b: rgba(244, 154, 67, .16); }
+    .vr-solution:nth-child(2) { --vr-tint-a: rgba(119, 100, 216, .2); --vr-tint-b: rgba(66, 183, 165, .16); }
+    .vr-solution:nth-child(3) { --vr-tint-a: rgba(196, 216, 60, .3); --vr-tint-b: rgba(244, 154, 67, .16); }
+
+    .vr-solution-media .vr-icon {
+      width: 56px;
+      height: 56px;
+      padding: 14px;
+      border-radius: 16px 16px 16px 5px;
+      color: var(--vr-text);
+      background: rgba(255, 255, 255, .88);
+      box-shadow: var(--vr-shadow-sm);
+    }
+
+    .vr-tag {
+      padding: 6px 10px;
+      border: 1px solid var(--vr-line-strong);
+      border-radius: 999px;
+      color: var(--vr-text);
+      background: rgba(255, 248, 237, .9);
+      font-size: .64rem;
+      font-weight: 800;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .vr-solution-body {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      padding: 28px 26px 26px;
+    }
+
+    .vr-solution-number {
+      margin: 0 0 14px;
+      color: var(--vr-violet-ink);
+      font-family: var(--vr-serif);
+      font-size: 1rem;
+      letter-spacing: .08em;
+    }
+
+    .vr-solution h3 {
+      margin: 0;
+      font-family: var(--vr-serif);
+      font-size: clamp(1.6rem, 2.3vw, 2.1rem);
+      font-weight: 500;
+      letter-spacing: -.035em;
+      line-height: 1.07;
+    }
+
+    .vr-solution-desc { margin: 16px 0 22px; color: var(--vr-muted); font-size: .96rem; }
+
+    .vr-solution h4 {
+      margin: 0 0 12px;
+      color: var(--vr-violet-ink);
+      font-size: .7rem;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+
+    .vr-solution ul {
+      display: grid;
+      gap: 9px;
+      margin: 0;
+      padding: 0;
+      color: #40384d;
+      font-size: .9rem;
+      list-style: none;
+    }
+
+    .vr-solution li { position: relative; padding-left: 20px; line-height: 1.5; }
+    .vr-solution li::before {
+      position: absolute;
+      top: .62em;
+      left: 0;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--vr-orange);
+      content: "";
+    }
+
+    .vr-solution-result {
+      margin: auto 0 0;
+      padding-top: 22px;
+      border-top: 1px solid var(--vr-line);
+      font-size: .92rem;
+    }
+    .vr-solution ul + .vr-solution-result { margin-top: 26px; }
+    .vr-solution-result strong { color: var(--vr-violet-ink); }
+
+    .vr-solution-cta {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      gap: 10px;
+      margin-top: 14px;
+      color: var(--vr-violet-ink) !important;
+      font-size: .76rem;
+      font-weight: 800;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+    }
+
+    .vr-solution-cta::after { content: "→"; font-size: 1.15rem; transition: transform .2s ease; }
+    .vr-solution-cta:hover::after { transform: translateX(5px); }
+
+    /* Hover solo en dispositivos con puntero (evita estados pegados en táctil) */
+    @media (hover: hover) {
+      .vr-solution:hover {
+        border-color: rgba(119, 100, 216, .55);
+        background: var(--vr-panel-hover);
+        box-shadow: var(--vr-shadow-md);
+        transform: translateY(-5px);
+      }
+    }
+
+    .vr-disclaimer {
+      max-width: 920px;
+      margin: 32px 0 0;
+      color: var(--vr-subtle);
+      font-size: .8rem;
+      line-height: 1.65;
+    }
+
+    /* ---------- Preguntas frecuentes ---------- */
+    .vr-faq { padding: 56px 0 40px; scroll-margin-top: 68px; }
+
+    .vr-faq-grid {
+      display: grid;
+      grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+      gap: clamp(32px, 6vw, 90px);
+    }
+
+    .vr-faq h2 {
+      margin: 0;
+      font-family: var(--vr-serif);
+      font-size: clamp(2rem, 3.6vw, 3.4rem);
+      font-weight: 500;
+      letter-spacing: -.04em;
+      line-height: 1.03;
+    }
+
+    .vr-faq-list { border-top: 1px solid var(--vr-line-strong); }
+
+    .vr-faq details { border-bottom: 1px solid var(--vr-line-strong); }
+
+    .vr-faq summary {
+      display: flex;
+      min-height: 64px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 14px 0;
+      font-size: 1.02rem;
+      font-weight: 650;
+      cursor: pointer;
+      list-style: none;
+    }
+    .vr-faq summary::-webkit-details-marker { display: none; }
+
+    .vr-faq summary::after {
+      display: flex;
+      width: 32px;
+      height: 32px;
+      flex: none;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--vr-line-strong);
+      border-radius: 50%;
+      color: var(--vr-violet-ink);
+      content: "+";
+      font-size: 1.2rem;
+      line-height: 1;
+      transition: transform .2s ease, background-color .2s ease;
+    }
+    .vr-faq details[open] summary::after { transform: rotate(45deg); background: rgba(119, 100, 216, .1); }
+
+    .vr-faq details p { max-width: 640px; margin: 0 0 22px; color: var(--vr-muted); font-size: .96rem; }
+
+    /* ---------- CTA final ---------- */
+    .vr-cta-wrap { padding: 40px 0 clamp(72px, 8vw, 110px); }
+
+    .vr-final-cta {
+      position: relative;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 32px;
+      padding: clamp(30px, 4vw, 52px);
+      border: 1px solid rgba(240, 91, 98, .34);
+      border-radius: var(--vr-radius-lg) var(--vr-radius-lg) var(--vr-radius-lg) 8px;
+      background: linear-gradient(110deg, rgba(244, 154, 67, .16), rgba(66, 183, 165, .1));
+      scroll-margin-top: 90px;
+    }
+
+    .vr-final-cta h2 {
+      margin: 0 0 10px;
+      font-family: var(--vr-serif);
+      font-size: clamp(1.8rem, 3.2vw, 3rem);
+      font-weight: 500;
+      letter-spacing: -.035em;
+      line-height: 1.05;
+    }
+    .vr-final-cta p { max-width: 720px; margin: 0; color: var(--vr-muted); }
+    .vr-final-cta .vr-actions { margin: 0; }
+
+    /* ---------- Animación de entrada (solo con JS y sin reduced-motion) ---------- */
+    .vr-js .vr-reveal {
+      opacity: 0;
+      transform: translateY(22px);
+      transition: opacity .7s ease, transform .7s cubic-bezier(.2, .7, .2, 1);
+      transition-delay: calc(var(--vr-i, 0) * 90ms);
+    }
+    .vr-js .vr-reveal.is-visible { opacity: 1; transform: none; }
+
+    /* ---------- Tablet ---------- */
+    @media (max-width: 1080px) {
+      .vr-proof-bar { grid-template-columns: 1fr 1fr; }
+      .vr-proof-item:nth-child(2) { border-right: 0; }
+      .vr-proof-item:nth-child(-n + 2) { border-bottom: 1px solid var(--vr-line); }
+      .vr-solutions-grid { grid-template-columns: 1fr 1fr; }
+      .vr-solution:last-child { grid-column: 1 / -1; }
+    }
+
+    @media (max-width: 860px) {
+      .vr-nav-links { display: none; }
+      .vr-hero-grid,
+      .vr-section-heading,
+      .vr-faq-grid,
+      .vr-final-cta { grid-template-columns: 1fr; }
+      .vr-section-heading { gap: 22px; }
+      .vr-route { max-width: 640px; }
+      .vr-solutions-grid { grid-template-columns: 1fr; }
+      .vr-solution:last-child { grid-column: auto; }
+    }
+
+    /* ---------- Móvil ---------- */
+    @media (max-width: 640px) {
+      .vr-container { width: min(calc(100% - 32px), var(--vr-max)); }
+      .vr-hero { padding-top: 48px; }
+      .vr-hero h1 { font-size: clamp(2.6rem, 13vw, 4.2rem); }
+      .vr-actions,
+      .vr-actions .vr-button { width: 100%; }
+      .vr-proof-bar { margin-top: 52px; grid-template-columns: 1fr; }
+      .vr-proof-item { border-right: 0; border-bottom: 1px solid var(--vr-line); }
+      .vr-proof-item:last-child { border-bottom: 0; }
+      .vr-route { padding: 24px 20px 22px; }
+      .vr-solution-body { padding: 24px 20px 22px; }
+      .vr-nav-inner .vr-button { padding-inline: 14px; }
+    }
+
+    /* ---------- Reduce motion ---------- */
+    @media (prefers-reduced-motion: reduce) {
+      .vr-landing *,
+      .vr-landing *::before,
+      .vr-landing *::after {
+        transition: none !important;
+        animation: none !important;
+      }
+      .vr-js .vr-reveal { opacity: 1; transform: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="vr-landing" id="inicio">
+    <a class="vr-skip" href="#soluciones">Saltar al contenido</a>
+
+    <!-- NAVEGACIÓN -->
+    <header class="vr-nav">
+      <div class="vr-container vr-nav-inner">
+        <a class="vr-brand" href="#inicio" aria-label="Velasco Robota Training Center, inicio">
+          <span class="vr-brand-mark" aria-hidden="true"></span>
+          <span>Velasco Robota<small>Training Center</small></span>
+        </a>
+        <nav aria-label="Principal">
+          <ul class="vr-nav-links">
+            <li><a href="#soluciones">Soluciones</a></li>
+            <li><a href="#ruta">Ruta de trabajo</a></li>
+            <li><a href="#preguntas">Preguntas</a></li>
+          </ul>
+        </nav>
+        <a class="vr-button vr-button-primary vr-button-sm" href="#contacto">Solicitar diagnóstico</a>
+      </div>
+    </header>
+
+    <!-- HERO -->
+    <section class="vr-hero" aria-labelledby="vr-hero-title">
+      <div class="vr-container">
+        <div class="vr-hero-grid">
+          <div class="vr-hero-copy">
+            <p class="vr-eyebrow">Training Center · Minería 5.0</p>
+
+            <h1 id="vr-hero-title">
+              Capacitación minera que se convierte en <strong>capacidades verificables.</strong>
+            </h1>
+
+            <p class="vr-hero-lead">
+              Diseñamos programas de formación para empresas mineras, contratistas y proveedores que necesitan mejorar la seguridad, el cumplimiento y el desempeño operativo.
+            </p>
+            <p class="vr-hero-lead" style="margin-top:16px">
+              Contenido contextualizado por país y por rol, con casos aplicados, evaluación y evidencia útil para la organización.
+            </p>
+
+            <div class="vr-actions">
+              <a class="vr-button vr-button-primary" href="#contacto">Solicitar un diagnóstico</a>
+              <a class="vr-button vr-button-secondary" href="#soluciones">Explorar programas</a>
+            </div>
+
+            <ul class="vr-hero-note" aria-label="Modalidades">
+              <li>Online, presencial o híbrido</li>
+              <li>Grupos de 10 a 30 participantes</li>
+            </ul>
+          </div>
+
+          <aside class="vr-route vr-reveal" id="ruta" aria-labelledby="vr-route-title">
+            <h2 id="vr-route-title">De la brecha inicial a la <em>evidencia de aprendizaje</em></h2>
+            <p>Una ruta orientada a resultados, aplicada a contextos reales de operación.</p>
+            <ol class="vr-steps">
+              <li>
+                <div><strong>Diagnóstico</strong><span>Identificamos brechas por país, rol y nivel de responsabilidad.</span></div>
+              </li>
+              <li>
+                <div><strong>Diseño del programa</strong><span>Contenidos, casos y evaluación adaptados a la operación.</span></div>
+              </li>
+              <li>
+                <div><strong>Formación aplicada</strong><span>Online, presencial o híbrida, con simulación cuando corresponde.</span></div>
+              </li>
+              <li>
+                <div><strong>Evidencia y seguimiento</strong><span>Avance, aprobación y reporte por cohorte para la organización.</span></div>
+              </li>
+            </ol>
+          </aside>
+        </div>
+
+        <ul class="vr-proof-bar" aria-label="Características del servicio">
+          <li class="vr-proof-item vr-reveal" style="--vr-i:0">
+            <svg class="vr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.4 3.1 8 7.5 9.5 4.4-1.5 7.5-5.1 7.5-9.5V6L12 3Z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg>
+            <div><strong>Seguridad y normativa</strong><span>Contenido contextualizado por país</span></div>
+          </li>
+          <li class="vr-proof-item vr-reveal" style="--vr-i:1">
+            <svg class="vr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.4-3 2.6-5 5.5-5s5.1 2 5.5 5"/><path d="M16 5.2a3 3 0 0 1 0 5.6M17.5 14.3c1.8.6 3 2.3 3.3 4.7"/></svg>
+            <div><strong>Academias de contratistas</strong><span>Rutas por rol y nivel de responsabilidad</span></div>
+          </li>
+          <li class="vr-proof-item vr-reveal" style="--vr-i:2">
+            <svg class="vr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m15.2 8.8-1.8 4.6-4.6 1.8 1.8-4.6 4.6-1.8Z"/></svg>
+            <div><strong>Simulación operacional</strong><span>Decisiones críticas en entornos controlados</span></div>
+          </li>
+          <li class="vr-proof-item vr-reveal" style="--vr-i:3">
+            <svg class="vr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2.5"/><path d="M9 4.5h6M9 12l2 2 4-4M9 17.5h6"/></svg>
+            <div><strong>Evaluación aplicada</strong><span>Avance, aprobación y evidencia documentada</span></div>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SOLUCIONES PRIORITARIAS -->
+    <section class="vr-solutions" id="soluciones" aria-labelledby="vr-solutions-title">
+      <div class="vr-container">
+        <div class="vr-section-heading">
+          <div>
+            <p class="vr-eyebrow">Soluciones prioritarias</p>
+            <h2 id="vr-solutions-title">Tres líneas de entrada para desarrollar capacidades críticas.</h2>
+          </div>
+          <p>
+            Comenzamos con una necesidad concreta, medimos el aprendizaje y dejamos una base clara para escalar el desarrollo de capacidades dentro de la organización.
+          </p>
+        </div>
+
+        <div class="vr-solutions-grid">
+          <!-- 01 · Seguridad
+               Foto real: añadir style="--vr-photo:url('/ruta/foto-seguridad.jpg')" en .vr-solution-media -->
+          <article class="vr-solution vr-reveal" style="--vr-i:0">
+            <div class="vr-solution-media">
+              <svg class="vr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4.5 6v5.5c0 4.4 3.1 8 7.5 9.5 4.4-1.5 7.5-5.1 7.5-9.5V6L12 3Z"/><path d="m9 12 2.2 2.2L15.5 10"/></svg>
+              <span class="vr-tag">Seguridad</span>
+            </div>
+            <div class="vr-solution-body">
+              <p class="vr-solution-number" aria-hidden="true">01</p>
+              <h3>Seguridad minera contextualizada para cada operación</h3>
+              <p class="vr-solution-desc">
+                Programas orientados a fortalecer conocimientos, criterios y conductas seguras en operaciones mineras y organizaciones contratistas.
+              </p>
+
+              <h4>Incluye</h4>
+              <ul>
+                <li>Seguridad minera y gestión de riesgos.</li>
+                <li>Procedimientos de trabajo seguro.</li>
+                <li>Contenidos adaptados al país y al perfil.</li>
+                <li>Casos, evaluación y checklist de aplicación.</li>
+                <li>Modalidad online, presencial o híbrida.</li>
+              </ul>
+
+              <p class="vr-solution-result"><strong>Resultado:</strong> equipos mejor preparados, brechas identificadas y evidencia documentada del proceso formativo.</p>
+              <a class="vr-solution-cta" href="#contacto">Solicitar programa de seguridad</a>
+            </div>
+          </article>
+
+          <!-- 02 · Contratistas -->
+          <article class="vr-solution vr-reveal" style="--vr-i:1">
+            <div class="vr-solution-media">
+              <svg class="vr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3.5 19c.4-3 2.6-5 5.5-5s5.1 2 5.5 5"/><path d="M16 5.2a3 3 0 0 1 0 5.6M17.5 14.3c1.8.6 3 2.3 3.3 4.7"/></svg>
+              <span class="vr-tag">Contratistas</span>
+            </div>
+            <div class="vr-solution-body">
+              <p class="vr-solution-number" aria-hidden="true">02</p>
+              <h3>Contratistas preparados para cumplir, operar y responder mejor</h3>
+              <p class="vr-solution-desc">
+                Rutas de aprendizaje para contratistas y proveedores que necesitan alinear conocimientos, estándares y comportamientos con las exigencias de sus clientes mineros.
+              </p>
+
+              <h4>Incluye</h4>
+              <ul>
+                <li>Diagnóstico inicial de brechas.</li>
+                <li>Rutas por rol y nivel de responsabilidad.</li>
+                <li>Seguridad, compliance y requisitos operacionales.</li>
+                <li>Evaluación, seguimiento y reporte por cohorte.</li>
+                <li>Programas para grupos de 10 a 30 participantes.</li>
+              </ul>
+
+              <p class="vr-solution-result"><strong>Resultado:</strong> onboarding más ordenado, proveedores mejor preparados y trazabilidad para gestionar capacidades.</p>
+              <a class="vr-solution-cta" href="#contacto">Diseñar una academia</a>
+            </div>
+          </article>
+
+          <!-- 03 · Simulación -->
+          <article class="vr-solution vr-reveal" style="--vr-i:2">
+            <div class="vr-solution-media">
+              <svg class="vr-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="m15.2 8.8-1.8 4.6-4.6 1.8 1.8-4.6 4.6-1.8Z"/></svg>
+              <span class="vr-tag">Simulación</span>
+            </div>
+            <div class="vr-solution-body">
+              <p class="vr-solution-number" aria-hidden="true">03</p>
+              <h3>Entrenar decisiones críticas antes de enfrentarlas en la operación</h3>
+              <p class="vr-solution-desc">
+                Talleres de simulación de escritorio para supervisores, líderes y equipos que deben responder ante escenarios de seguridad, comunicación, priorización y escalamiento.
+              </p>
+
+              <h4>Incluye</h4>
+              <ul>
+                <li>Escenarios de seguridad y operación.</li>
+                <li>Priorización de riesgos y escalamiento.</li>
+                <li>Comunicación entre turnos y áreas.</li>
+                <li>Evaluación mediante rúbricas.</li>
+                <li>Análisis de respuesta y recomendaciones.</li>
+              </ul>
+
+              <p class="vr-solution-result"><strong>Resultado:</strong> líderes con mejores criterios de respuesta y equipos más coordinados ante situaciones críticas.</p>
+              <a class="vr-solution-cta" href="#contacto">Solicitar un taller</a>
+            </div>
+          </article>
+        </div>
+
+        <p class="vr-disclaimer">
+          Los programas complementan la capacitación interna, la inducción de faena y las prácticas presenciales que correspondan. Las constancias privadas de finalización no sustituyen habilitaciones oficiales ni las responsabilidades legales del empleador. La simulación de escritorio tampoco equivale a una habilitación operacional, certificación de equipos o autorización para operar maquinaria.
+        </p>
+      </div>
+    </section>
+
+    <!-- PREGUNTAS FRECUENTES -->
+    <section class="vr-faq" id="preguntas" aria-labelledby="vr-faq-title">
+      <div class="vr-container vr-faq-grid">
+        <div>
+          <p class="vr-eyebrow">Antes de empezar</p>
+          <h2 id="vr-faq-title">Preguntas frecuentes</h2>
+        </div>
+        <div class="vr-faq-list">
+          <details>
+            <summary>¿Qué modalidades ofrecen?</summary>
+            <p>Los programas pueden dictarse en modalidad online, presencial o híbrida, según el perfil de los participantes y las condiciones de la operación.</p>
+          </details>
+          <details>
+            <summary>¿Para cuántos participantes están pensados?</summary>
+            <p>Las academias para contratistas y proveedores están diseñadas para grupos de 10 a 30 participantes, con seguimiento y reporte por cohorte.</p>
+          </details>
+          <details>
+            <summary>¿El contenido se adapta a cada país y rol?</summary>
+            <p>Sí. Parte del diagnóstico inicial es definir el país, el perfil de los participantes y su nivel de responsabilidad, para contextualizar contenidos, casos y evaluación.</p>
+          </details>
+          <details>
+            <summary>¿Qué evidencia recibe la organización?</summary>
+            <p>Avance, resultados de evaluación y reportes por cohorte que permiten documentar el proceso formativo y gestionar las capacidades del equipo.</p>
+          </details>
+          <details>
+            <summary>¿Las constancias reemplazan habilitaciones oficiales?</summary>
+            <p>No. Las constancias privadas de finalización no sustituyen habilitaciones oficiales ni las responsabilidades legales del empleador, y la simulación de escritorio no equivale a una habilitación operacional.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA FINAL -->
+    <div class="vr-cta-wrap">
+      <div class="vr-container">
+        <!-- Conectar con el formulario existente del LMS si corresponde -->
+        <div class="vr-final-cta vr-reveal" id="contacto">
+          <div>
+            <h2>¿Qué capacidad necesita fortalecer tu organización?</h2>
+            <p>
+              Cuéntanos el desafío, el perfil de los participantes, el país y la modalidad preferida. El equipo del Training Center preparará una propuesta inicial de alcance y próximos pasos.
+            </p>
+          </div>
+          <div class="vr-actions">
+            <a class="vr-button vr-button-primary" href="mailto:training@velascorobota.com?subject=Solicitud%20de%20diagn%C3%B3stico%20de%20capacitaci%C3%B3n">Solicitar diagnóstico y propuesta</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    /* Revelado al hacer scroll. Sin JS o con reduced-motion todo queda visible. */
+    (function () {
+      var root = document.querySelector('.vr-landing');
+      var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      if (!root || reduce || !('IntersectionObserver' in window)) return;
+      root.classList.add('vr-js');
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) { e.target.classList.add('is-visible'); io.unobserve(e.target); }
+        });
+      }, { threshold: 0.12, rootMargin: '0px 0px -6% 0px' });
+      root.querySelectorAll('.vr-reveal').forEach(function (el) { io.observe(el); });
+    })();
+  </script>
+</body>
+</html>
