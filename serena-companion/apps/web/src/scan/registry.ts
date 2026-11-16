@@ -1,5 +1,6 @@
 import { DEMO } from '../demo/flags.ts';
 import type { RemoteConfig, ScanErrorCode, ScanProvider } from '@serena/domain';
+import type { DiagnosticoInicio } from './sdk/diagnostico.ts';
 import { SimulatedScanProvider } from './simulated.ts';
 import { UnavailableScanProvider } from './unavailable.ts';
 
@@ -11,7 +12,8 @@ import { UnavailableScanProvider } from './unavailable.ts';
  *                y el check-in sigue con autorreporte y reacción.
  *   - "simulado" (por defecto en desarrollo): valores sintéticos para probar la UI.
  *                La pantalla muestra "SIMULACIÓN · SIN SDK"; nunca usar con personas.
- *   - "sdk":      adaptador del SDK real (ver ./sdk-adapter.ts); requiere licencia y el SDK en public/vendor.
+ *   - "sdk":      adaptador del SDK real (ver ./sdk/proveedor.ts); requiere licencia y el SDK en public/vendor.
+ *                Con escaneo.marco en la configuración remota, el SDK corre en un marco (ver ./marco/contrato.ts).
  */
 export type ScanMode = 'ninguno' | 'simulado' | 'sdk';
 
@@ -31,7 +33,6 @@ export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promis
   if (instance) return instance;
   if (scanMode === 'simulado') instance = new SimulatedScanProvider();
   else if (scanMode === 'sdk') {
-    const { SdkScanProvider } = await import('./sdk-adapter.ts');
     const { api, ApiError, getToken, isOffline } = await import('../lib/api.ts');
     const claveFija = (import.meta.env.VITE_SCAN_SDK_KEY as string | undefined) ?? '';
     // Sin clave fija (producción): un token de corta duración por inicialización, emitido por el servidor.
@@ -47,7 +48,7 @@ export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promis
             return 'sin_licencia';
           }
         };
-    instance = new SdkScanProvider(escaneo?.escalaEstresSdk ?? null, undefined, credencial, (d) => {
+    const diagnostico = (d: DiagnosticoInicio) => {
       // Diagnóstico de campo (sin datos de la persona; el servidor agrega el navegador). `keepalive` lo entrega aunque
       // la persona cierre o recargue la página en ese momento. Si falla, se ignora: es solo diagnóstico.
       ultimo = { resultado: d.resultado, etapa: d.etapa, ...(d.detalle ? { detalle: d.detalle } : {}) };
@@ -55,6 +56,8 @@ export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promis
       const nav = navigator as Navigator & { deviceMemory?: number };
       const cuerpo = {
         ...d,
+        // El servidor rechaza un detalle más largo, y un diagnóstico rechazado es justo el que hace falta ver.
+        ...(d.detalle ? { detalle: d.detalle.slice(0, 600) } : {}),
         memoriaGb: nav.deviceMemory,
         nucleos: nav.hardwareConcurrency,
         aislado: globalThis.crossOriginIsolated === true,
@@ -65,7 +68,16 @@ export async function getScanProvider(escaneo?: RemoteConfig['escaneo']): Promis
         headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify(cuerpo),
       }).catch(() => undefined);
-    });
+    };
+    const escalaEstres = escaneo?.escalaEstresSdk ?? null;
+    if (escaneo?.marco) {
+      // SDK alojado en un marco (iframe): ver ./marco/contrato.ts. Se activa en el servidor (SERENA_ESCANEO_MARCO).
+      const { MarcoScanProvider } = await import('./marco/proveedor.ts');
+      instance = new MarcoScanProvider({ escalaEstres, credencial, diagnostico });
+    } else {
+      const { SdkScanProvider } = await import('./sdk-adapter.ts');
+      instance = new SdkScanProvider(escalaEstres, undefined, credencial, diagnostico);
+    }
   } else instance = new UnavailableScanProvider();
   return instance;
 }

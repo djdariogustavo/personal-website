@@ -73,8 +73,11 @@ export interface ScanProvider {
   availability(ctx: { online: boolean }): Promise<ScanAvailability>;
   /** Monta la vista previa de la cámara y empieza a emitir eventos `calidad`. */
   mountPreview(container: HTMLElement, stream: MediaStream | null, listener: ScanListener): Promise<void>;
-  /** Comienza la medición. Emite `progreso`, `metrica`, `senal_perdida`, `completo` o `error`. */
-  start(opts: { duracionS: number }, listener: ScanListener): Promise<void>;
+  /**
+   * Comienza la medición. Emite `progreso`, `metrica`, `senal_perdida`, `completo` o `error`.
+   * `stream` es la cámara a usar; hace falta al repetir una medición después de `stop()`, que suelta la anterior.
+   */
+  start(opts: { duracionS: number; stream?: MediaStream | null }, listener: ScanListener): Promise<void>;
   /** Detiene y libera todo. Debe garantizar que no queda ningún cuadro en memoria. */
   stop(): Promise<void>;
 }

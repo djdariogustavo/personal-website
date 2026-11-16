@@ -12,7 +12,8 @@ const diagnosticoSchema = z.object({
   etapa: z.enum(['importar', 'crear', 'licencia', 'camara', 'medicion']).optional(),
   ms: z.number().int().min(0).max(600_000),
   /** Tipo y mensaje de la excepción del navegador o del SDK, si la hubo. */
-  detalle: z.string().max(400).optional(),
+  // 600: la línea de estado de una medición (reintentos, condición, métricas en vivo, plan) ronda los 350-400.
+  detalle: z.string().max(600).optional(),
   /** Bytes recibidos del motor WASM del SDK y estado HTTP del módulo, según el navegador. */
   wasmBytes: z.number().int().min(0).max(500_000_000).optional(),
   moduloEstado: z.number().int().min(0).max(999).optional(),

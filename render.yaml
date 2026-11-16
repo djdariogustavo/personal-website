@@ -42,6 +42,10 @@ services:
         value: "true"
       - key: VITE_SCAN_PROVIDER
         value: sdk
+      # El SDK en un marco (iframe): confina 'unsafe-eval' a la página del SDK y lo descarta tras cada medición.
+      # Apagado hasta probarlo en un teléfono (docs/ARQUITECTURA.md). Para encenderlo: "true".
+      - key: SERENA_ESCANEO_MARCO
+        value: "false"
       - key: SHENAI_ADMIN_KEY
         sync: false
       - key: VITE_SCAN_SDK_KEY

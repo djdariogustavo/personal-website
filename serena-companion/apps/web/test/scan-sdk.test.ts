@@ -406,6 +406,18 @@ describe('adaptador del SDK de escaneo', () => {
     expect(diag.filter((d) => d.detalle?.startsWith('salida'))).toHaveLength(1);
   });
 
+  it('liberar apaga el SDK por completo: el siguiente uso lo crea e inicializa de nuevo', async () => {
+    const f = sdkFalso();
+    const p = new SdkScanProvider(ESCALA, f.crear, 'k');
+    await p.start({ duracionS: 60 }, () => undefined);
+    await p.liberar();
+    expect(f.llamadas.slice(-3)).toEqual(['modo:POSITIONING', 'stopMeasurement', 'deinitialize']);
+    await p.start({ duracionS: 60 }, () => undefined);
+    expect(f.args).toHaveLength(2);
+    expect(f.claves).toHaveLength(2);
+    await p.stop();
+  });
+
   it('si el SDK ignora el pedido de medir, lo repite cada 2 s hasta que arranca', async () => {
     const f = sdkFalso({ ignorarPedidos: 3 });
     const diag: DiagnosticoInicio[] = [];
@@ -471,5 +483,11 @@ describe('adaptador del SDK de escaneo', () => {
     await p.mountPreview({} as HTMLElement, { getVideoTracks: () => [original] } as unknown as MediaStream, () => undefined);
     expect(f.settings).toHaveLength(1);
     expect(f.llamadas.filter((l) => l === 'setMediaStream')).toHaveLength(2);
+    // Repetir la medición ("Probar de nuevo"): stop() soltó la cámara y start la recibe otra vez. Sin esto el SDK
+    // seguía con la pista anterior, ya terminada, y la medición fallaba al instante (SDK real, 2026-11-16).
+    await p.stop();
+    await p.start({ duracionS: 60, stream }, () => undefined);
+    expect(f.llamadas.filter((l) => l === 'setMediaStream')).toHaveLength(3);
+    await p.stop();
   });
 });

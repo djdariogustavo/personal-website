@@ -18,19 +18,29 @@ import { webhookRoutes } from './routes/webhooks.ts';
 
 /**
  * - aislamientoOrigen: envía COOP/COEP (aislamiento de origen). Lo exige el SDK de escaneo, que usa SharedArrayBuffer.
+ * - escaneoMarco: el SDK corre en un marco (iframe) con su propia política de contenido; ver `cabeceras` más abajo.
  * - escaneoConnectSrc: orígenes a los que el SDK de escaneo se conecta (licencia); los informa el proveedor.
  */
 export interface OpcionesApp {
   staticDir?: string;
   aislamientoOrigen?: boolean;
   escaneoConnectSrc?: string[];
+  escaneoMarco?: boolean;
 }
+
+/** Página que aloja el SDK de escaneo cuando corre en un marco (apps/web/escaneo-marco.html). */
+const MODULO_ESCANEO = '/escaneo-marco.html';
 
 export function createApp(ctx: AppContext, opts: OpcionesApp = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 1);
-  app.use(
+  /**
+   * Cabeceras de seguridad. `conEval` agrega 'unsafe-eval', que el SDK de escaneo 3.x exige (genera código con
+   * `new Function`, embind de Emscripten) y sin el cual no inicia. Es una concesión de seguridad solo con el SDK activo:
+   * pedir al proveedor una compilación con -sDYNAMIC_EXECUTION=0 y quitarla (docs/PENDIENTES.md).
+   */
+  const cabeceras = (conEval: boolean) =>
     helmet({
       contentSecurityPolicy: {
         directives: {
@@ -43,10 +53,7 @@ export function createApp(ctx: AppContext, opts: OpcionesApp = {}) {
             "'self'",
             // Compilar WebAssembly (no es eval de JavaScript): SDK de escaneo y detector de rostro de los indicadores oculares.
             ...(opts.aislamientoOrigen || ctx.config.ocular.habilitado ? ["'wasm-unsafe-eval'"] : []),
-            // El SDK de escaneo 3.x genera código con `new Function` (embind de Emscripten) y no inicia sin esto.
-            // Es una concesión de seguridad solo con el SDK activo: pedir al proveedor una compilación con
-            // -sDYNAMIC_EXECUTION=0 y quitarla (docs/PENDIENTES.md).
-            ...(opts.aislamientoOrigen ? ["'unsafe-eval'"] : []),
+            ...(conEval ? ["'unsafe-eval'"] : []),
           ],
           connectSrc: ["'self'", ...(opts.escaneoConnectSrc ?? [])],
           workerSrc: opts.aislamientoOrigen || ctx.config.ocular.habilitado ? ["'self'", 'blob:'] : ["'self'"],
@@ -55,8 +62,16 @@ export function createApp(ctx: AppContext, opts: OpcionesApp = {}) {
       // COOP/COEP solo con el SDK de escaneo: sin él no hacen falta y restringen recursos de otros orígenes.
       crossOriginEmbedderPolicy: opts.aislamientoOrigen ? { policy: 'require-corp' } : false,
       crossOriginOpenerPolicy: { policy: 'same-origin' },
-    }),
-  );
+    });
+  // Con el SDK en un marco (escaneoMarco), 'unsafe-eval' vale solo para la página del módulo: la app, que maneja la
+  // sesión y los datos de salud, queda sin ese permiso. Sin marco, el SDK corre en la app y lo necesita toda ella.
+  const conSdk = !!opts.aislamientoOrigen;
+  const deLaApp = cabeceras(conSdk && !opts.escaneoMarco);
+  const delModulo = cabeceras(conSdk);
+  // Los archivos del SDK también: sus workers se cargan desde /vendor/shenai y la política de un worker es la de su
+  // propio archivo (sin esto el SDK no responde a la inicialización: EvalError dentro del worker).
+  const esDelModulo = (ruta: string) => ruta === MODULO_ESCANEO || ruta.startsWith('/vendor/shenai/');
+  app.use((req, res, next) => (esDelModulo(req.path) ? delModulo : deLaApp)(req, res, next));
   app.use((_req, res, next) => {
     res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(self), ambient-light-sensor=(self)');
     next();

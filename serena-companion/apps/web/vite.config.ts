@@ -18,6 +18,7 @@ export default defineConfig({
     target: 'es2022',
     sourcemap: !demo,
     outDir: demo ? 'dist-demo' : 'dist',
-    rollupOptions: demo ? { output: { inlineDynamicImports: true } } : undefined,
+    // La app y la página del módulo de escaneo en marco (src/scan/marco). La vista previa es un solo archivo.
+    rollupOptions: demo ? { output: { inlineDynamicImports: true } } : { input: { index: 'index.html', 'escaneo-marco': 'escaneo-marco.html' } },
   },
 });

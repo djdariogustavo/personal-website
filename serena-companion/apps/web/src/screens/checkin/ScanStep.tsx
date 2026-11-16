@@ -6,6 +6,9 @@ import { getScanProvider, scanMode } from '../../scan/registry.ts';
 
 type Ind = { valor: number | null; estable: boolean };
 const ORDER: Array<keyof ScanMetrics> = ['pulso', 'hrv', 'respiracion', 'estres'];
+const SIN_VALOR: Ind = { valor: null, estable: false };
+/** Cuántas veces se puede repetir una medición fallida en un mismo check-in. */
+const MAX_REINTENTOS = 2;
 
 /**
  * 6.7 Paso 3: escaneo NeuroSentinel™ (slot del SDK). Si la configuración lo habilita, en paralelo mide los
@@ -26,15 +29,21 @@ export function ScanStep({
 }) {
   const { config } = useApp();
   const [progress, setProgress] = useState(0);
-  const [ind, setInd] = useState<Record<keyof ScanMetrics, Ind>>({
-    pulso: { valor: null, estable: false },
-    hrv: { valor: null, estable: false },
-    respiracion: { valor: null, estable: false },
-    estres: { valor: null, estable: false },
-  });
+  const [ind, setInd] = useState<Record<keyof ScanMetrics, Ind>>({ pulso: SIN_VALOR, hrv: SIN_VALOR, respiracion: SIN_VALOR, estres: SIN_VALOR });
   const [lost, setLost] = useState<number | null>(null);
   const [result, setResult] = useState<ScanResult | null>(null);
   const [failed, setFailed] = useState(false);
+  /** Reintentos de la medición en este check-in. Tope bajo: cada medición cuenta como un uso de la licencia. */
+  const [intento, setIntento] = useState(0);
+  const reintentar = () => {
+    setFailed(false);
+    setProgress(0);
+    setLost(null);
+    setRostro(true);
+    setEncuadre(undefined);
+    setInd({ pulso: SIN_VALOR, hrv: SIN_VALOR, respiracion: SIN_VALOR, estres: SIN_VALOR });
+    setIntento((n) => n + 1);
+  };
   const [rostro, setRostro] = useState(true);
   const [encuadre, setEncuadre] = useState<'cerca' | 'lejos' | 'descentrado' | undefined>();
   const video = useRef<HTMLVideoElement>(null);
@@ -59,7 +68,7 @@ export function ScanStep({
     void (async () => {
       const p = await getScanProvider();
       try {
-        await p.start({ duracionS }, (e) => {
+        await p.start({ duracionS, stream }, (e) => {
           if (!alive) return;
           if (e.type === 'progreso') setProgress(e.valor);
           else if (e.type === 'calidad') {
@@ -91,7 +100,7 @@ export function ScanStep({
       if (!ocularEntregado) ocular?.detener();
       void getScanProvider().then((p) => p.stop());
     };
-  }, [stream, duracionS]);
+  }, [stream, duracionS, intento]);
 
   const rem = Math.max(0, Math.round(duracionS * (1 - progress)));
   const clock = `${Math.floor(rem / 60)}:${String(rem % 60).padStart(2, '0')}`;
@@ -123,8 +132,18 @@ export function ScanStep({
 
       {failed ? (
         <div className="stack" style={{ alignItems: 'center', gap: 14, maxWidth: 420, width: '100%', textAlign: 'center' }}>
-          <p style={{ fontSize: 17 }}>No pudimos completar la lectura. Podés terminar el check-in sin escaneo.</p>
-          <button type="button" className="btn btn-primary btn-block" onClick={onAbort}>
+          <p style={{ fontSize: 17 }} role="alert">
+            No pudimos completar la lectura.{' '}
+            {intento < MAX_REINTENTOS
+              ? 'Probá de nuevo con la cara entera dentro del óvalo, buena luz de frente y sin moverte, o terminá el check-in sin escaneo.'
+              : 'Podés terminar el check-in sin escaneo.'}
+          </p>
+          {intento < MAX_REINTENTOS && (
+            <button type="button" className="btn btn-primary btn-block" onClick={reintentar}>
+              Probar de nuevo
+            </button>
+          )}
+          <button type="button" className={`btn btn-block${intento < MAX_REINTENTOS ? '' : ' btn-primary'}`} onClick={onAbort}>
             Continuar sin escaneo
           </button>
         </div>

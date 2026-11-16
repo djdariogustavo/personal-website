@@ -21,6 +21,8 @@ self.addEventListener('activate', (e) => {
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
   if (e.request.method !== 'GET' || url.origin !== self.location.origin || url.pathname.startsWith('/api/')) return;
+  // El módulo de escaneo en marco necesita conexión (licencia): sin red falla y la app lo informa, no recibe el cascarón.
+  if (url.pathname === '/escaneo-marco.html') return;
   if (e.request.mode === 'navigate') {
     // Navegación: red primero, cascarón si no hay conexión.
     e.respondWith(fetch(e.request).catch(() => caches.match('/index.html')));
