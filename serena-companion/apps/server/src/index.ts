@@ -53,7 +53,9 @@ const ctx: AppContext = {
   jwtKey: new TextEncoder().encode(env.jwtSecret),
   publicUrl: env.publicUrl,
   exposeDevOtp: env.exposeDevOtp,
-  config: process.env.SERENA_CONFIG_JSON ? { ...DEFAULT_CONFIG, ...JSON.parse(process.env.SERENA_CONFIG_JSON) } : DEFAULT_CONFIG,
+  config: ((base: typeof DEFAULT_CONFIG) => (env.escaneo.marco ? { ...base, escaneo: { ...base.escaneo, marco: true } } : base))(
+    process.env.SERENA_CONFIG_JSON ? { ...DEFAULT_CONFIG, ...JSON.parse(process.env.SERENA_CONFIG_JSON) } : DEFAULT_CONFIG,
+  ),
   payments: buildRegistry({
     ...env.payments,
     sandboxSecret: env.jwtSecret,
@@ -120,6 +122,7 @@ const app = createApp(ctx, {
   staticDir: process.env.SERENA_STATIC_DIR ?? join(here, '../../web/dist'),
   aislamientoOrigen: env.escaneo.aislamientoOrigen,
   escaneoConnectSrc: env.escaneo.connectSrc,
+  escaneoMarco: env.escaneo.marco,
 });
 app.listen(env.port, () => {
   console.info(`[serena] API en http://localhost:${env.port}`);
@@ -129,6 +132,6 @@ app.listen(env.port, () => {
   const guardia = [env.guardWebhookUrl && 'webhook', gd.telefonos.length && `SMS a ${gd.telefonos.length} teléfono(s)`, gd.emails.length && `email a ${gd.emails.length} dirección(es)`].filter(Boolean);
   console.info(`[serena] Guardia: ${guardia.join(' + ') || 'consola (desarrollo)'}`);
   console.info(`[serena] Alertas de operación: ${aviso ? `email a ${env.alertas.to}` : 'solo en los registros (sin RESEND_API_KEY, SERENA_ALERTAS_FROM o SERENA_ALERTAS_EMAIL)'}`);
-  console.info(`[serena] Escaneo: ${ctx.escaneoTokens ? 'tokens de corta duración emitidos por el servidor' : 'sin credencial de administración (SHENAI_ADMIN_KEY)'}`);
+  console.info(`[serena] Escaneo: ${ctx.escaneoTokens ? 'tokens de corta duración emitidos por el servidor' : 'sin credencial de administración (SHENAI_ADMIN_KEY)'}${env.escaneo.marco ? ' · SDK en marco (iframe)' : ''}`);
   console.info(`[serena] Pagos: ${ctx.payments.list().map((p) => p.nombre).join(', ') || 'ninguno configurado'}`);
 });

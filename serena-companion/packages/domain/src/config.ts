@@ -62,6 +62,11 @@ export interface RemoteConfig {
      * "Video measurement → Results"). Con null el escaneo con el SDK real queda deshabilitado.
      */
     escalaEstresSdk: { min: number; max: number } | null;
+    /**
+     * El SDK de escaneo corre en un marco (iframe) aparte en lugar de la página de la app: confina `unsafe-eval` a
+     * esa página y permite descartar el SDK tras cada medición o error. Lo activa el servidor (SERENA_ESCANEO_MARCO).
+     */
+    marco?: boolean;
   };
   luz: LightThresholds;
   /**

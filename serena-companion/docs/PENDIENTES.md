@@ -46,7 +46,10 @@ código en los registros de Render.
 
 | Punto | Estado | Dónde |
 |---|---|---|
-| Adaptador del SDK | **Implementado** (calidad, progreso, métricas, pérdida de señal, resultado, errores) y probado con un SDK simulado | `apps/web/src/scan/sdk-adapter.ts`, `shenai-map.ts`, `apps/web/test/scan-sdk.test.ts` |
+| Adaptador del SDK | **Implementado** (calidad, progreso, métricas, pérdida de señal, resultado, errores), partido en unidades (ver `docs/ARQUITECTURA.md`) y probado con un SDK simulado | `apps/web/src/scan/sdk/`, `shenai-map.ts`, `apps/web/test/scan-sdk.test.ts` |
+| SDK en un marco (iframe) | **Implementado y apagado (2026-11-16).** Confina `unsafe-eval` a la página del SDK y descarta el SDK tras cada medición o error. Verificado con el SDK real y cámara simulada; **falta la prueba en un teléfono**. Se enciende con `SERENA_ESCANEO_MARCO=true` | `apps/web/src/scan/marco/`, `apps/server/src/app.ts` |
+| Telemetría del SDK | **Hallazgo (2026-11-16):** al apagarse, el SDK intenta enviar trazas a `telemetry.shen.ai/v1/traces` aunque se inicializa con `enableErrorReporting: false`. La política de contenido de SERENA lo bloquea (ese host no está en `connect-src`). **Preguntar al proveedor qué contienen esas trazas y cómo desactivarlas** (suma a la confirmación P4) | `SERENA_ESCANEO_CONNECT_SRC` |
+| Medición que termina sin resultado | **En diagnóstico (2026-11-16).** En el teléfono y con cámara simulada el SDK termina con solo el pulso (sin HRV, respiración ni estrés, 0 latidos) y la app descarta la lectura. Causa probable: encuadre (cara demasiado cerca); a descartar: límite del plan `starter_per_scan_monthly_v1`. La pantalla ahora avisa la distancia, permite repetir hasta 2 veces y el registro dice qué faltó (`RESULTADO_INCOMPLETO`) | `apps/web/src/scan/sdk/medicion.ts`, `ScanStep.tsx` |
 | Aislamiento de origen (COOP/COEP) y CSP con WebAssembly | **Implementado**, se activa con `SERENA_AISLAMIENTO_ORIGEN=true` | `apps/server/src/app.ts`, `apps/web/vite.config.ts` |
 | Escala del índice de estrés del SDK → 1–5 | **Confirmada en la documentación oficial: 0 a 10** (Baevsky modificado). Cargada: `{ min: 0, max: 10 }` | `config.escaneo.escalaEstresSdk` |
 | **Umbrales de estrés con la escala real** | **Decisión clínica pendiente** (ver tabla abajo) | `config.niveles` |

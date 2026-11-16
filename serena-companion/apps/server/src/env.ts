@@ -95,6 +95,8 @@ export const env = {
    */
   escaneo: {
     aislamientoOrigen: process.env.SERENA_AISLAMIENTO_ORIGEN === 'true',
+    /** El SDK corre en un marco (iframe): confina 'unsafe-eval' a esa página y se descarta tras cada medición. */
+    marco: process.env.SERENA_ESCANEO_MARCO === 'true',
     // Por defecto, los hosts medidos con la clave real y el SDK 3.1.15: licencia (licensing-web), modelos (plumbus),
     // textos de la interfaz en español (translations) y la API del proveedor (api.shen.ai, para los tokens).
     connectSrc: (

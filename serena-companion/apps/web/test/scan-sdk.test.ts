@@ -15,6 +15,11 @@ describe('traducción del SDK de escaneo al contrato de SERENA', () => {
     expect(calidadDesdeSdk('DEVICE_STABLE', true).movimiento).toBe(true);
     expect(calidadDesdeSdk('FACE_POSITION', true).rostroCentrado).toBe(false);
     expect(calidadDesdeSdk(null, false).rostroCentrado).toBe(false);
+    // Qué corregir: en la prueba en el teléfono el SDK informó TOO_CLOSE durante toda la medición.
+    expect(calidadDesdeSdk('FACE_POSITION', false, 'TOO_CLOSE').encuadre).toBe('cerca');
+    expect(calidadDesdeSdk(null, false, 'TOO_FAR').encuadre).toBe('lejos');
+    expect(calidadDesdeSdk('FACE_POSITION', true, 'OK').encuadre).toBe('descentrado');
+    expect(calidadDesdeSdk(null, true, 'OK')).not.toHaveProperty('encuadre');
   });
 
   it('pérdida de señal con su motivo, y nada mientras la señal es buena', () => {
@@ -117,6 +122,7 @@ function sdkFalso(opts: { init?: 'OK' | 'INVALID_API_KEY' | 'CONNECTION_ERROR' |
     getRealtimeMetrics: () => ({ ...RESULTADOS, breathing_rate_bpm: null }),
     getMeasurementResults: () => (opts.resultados === undefined ? RESULTADOS : opts.resultados),
     getLastCameraError: () => null,
+    getPricingPlan: () => 'prueba',
     InitializationResult,
     MeasurementState,
     MeasurementEnvironmentCondition: en('FACE_POSITION', 'FOREHEAD_VISIBLE', 'GLASSES_NOT_DETECTED', 'SUFFICIENT_LIGHT_LEVEL', 'EVEN_LIGHTING', 'NO_BACKLIGHT', 'FACE_STABLE', 'DEVICE_STABLE'),
@@ -204,6 +210,21 @@ describe('adaptador del SDK de escaneo', () => {
       expect(eventos.at(-1)).toEqual({ type: 'error', codigo: 'medicion_fallida' });
       expect(eventos.some((e) => e.type === 'completo')).toBe(false);
     }
+  });
+
+  it('con resultado incompleto informa qué métrica faltó (sin valores) y el plan de la licencia', async () => {
+    const f = sdkFalso({ resultados: { ...RESULTADOS, hrv_sdnn_ms: null, stress_index: null } });
+    const diag: DiagnosticoInicio[] = [];
+    await new SdkScanProvider(ESCALA, f.crear, 'k', (d) => diag.push(d)).start({ duracionS: 60 }, () => undefined);
+    f.avanzar(100, 'FINISHED');
+    await vi.advanceTimersByTimeAsync(300);
+    const r = diag.filter((d) => d.resultado === 'RESULTADO_INCOMPLETO');
+    expect(r).toHaveLength(1);
+    expect(r[0]!.detalle).toMatch(/^resultado incompleto \(falta: hrv_sdnn_ms, stress_index; calidad \d+%; latidos —\) · /);
+    expect(r[0]!.detalle).toContain('plan prueba');
+    // Solo nombres de métricas: ningún valor de salud viaja en el diagnóstico.
+    expect(r[0]!.detalle).not.toContain(String(RESULTADOS.heart_rate_bpm));
+    expect(diag.filter((d) => d.detalle?.startsWith('fin'))).toHaveLength(0);
   });
 
   it('si el SDK no responde a la inicialización, no deja a la persona esperando', async () => {
@@ -385,6 +406,18 @@ describe('adaptador del SDK de escaneo', () => {
     expect(diag.filter((d) => d.detalle?.startsWith('salida'))).toHaveLength(1);
   });
 
+  it('liberar apaga el SDK por completo: el siguiente uso lo crea e inicializa de nuevo', async () => {
+    const f = sdkFalso();
+    const p = new SdkScanProvider(ESCALA, f.crear, 'k');
+    await p.start({ duracionS: 60 }, () => undefined);
+    await p.liberar();
+    expect(f.llamadas.slice(-3)).toEqual(['modo:POSITIONING', 'stopMeasurement', 'deinitialize']);
+    await p.start({ duracionS: 60 }, () => undefined);
+    expect(f.args).toHaveLength(2);
+    expect(f.claves).toHaveLength(2);
+    await p.stop();
+  });
+
   it('si el SDK ignora el pedido de medir, lo repite cada 2 s hasta que arranca', async () => {
     const f = sdkFalso({ ignorarPedidos: 3 });
     const diag: DiagnosticoInicio[] = [];
@@ -450,5 +483,11 @@ describe('adaptador del SDK de escaneo', () => {
     await p.mountPreview({} as HTMLElement, { getVideoTracks: () => [original] } as unknown as MediaStream, () => undefined);
     expect(f.settings).toHaveLength(1);
     expect(f.llamadas.filter((l) => l === 'setMediaStream')).toHaveLength(2);
+    // Repetir la medición ("Probar de nuevo"): stop() soltó la cámara y start la recibe otra vez. Sin esto el SDK
+    // seguía con la pista anterior, ya terminada, y la medición fallaba al instante (SDK real, 2026-11-16).
+    await p.stop();
+    await p.start({ duracionS: 60, stream }, () => undefined);
+    expect(f.llamadas.filter((l) => l === 'setMediaStream')).toHaveLength(3);
+    await p.stop();
   });
 });
